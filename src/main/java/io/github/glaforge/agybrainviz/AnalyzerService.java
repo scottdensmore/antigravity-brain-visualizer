@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.github.glaforge.agybrainviz;
 
 import dev.langchain4j.service.SystemMessage;
@@ -7,15 +22,12 @@ import io.micronaut.langchain4j.annotation.AiService;
 
 @AiService
 public interface AnalyzerService {
-    @SystemMessage(
-        """
+    @SystemMessage("""
 			You are an expert at analyzing JSONL transcripts of Antigravity CLI sessions.
 			Your job is to extract the core insights, actions, issues, and actionable recommendations
 			(e.g. missing CLI tools, helpful skills to create, or AGENTS.md advice) into a structured format.
-			"""
-    )
-    @UserMessage(
-        """
+			""")
+    @UserMessage("""
 			Please analyze the following JSONL transcript of an Antigravity CLI session.
 
 			CRITICAL INSTRUCTIONS:
@@ -28,12 +40,10 @@ public interface AnalyzerService {
 
 			Transcript:
 			{{transcript}}
-			"""
-    )
+			""")
     AnalysisResponse analyze(@V("transcript") String transcript);
 
-    @UserMessage(
-        """
+    @UserMessage("""
 			Here is the structured analysis from the previous parts of the conversation:
 
 			{{previousAnalysis}}
@@ -51,15 +61,13 @@ public interface AnalyzerService {
 
 			New Transcript Chunk:
 			{{transcript}}
-			"""
-    )
+			""")
     AnalysisResponse refineAnalysis(
         @V("previousAnalysis") String previousAnalysis,
         @V("transcript") String transcript
     );
 
-    @UserMessage(
-        """
+    @UserMessage("""
 			Here is a list of partial structured analysis objects, each corresponding to a distinct segment of the same session:
 
 			{{combinedSummariesJson}}
@@ -72,7 +80,6 @@ public interface AnalyzerService {
 			- Your summary MUST BE SHORT. No more than 3 paragraphs.
 			- DO NOT output Base64 or raw logs.
 			- Output MUST be exclusively in English. No other languages are permitted.
-			"""
-    )
+			""")
     AnalysisResponse consolidateAnalysis(@V("combinedSummariesJson") String combinedSummariesJson);
 }

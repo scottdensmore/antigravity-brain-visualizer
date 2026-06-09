@@ -8,8 +8,6 @@ plugins {
 version = "0.1"
 group = "com.example"
 
-
-
 repositories {
     mavenCentral()
 }
@@ -38,8 +36,6 @@ dependencies {
     // Dependencies end here
 }
 
-
-
 application {
     mainClass = "io.github.glaforge.agybrainviz.Application"
 }
@@ -49,9 +45,6 @@ java {
     targetCompatibility = JavaVersion.toVersion("25")
 }
 
-
-
-
 graalvmNative.toolchainDetection = false
 graalvmNative {
     binaries {
@@ -60,9 +53,6 @@ graalvmNative {
         }
     }
 }
-
-
-
 
 micronaut {
     runtime("netty")
@@ -83,19 +73,11 @@ micronaut {
         optimizeNetty = true
         replaceLogbackXml = true
     }
-
 }
 
 tasks.named("dockerfile") {
-
     baseImage = "eclipse-temurin:25-jre"
 }
-
-
-
-
-
-
 
 // https://docs.gradle.org/current/userguide/upgrading_major_version_9.html#test_task_fails_when_no_tests_are_discovered
 tasks.withType(AbstractTestTask).configureEach {
@@ -105,10 +87,15 @@ tasks.withType(AbstractTestTask).configureEach {
 spotless {
     java {
         target 'src/main/java/**/*.java', 'src/test/java/**/*.java'
+        licenseHeaderFile 'spotless.license'
         prettier(['prettier': '2.8.8', 'prettier-plugin-java': '2.1.0']).config(['parser': 'java', 'tabWidth': 4, 'printWidth': 100])
+        replaceRegex 'pull-open-quotes-annotation', '\\(\\s+"""', '("""'
+        replaceRegex 'pull-open-quotes-assignment', '=\\s+"""', '= """'
+        replaceRegex 'pull-close-quotes-annotation', '"""\\n\\s*\\)', '""")'
     }
     format 'javascript', {
         target 'src/main/resources/public/**/*.js', 'src/main/resources/public/modules/**/*.js'
+        licenseHeaderFile 'spotless.license', '(import|export|const|let|var|function|class|document|\\$)'
         prettier()
     }
 }
