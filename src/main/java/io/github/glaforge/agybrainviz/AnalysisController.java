@@ -1,28 +1,33 @@
 package io.github.glaforge.agybrainviz;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.model.TokenCountEstimator;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.google.genai.GoogleGenAiTokenCountEstimator;
+import dev.langchain4j.service.AiServices;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
-import java.util.Optional;
-import java.util.Map;
-import java.util.Iterator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
+import jakarta.inject.Named;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import dev.langchain4j.model.TokenCountEstimator;
-import dev.langchain4j.model.google.genai.GoogleGenAiTokenCountEstimator;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Controller("/api/analysis")
 public class AnalysisController {
@@ -31,31 +36,43 @@ public class AnalysisController {
         if (flavor == null || flavor.isEmpty()) flavor = "antigravity-cli";
         return Paths.get(System.getProperty("user.home"), ".gemini", flavor, "brain");
     }
-    
+
     private static final int MAX_TOKENS_PER_CHUNK = 100_000;
     private static final Map<String, Integer> progressMap = new ConcurrentHashMap<>();
 
     @Get(value = "/conversations/{id}/progress", produces = "application/json")
-    public String getProgress(@PathVariable String id) {
+    public ProgressResponse getProgress(@PathVariable String id) {
         int progress = progressMap.getOrDefault(id, -1);
         if (progress == -2) {
-            return "{\"phase\": \"Estimating Tokens & Chunking...\", \"progress\": 5}";
+            return new ProgressResponse("Estimating Tokens & Chunking...", 5);
         } else if (progress >= 0) {
-            return "{\"phase\": \"Analyzing chunks...\", \"progress\": " + progress + "}";
+            return new ProgressResponse("Analyzing chunks...", progress);
         }
-        return "{\"phase\": \"\", \"progress\": -1}";
+        return new ProgressResponse("", -1);
     }
-    
+
+    @Serdeable
+    public record ProgressResponse(String phase, int progress) {}
+
     private final AnalyzerService analyzerService;
+    private final ExecutorService executor;
 
     @Inject
-    public AnalysisController(dev.langchain4j.model.chat.ChatModel chatModel) {
-        this.analyzerService = dev.langchain4j.service.AiServices.builder(AnalyzerService.class)
-            .chatModel(chatModel)
-            .build();
+    public AnalysisController(
+        ChatModel chatModel,
+        @Named(TaskExecutors.IO) ExecutorService executor
+    ) {
+        this.analyzerService =
+            AiServices.builder(AnalyzerService.class).chatModel(chatModel).build();
+        this.executor = executor;
     }
 
-    private void splitIntoSafeChunks(List<String> lines, TokenCountEstimator estimator, int maxTokens, List<List<String>> safeChunks) {
+    private void splitIntoSafeChunks(
+        List<String> lines,
+        TokenCountEstimator estimator,
+        int maxTokens,
+        List<List<String>> safeChunks
+    ) {
         if (lines.isEmpty()) return;
         String text = String.join("\n", lines);
         try {
@@ -65,7 +82,12 @@ public class AnalysisController {
             } else {
                 int mid = lines.size() / 2;
                 splitIntoSafeChunks(lines.subList(0, mid), estimator, maxTokens, safeChunks);
-                splitIntoSafeChunks(lines.subList(mid, lines.size()), estimator, maxTokens, safeChunks);
+                splitIntoSafeChunks(
+                    lines.subList(mid, lines.size()),
+                    estimator,
+                    maxTokens,
+                    safeChunks
+                );
             }
         } catch (Exception e) {
             int fallbackTokens = text.length() / 2;
@@ -74,28 +96,50 @@ public class AnalysisController {
             } else {
                 int mid = lines.size() / 2;
                 splitIntoSafeChunks(lines.subList(0, mid), estimator, maxTokens, safeChunks);
-                splitIntoSafeChunks(lines.subList(mid, lines.size()), estimator, maxTokens, safeChunks);
+                splitIntoSafeChunks(
+                    lines.subList(mid, lines.size()),
+                    estimator,
+                    maxTokens,
+                    safeChunks
+                );
             }
         }
     }
 
+    @ExecuteOn(TaskExecutors.IO)
     @Get(value = "/conversations/{id}/summarize", produces = "application/json")
-    public String summarizeConversation(@PathVariable String id, @QueryValue Optional<Boolean> force, @QueryValue Optional<String> flavor) throws IOException {
+    public String summarizeConversation(
+        @PathVariable String id,
+        @QueryValue Optional<Boolean> force,
+        @QueryValue Optional<String> flavor
+    ) throws IOException {
         String apiKey = System.getenv("GEMINI_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
             return "{\"summary\": \"Error: GEMINI_API_KEY environment variable is not set. Cannot use LangChain4j analysis.\"}";
         }
 
         Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
-        Path transcriptPath = brainPath.resolve(id).resolve(".system_generated").resolve("logs").resolve("transcript.jsonl");
+        Path transcriptPath = brainPath
+            .resolve(id)
+            .resolve(".system_generated")
+            .resolve("logs")
+            .resolve("transcript.jsonl");
         if (!Files.exists(transcriptPath)) {
             return "{\"summary\": \"No transcript found.\"}";
         }
-        
+
         boolean forceRecompute = force.orElse(false);
-        Path summaryJsonPath = brainPath.resolve(id).resolve(".system_generated").resolve("logs").resolve("summary.json");
-        Path shortTitlePath = brainPath.resolve(id).resolve(".system_generated").resolve("logs").resolve("short_title.txt");
-        
+        Path summaryJsonPath = brainPath
+            .resolve(id)
+            .resolve(".system_generated")
+            .resolve("logs")
+            .resolve("summary.json");
+        Path shortTitlePath = brainPath
+            .resolve(id)
+            .resolve(".system_generated")
+            .resolve("logs")
+            .resolve("short_title.txt");
+
         if (!forceRecompute && Files.exists(summaryJsonPath)) {
             String json = Files.readString(summaryJsonPath);
             return json;
@@ -106,80 +150,139 @@ public class AnalysisController {
 
         try {
             List<String> allLines = Files.readAllLines(transcriptPath);
-            List<String> sanitizedLines = new ArrayList<>();
+            List<List<String>> sequences = new ArrayList<>();
+            List<String> currentSequence = new ArrayList<>();
+
             for (String line : allLines) {
                 if (line.trim().isEmpty()) continue;
                 try {
                     JsonNode node = mapper.readTree(line);
                     String type = node.path("type").asText("");
-                    if ("USER_INPUT".equals(type) || "USER_EXPLICIT".equals(node.path("source").asText(""))) {
+                    if (
+                        "USER_INPUT".equals(type) ||
+                        "USER_EXPLICIT".equals(node.path("source").asText(""))
+                    ) {
+                        if (!currentSequence.isEmpty()) {
+                            sequences.add(deduplicateSequence(currentSequence));
+                            currentSequence = new ArrayList<>();
+                        }
                         String content = node.path("content").asText("");
-                        sanitizedLines.add("USER REQUEST: " + content.substring(0, Math.min(2000, content.length())));
-                    } else if ("PLANNER_RESPONSE".equals(type) || "MODEL".equals(node.path("source").asText(""))) {
+                        currentSequence.add(
+                            "USER REQUEST: " +
+                            content.substring(0, Math.min(2000, content.length()))
+                        );
+                    } else if (
+                        "PLANNER_RESPONSE".equals(type) ||
+                        "MODEL".equals(node.path("source").asText(""))
+                    ) {
                         JsonNode tools = node.path("tool_calls");
                         if (!tools.isMissingNode() && tools.isArray()) {
                             for (JsonNode tool : tools) {
                                 String name = tool.path("name").asText("unknown");
-                                String action = tool.path("arguments").path("toolAction").asText("");
+                                String action = tool
+                                    .path("arguments")
+                                    .path("toolAction")
+                                    .asText("");
                                 String tgt = tool.path("arguments").path("TargetFile").asText("");
-                                if (tgt.isEmpty()) tgt = tool.path("arguments").path("CommandLine").asText("");
-                                sanitizedLines.add("AGENT ACTION: [" + name + "] " + action + " -> " + tgt);
+                                if (tgt.isEmpty()) tgt =
+                                    tool.path("arguments").path("CommandLine").asText("");
+                                currentSequence.add(
+                                    "AGENT ACTION: [" + name + "] " + action + " -> " + tgt
+                                );
                             }
                         }
-                    } else if (node.has("error") || (node.has("content") && node.path("content").asText("").contains("Exception"))) {
+                    } else if (
+                        node.has("error") ||
+                        (
+                            node.has("content") &&
+                            node.path("content").asText("").contains("Exception")
+                        )
+                    ) {
                         String err = node.path("content").asText("");
-                        sanitizedLines.add("SYSTEM EVENT/ERROR: " + err.substring(0, Math.min(500, err.length())));
+                        currentSequence.add(
+                            "SYSTEM EVENT/ERROR: " + err.substring(0, Math.min(500, err.length()))
+                        );
                     }
                 } catch (Exception e) {
                     // skip malformed
                 }
             }
-            
-            TokenCountEstimator estimator = GoogleGenAiTokenCountEstimator.builder()
+            if (!currentSequence.isEmpty()) {
+                sequences.add(deduplicateSequence(currentSequence));
+            }
+
+            TokenCountEstimator estimator = GoogleGenAiTokenCountEstimator
+                .builder()
                 .apiKey(apiKey)
                 .modelName("gemini-3.5-flash")
                 .build();
-                
+
             progressMap.put(id, -2); // Phase 1: Estimating
-            List<List<String>> safeChunks = new ArrayList<>();
-            splitIntoSafeChunks(sanitizedLines, estimator, MAX_TOKENS_PER_CHUNK, safeChunks);
-            
-            int totalChunks = safeChunks.size();
-            int currentChunk = 0;
-            System.out.println("Total chunks to process: " + totalChunks);
-            
+
+            System.out.println("Total sequences to process in parallel: " + sequences.size());
+
             progressMap.put(id, 0); // start at 0%
-            
-            for (List<String> linesChunk : safeChunks) {
-                String chunk = String.join("\n", linesChunk);
-                int chunkTokens = estimator.estimateTokenCountInText(chunk);
-                System.out.println("Processing chunk " + (currentChunk + 1) + " of " + totalChunks + ". Chunk Token count: " + chunkTokens);
-                
-                if (responseObj == null) {
-                    responseObj = analyzerService.analyze(chunk);
-                    String outJson = mapper.writeValueAsString(responseObj);
-                    System.out.println("Output JSON token count: " + estimator.estimateTokenCountInText(outJson));
-                } else {
-                    String prevJson = mapper.writeValueAsString(responseObj);
-                    int prevTokens = estimator.estimateTokenCountInText(prevJson);
-                    System.out.println("Previous JSON token count: " + prevTokens);
-                    System.out.println("Total combined token count estimate (chunk + prev): " + (chunkTokens + prevTokens));
-                    responseObj = analyzerService.refineAnalysis(prevJson, chunk);
-                    String outJson = mapper.writeValueAsString(responseObj);
-                    System.out.println("Output JSON token count: " + estimator.estimateTokenCountInText(outJson));
-                }
-                
-                currentChunk++;
-                int pct = (int) Math.round((currentChunk * 100.0) / totalChunks);
-                progressMap.put(id, pct);
+
+            List<Future<AnalysisResponse>> futures = new ArrayList<>();
+            AtomicInteger completed = new AtomicInteger(0);
+
+            for (List<String> seq : sequences) {
+                futures.add(
+                    executor.submit(() -> {
+                        List<List<String>> safeChunks = new ArrayList<>();
+                        splitIntoSafeChunks(seq, estimator, MAX_TOKENS_PER_CHUNK, safeChunks);
+
+                        AnalysisResponse seqResponse = null;
+                        for (List<String> linesChunk : safeChunks) {
+                            String chunk = String.join("\n", linesChunk);
+                            if (seqResponse == null) {
+                                try {
+                                    seqResponse = analyzerService.analyze(chunk);
+                                } catch (Exception e) {
+                                    // Ignore unparseable chunk
+                                }
+                            } else {
+                                try {
+                                    String prevJson = mapper.writeValueAsString(seqResponse);
+                                    seqResponse = analyzerService.refineAnalysis(prevJson, chunk);
+                                } catch (Exception e) {
+                                    // Fallback
+                                }
+                            }
+                        }
+
+                        int comp = completed.incrementAndGet();
+                        int pct = (int) Math.round((comp * 100.0) / sequences.size());
+                        if (pct == 100) pct = 99; // Reserve 100 for consolidation
+                        final int finalPct = pct;
+                        progressMap.compute(
+                            id,
+                            (k, v) -> (v == null || finalPct > v) ? finalPct : v
+                        );
+
+                        return seqResponse;
+                    })
+                );
             }
-            
-            if (responseObj == null) {
+
+            List<AnalysisResponse> seqResponses = new ArrayList<>();
+            for (Future<AnalysisResponse> f : futures) {
+                AnalysisResponse r = f.get();
+                if (r != null) seqResponses.add(r);
+            }
+
+            if (seqResponses.isEmpty()) {
                 return "{\"summary\": \"No transcript lines found.\"}";
+            } else if (seqResponses.size() == 1) {
+                responseObj = seqResponses.get(0);
+            } else {
+                responseObj = recursivelyConsolidate(seqResponses, estimator, mapper, 500_000);
             }
-            
+
+            progressMap.put(id, 100);
+
             String jsonResponse = mapper.writeValueAsString(responseObj);
-            
+
             // Try to extract shortTitle for shortTitlePath caching
             try {
                 String title = responseObj.shortTitle();
@@ -187,7 +290,7 @@ public class AnalysisController {
                     Files.writeString(shortTitlePath, title.trim());
                 }
             } catch (Exception e) {}
-            
+
             try {
                 Files.writeString(summaryJsonPath, jsonResponse);
                 return jsonResponse;
@@ -198,7 +301,9 @@ public class AnalysisController {
             System.err.println("Exception caught during analysis:");
             e.printStackTrace();
             try {
-                return mapper.writeValueAsString(Map.of("summary", "Error generating summary: " + e.getMessage()));
+                return mapper.writeValueAsString(
+                    Map.of("summary", "Error generating summary: " + e.getMessage())
+                );
             } catch (Exception ex) {
                 return "{\"summary\": \"Error generating summary: Unknown error\"}";
             }
@@ -207,40 +312,58 @@ public class AnalysisController {
         }
     }
 
-    private void truncateLongStrings(JsonNode node) {
-        if (node.isObject()) {
-            ObjectNode obj = (ObjectNode) node;
-            Iterator<Map.Entry<String, JsonNode>> fields = obj.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
-                if (field.getValue().isTextual()) {
-                    String text = field.getValue().asText();
-                    if (text.length() > 1000) {
-                        obj.put(field.getKey(), text.substring(0, 1000) + "... [TRUNCATED]");
-                    }
-                } else {
-                    truncateLongStrings(field.getValue());
-                }
+    private AnalysisResponse recursivelyConsolidate(
+        List<AnalysisResponse> responses,
+        TokenCountEstimator estimator,
+        ObjectMapper mapper,
+        int maxTokens
+    ) throws Exception {
+        String json = mapper.writeValueAsString(responses);
+        try {
+            int tokens = estimator.estimateTokenCountInText(json);
+            if (tokens <= maxTokens) {
+                return analyzerService.consolidateAnalysis(json);
             }
-        } else if (node.isArray()) {
-            ArrayNode array = (ArrayNode) node;
-            if (array.size() > 20) {
-                while (array.size() > 20) {
-                    array.remove(array.size() - 1);
+        } catch (Exception e) {
+            // fallback
+        }
+
+        int mid = responses.size() / 2;
+        AnalysisResponse r1 = recursivelyConsolidate(
+            responses.subList(0, mid),
+            estimator,
+            mapper,
+            maxTokens
+        );
+        AnalysisResponse r2 = recursivelyConsolidate(
+            responses.subList(mid, responses.size()),
+            estimator,
+            mapper,
+            maxTokens
+        );
+        return analyzerService.consolidateAnalysis(mapper.writeValueAsString(List.of(r1, r2)));
+    }
+
+    private List<String> deduplicateSequence(List<String> sequence) {
+        if (sequence.isEmpty()) return sequence;
+        List<String> deduped = new ArrayList<>();
+        String lastLine = null;
+        int count = 0;
+        for (String line : sequence) {
+            if (line.equals(lastLine)) {
+                count++;
+            } else {
+                if (count > 1) {
+                    deduped.set(deduped.size() - 1, lastLine + " (repeated " + count + " times)");
                 }
-                array.add(array.textNode("... [TRUNCATED ARRAY]"));
-            }
-            for (int i = 0; i < array.size(); i++) {
-                JsonNode item = array.get(i);
-                if (item.isTextual()) {
-                    String text = item.asText();
-                    if (text.length() > 500) {
-                        array.set(i, array.textNode(text.substring(0, 500) + "... [TRUNCATED STRING]"));
-                    }
-                } else {
-                    truncateLongStrings(item);
-                }
+                deduped.add(line);
+                lastLine = line;
+                count = 1;
             }
         }
+        if (count > 1) {
+            deduped.set(deduped.size() - 1, lastLine + " (repeated " + count + " times)");
+        }
+        return deduped;
     }
 }

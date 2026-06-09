@@ -3,6 +3,6 @@ package io.github.glaforge.agybrainviz;
 import dev.langchain4j.model.output.structured.Description;
 
 public record Issue(
-    @Description("Error or exception encountered") String error,
-    @Description("How the agent fixed or circumvented it") String circumvention
+    @Description("Short summary of the error. MAX 1 SENTENCE. DO NOT REPEAT WORDS.") String error,
+    @Description("How it was fixed. MAX 1 SENTENCE. DO NOT REPEAT WORDS.") String circumvention
 ) {}
