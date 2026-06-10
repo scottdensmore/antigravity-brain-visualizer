@@ -44,17 +44,17 @@ jobs:
         if: runner.os == 'Windows'
         run: .\gradlew.bat nativeCompile
 
-      - name: Rename Artifact (macOS/Linux)
+      - name: Archive Artifact (macOS/Linux)
         if: runner.os != 'Windows'
-        run: mv ${{ matrix.artifact }} ${{ matrix.asset_name }}
+        run: zip -j ${{ matrix.asset_name }}.zip ${{ matrix.artifact }}
 
-      - name: Rename Artifact (Windows)
+      - name: Archive Artifact (Windows)
         if: runner.os == 'Windows'
-        run: Move-Item -Path ${{ matrix.artifact }} -Destination ${{ matrix.asset_name }}
+        run: Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.asset_name }}.zip
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset_name }}
+          files: ${{ matrix.asset_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

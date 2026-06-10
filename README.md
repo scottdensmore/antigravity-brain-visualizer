@@ -57,10 +57,11 @@ This project prioritizes a lightweight, high-performance, and maintainable archi
 The easiest way to install and use the Antigravity Brain Visualizer is to download the pre-compiled native executable for your operating system.
 
 1. Navigate to the [Releases](https://github.com/glaforge/antigravity-brain-visualizer/releases) section of this repository.
-2. Download the appropriate binary asset for your OS (macOS, Linux, or Windows).
-3. Make the file executable if necessary (e.g., `chmod +x agy-brain-viz-macos-arm64`).
-4. Run it directly from your terminal.
-5. Open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to view the interface.
+2. Download the appropriate `.zip` asset for your OS (macOS, Linux, or Windows).
+3. Unzip the downloaded file.
+4. Make the extracted file executable if necessary (e.g., `chmod +x agy-brain-viz-macos-arm64`).
+5. Run it directly from your terminal.
+6. Open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to view the interface.
 
 Alternatively, you can clone this repository and run or build it locally from source.
 
