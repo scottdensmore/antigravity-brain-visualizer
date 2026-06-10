@@ -6,7 +6,7 @@ plugins {
 }
 
 version = "0.1"
-group = "com.example"
+group = "io.github.glaforge.agybrainviz"
 
 repositories {
     mavenCentral()
