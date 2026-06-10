@@ -5,7 +5,20 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0"
 }
 
-version = "0.1.0"
+version = System.getenv("GITHUB_REF_NAME") ?: "0.1-SNAPSHOT"
+
+def generatedVersionDir = layout.buildDirectory.dir("generated/sources/version/java/main").get().asFile
+tasks.register("generateVersionClass") {
+    outputs.dir(generatedVersionDir)
+    doLast {
+        def packageDir = new File(generatedVersionDir, "io/github/glaforge/agybrainviz")
+        packageDir.mkdirs()
+        new File(packageDir, "Version.java").text = "package io.github.glaforge.agybrainviz;\npublic class Version {\n    public static final String VERSION = \"${project.version}\";\n}\n"
+    }
+}
+sourceSets.main.java.srcDir generatedVersionDir
+compileJava.dependsOn "generateVersionClass"
+
 group = "io.github.glaforge.agybrainviz"
 
 repositories {

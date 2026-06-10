@@ -24,6 +24,9 @@ public class Application {
             if ("-h".equals(arg) || "--help".equals(arg)) {
                 printHelp();
                 System.exit(0);
+            } else if ("-v".equals(arg) || "--version".equals(arg)) {
+                System.out.println("Antigravity Brain Visualizer version " + Version.VERSION);
+                System.exit(0);
             }
         }
         Micronaut.run(Application.class, args);
@@ -42,6 +45,7 @@ public class Application {
                 Options:
                   -Dmicronaut.server.port=<port>   Run on a custom port (default: 8080)
                   -h, --help                       Show this help message and exit
+                  -v, --version                    Print the version information and exit
 
                 Environment Variables:
                   GEMINI_API_KEY                   Required to generate transcript summaries
