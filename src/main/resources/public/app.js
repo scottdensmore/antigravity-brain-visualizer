@@ -137,12 +137,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const refreshBtn = document.getElementById("refresh-conversations-btn");
   if (refreshBtn) {
-    refreshBtn.addEventListener("click", loadConversations);
+    let refreshRot = 0;
+    refreshBtn.addEventListener("click", () => {
+      refreshRot += 180;
+      refreshBtn.querySelector(
+        "svg"
+      ).style.transform = `rotate(${refreshRot}deg)`;
+      loadConversations();
+    });
   }
 
   const sortBtn = document.getElementById("sort-conversations-btn");
   if (sortBtn) {
+    let sortRot = 0;
     sortBtn.addEventListener("click", () => {
+      sortRot += 180;
+      sortBtn.querySelector("svg").style.transform = `rotate(${sortRot}deg)`;
       sortDescending = !sortDescending;
       renderConversationsList();
     });
