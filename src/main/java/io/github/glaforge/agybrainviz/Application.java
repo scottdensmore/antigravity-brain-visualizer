@@ -20,6 +20,32 @@ import io.micronaut.runtime.Micronaut;
 public class Application {
 
     public static void main(String[] args) {
+        for (String arg : args) {
+            if ("-h".equals(arg) || "--help".equals(arg)) {
+                printHelp();
+                System.exit(0);
+            }
+        }
         Micronaut.run(Application.class, args);
+    }
+
+    private static void printHelp() {
+        System.out.println("""
+                Antigravity Brain Visualizer
+                ============================
+                A web interface for inspecting Antigravity AI agent execution transcripts.
+
+                Usage:
+                  export GEMINI_API_KEY="<your-key>"
+                  ./agy-brain-viz [options]
+
+                Options:
+                  -Dmicronaut.server.port=<port>   Run on a custom port (default: 8080)
+                  -h, --help                       Show this help message and exit
+
+                Environment Variables:
+                  GEMINI_API_KEY                   Required to generate transcript summaries
+                  MICRONAUT_SERVER_PORT            Overrides the default server port
+                """);
     }
 }

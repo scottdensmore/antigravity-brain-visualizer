@@ -49,6 +49,7 @@ graalvmNative.toolchainDetection = false
 graalvmNative {
     binaries {
         all {
+            imageName = "agy-brain-viz"
             buildArgs.add("-H:+SharedArenaSupport")
         }
     }

@@ -28,6 +28,49 @@ This project prioritizes a lightweight, high-performance, and maintainable archi
 - **AI Integration**: Powered by [LangChain4j](https://github.com/langchain4j/langchain4j) connecting directly to [Google Gemini models](https://docs.langchain4j.dev/integrations/language-models/google-genai/). It uses chunking and recursive consolidation to process large transcript files that exceed standard token limits.
 - **Frontend**: A zero-build Vanilla JavaScript, HTML, and CSS single-page application. It avoids heavy framework overhead, relying instead on standard browser DOM APIs, customized CSS grid/flexbox layouts, and minimal dependencies (`marked.js` and `highlight.js`) for efficient rendering and responsiveness.
 
+## Running the Application
+
+To run the application locally, you must provide your Gemini API key:
+
+```bash
+export GEMINI_API_KEY="your-api-key-here"
+./gradlew run
+```
+
+By default, the visualizer will be available at [http://localhost:8080](http://localhost:8080).
+
+### Customizing the Port
+
+If you need to run the application on a different port, you can override it using the `MICRONAUT_SERVER_PORT` environment variable:
+
+```bash
+export MICRONAUT_SERVER_PORT=9090
+export GEMINI_API_KEY="your-api-key-here"
+./gradlew run
+```
+
+*(If you are running the compiled native executable directly, you can also append `-Dmicronaut.server.port=9090` to the command).*
+
+## Building a Native Executable
+
+Because this project is built with Micronaut, you can compile it into a highly-optimized, standalone native executable using GraalVM. 
+
+1. Ensure you have [GraalVM](https://www.graalvm.org/) installed and set up as your active Java environment.
+2. Run the native compilation task:
+
+```bash
+./gradlew nativeCompile
+```
+
+This generates a native executable in the `build/native/nativeCompile/` directory. You can run it directly:
+
+```bash
+export GEMINI_API_KEY="your-api-key-here"
+./build/native/nativeCompile/agy-brain-viz
+```
+
+*(Note: Start-up times will be practically instantaneous compared to the standard JVM version).*
+
 ## License
 This project is licensed under the Apache 2.0 License. See the [LICENSE](../LICENSE) file for details.
 
