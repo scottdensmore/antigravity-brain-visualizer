@@ -25,6 +25,11 @@
                         <option value="antigravity">Antigravity Agent</option>
                     </select>
                 </div>
+                <div style="margin-top: 12px; padding: 0 24px; display: flex; gap: 8px;">
+                    <input type="text" id="conversation-search" placeholder="Search sessions..." style="flex: 1; padding: 6px 12px; border-radius: 6px; background: rgba(30, 41, 59, 0.5); color: var(--text-primary); border: 1px solid var(--border-color); outline: none; font-size: 0.85rem;" />
+                    <button id="refresh-conversations-btn" class="icon-btn" style="padding: 6px 8px; border-radius: 6px; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; font-size: 1.15rem; font-weight: bold; display: flex; align-items: center; justify-content: center;" title="Refresh Sessions">↻</button>
+                    <button id="sort-conversations-btn" class="icon-btn" style="padding: 6px 8px; border-radius: 6px; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; font-size: 1.15rem; font-weight: bold; display: flex; align-items: center; justify-content: center;" title="Sort Oldest/Newest">⇅</button>
+                </div>
             </div>
             <div class="conversations-list" id="conversations-list">
                 <!-- List dynamically populated -->

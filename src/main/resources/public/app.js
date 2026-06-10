@@ -19,6 +19,9 @@ import { renderStats } from "./modules/stats.js";
 import { triggerAnalysis } from "./modules/analysis.js";
 import { initUI } from "./modules/ui.js";
 
+let allConversations = [];
+let sortDescending = true;
+
 document.addEventListener("DOMContentLoaded", () => {
   initUI();
 
@@ -131,6 +134,24 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!sessionId) return;
       triggerAnalysis(sessionId, true);
     });
+
+  const refreshBtn = document.getElementById("refresh-conversations-btn");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", loadConversations);
+  }
+
+  const sortBtn = document.getElementById("sort-conversations-btn");
+  if (sortBtn) {
+    sortBtn.addEventListener("click", () => {
+      sortDescending = !sortDescending;
+      renderConversationsList();
+    });
+  }
+
+  const searchInput = document.getElementById("conversation-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", renderConversationsList);
+  }
 });
 
 async function loadConversations() {
@@ -140,47 +161,68 @@ async function loadConversations() {
   );
   try {
     const res = await fetch(`/api/brain/conversations?flavor=${flavor}`);
-    const conversations = await res.json();
-
-    list.innerHTML = "";
-    if (conversations.length === 0) {
-      list.innerHTML = '<div class="loading-state">No sessions found</div>';
-      return;
-    }
-
-    conversations.forEach((conv) => {
-      const div = document.createElement("div");
-      div.className = "conv-item";
-      div.dataset.id = conv.id;
-      div.innerHTML = `<div class="conv-id" title="${conv.id}">${escapeHtml(
-        conv.summary
-      )}</div>`;
-      list.appendChild(div);
-    });
-
-    // Event Delegation for conversation selection
-    if (!list.dataset.listenerAttached) {
-      list.addEventListener("click", (e) => {
-        const item = e.target.closest(".conv-item");
-        if (item && item.dataset.id) {
-          selectConversation(item.dataset.id, item);
-        }
-      });
-      list.dataset.listenerAttached = "true";
-    }
-
-    // Check if there's a session ID in the URL hash
-    const hashId = window.location.hash.substring(1);
-    const targetDiv = hashId
-      ? list.querySelector(`[data-id="${hashId}"]`)
-      : list.firstElementChild;
-
-    if (targetDiv) {
-      targetDiv.click();
-    }
+    allConversations = await res.json();
+    renderConversationsList();
   } catch (e) {
     list.innerHTML =
       '<div class="loading-state" style="padding:16px;">Error loading sessions. Is the backend running?</div>';
+  }
+}
+
+function renderConversationsList() {
+  const list = document.getElementById("conversations-list");
+  list.innerHTML = "";
+
+  let filtered = [...allConversations];
+  const searchTerm =
+    document.getElementById("conversation-search")?.value.toLowerCase() || "";
+
+  if (searchTerm) {
+    filtered = filtered.filter(
+      (c) =>
+        c.summary.toLowerCase().includes(searchTerm) ||
+        c.id.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  if (!sortDescending) {
+    filtered.reverse();
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="loading-state">No sessions found</div>';
+    return;
+  }
+
+  filtered.forEach((conv) => {
+    const div = document.createElement("div");
+    div.className = "conv-item";
+    div.dataset.id = conv.id;
+    div.innerHTML = `<div class="conv-id" title="${conv.id}">${escapeHtml(
+      conv.summary
+    )}</div>`;
+    list.appendChild(div);
+  });
+
+  // Event Delegation for conversation selection
+  if (!list.dataset.listenerAttached) {
+    list.addEventListener("click", (e) => {
+      const item = e.target.closest(".conv-item");
+      if (item && item.dataset.id) {
+        selectConversation(item.dataset.id, item);
+      }
+    });
+    list.dataset.listenerAttached = "true";
+  }
+
+  // Check if there's a session ID in the URL hash
+  const hashId = window.location.hash.substring(1);
+  const targetDiv = hashId
+    ? list.querySelector(`[data-id="${hashId}"]`)
+    : list.firstElementChild;
+
+  if (targetDiv) {
+    targetDiv.click();
   }
 }
 
