@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Antigravity Brain Visualizer Logo" width="800"/>
+</p>
+
 # Antigravity Brain Visualizer
 
 <p align="center">
@@ -65,7 +69,7 @@ The easiest way to install and use the Antigravity Brain Visualizer is to downlo
 
 Alternatively, you can clone this repository and run or build it locally from source.
 
-## Running the Application
+## Running the Application (from Sources)
 
 To run the application locally, you must provide your Gemini API key:
 
