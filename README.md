@@ -90,9 +90,9 @@ Pull a model and make sure Ollama is running (`ollama serve`), then start the ap
 `AI_PROVIDER=ollama`:
 
 ```bash
-ollama pull gemma3            # or any Gemma tag you prefer
+ollama pull gemma4            # or any Gemma tag you prefer
 export AI_PROVIDER=ollama
-export OLLAMA_MODEL=gemma3    # optional; defaults to gemma3
+export OLLAMA_MODEL=gemma4    # optional; defaults to gemma4
 ./gradlew run
 ```
 
@@ -106,7 +106,7 @@ No `GEMINI_API_KEY` is needed in this mode.
 | `GEMINI_API_KEY`  | gemini     | _(required for gemini)_  | Google Gemini API key                        |
 | `GEMINI_MODEL`    | gemini     | `gemini-3.5-flash`       | Gemini model name                            |
 | `OLLAMA_BASE_URL` | ollama     | `http://localhost:11434` | Ollama server URL                            |
-| `OLLAMA_MODEL`    | ollama     | `gemma3`                 | Local model tag to use                       |
+| `OLLAMA_MODEL`    | ollama     | `gemma4`                 | Local model tag to use                       |
 
 Once the server starts, open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to interact with the visualizer.
 

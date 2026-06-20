@@ -62,9 +62,9 @@ class AiConfigTest {
     @Test
     void appliesDefaultModelsAndUrlsWhenBlank() {
         AiConfig c = new AiConfig("ollama", "", "", "", "");
-        assertEquals(AiConfig.DEFAULT_GEMINI_MODEL, c.geminiModel());
-        assertEquals(AiConfig.DEFAULT_OLLAMA_BASE_URL, c.ollamaBaseUrl());
-        assertEquals(AiConfig.DEFAULT_OLLAMA_MODEL, c.ollamaModel());
+        assertEquals("gemini-3.5-flash", c.geminiModel());
+        assertEquals("http://localhost:11434", c.ollamaBaseUrl());
+        assertEquals("gemma4", c.ollamaModel());
     }
 
     @Test
@@ -74,11 +74,11 @@ class AiConfigTest {
             "",
             "gemini-custom",
             "http://remote:9999",
-            "gemma3:27b"
+            "gemma4:31b"
         );
         assertEquals("gemini-custom", c.geminiModel());
         assertEquals("http://remote:9999", c.ollamaBaseUrl());
-        assertEquals("gemma3:27b", c.ollamaModel());
+        assertEquals("gemma4:31b", c.ollamaModel());
     }
 
     @Test
