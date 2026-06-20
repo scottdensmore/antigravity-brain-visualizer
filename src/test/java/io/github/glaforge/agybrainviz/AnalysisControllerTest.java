@@ -208,6 +208,12 @@ class AnalysisControllerTest {
         Files.writeString(file, content);
     }
 
+    private void writeClaudeCodeSession(String relPath, String content) throws IOException {
+        Path file = tempHome.resolve(".claude").resolve("projects").resolve(relPath);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+    }
+
     // ----- progress endpoint -----
 
     @Test
@@ -276,6 +282,28 @@ class AnalysisControllerTest {
     void codexSummarizeReturnsNoTranscriptForUnknownId() throws IOException {
         String body = get("/api/analysis/conversations/unknown-codex/summarize?flavor=codex");
         assertEquals("No transcript found.", MAPPER.readTree(body).get("summary").asText());
+    }
+
+    // ----- claude-code source analysis -----
+
+    @Test
+    void summarizesClaudeCodeSessionAndCachesResult() throws IOException {
+        String id = "12121212-3434-5656-7878-909090909090";
+        writeClaudeCodeSession(
+            "-Users-me-proj/" + id + ".jsonl",
+            "{\"type\":\"user\",\"timestamp\":\"t\",\"message\":{\"role\":\"user\",\"content\":\"do it\"}}\n" +
+            "{\"type\":\"assistant\",\"timestamp\":\"t\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"u1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}\n"
+        );
+
+        String body = get(
+            "/api/analysis/conversations/" + id + "/summarize?flavor=claude-code&force=true"
+        );
+        assertEquals("chunk summary", MAPPER.readTree(body).get("summary").asText());
+        assertEquals(1, ANALYZE_CALLS.size());
+
+        String again = get("/api/analysis/conversations/" + id + "/summarize?flavor=claude-code");
+        assertEquals("Chunk Title", MAPPER.readTree(again).get("shortTitle").asText());
+        assertEquals(1, ANALYZE_CALLS.size());
     }
 
     @Test

@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,31 +27,30 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Reads OpenAI Codex CLI sessions from {@code ~/.codex/sessions} and exposes them through the same
- * shape {@link BrainController} uses for Antigravity transcripts, so the existing frontend can render
- * them. Codex rollout files are converted to the timeline-step schema by {@link CodexAdapter}.
+ * Reads Claude Code sessions from {@code ~/.claude/projects/<dir>/<uuid>.jsonl} and exposes them
+ * through {@link SessionSource}, so the existing frontend and analysis pipeline can render and
+ * summarize them. Rollout lines are converted by {@link ClaudeCodeAdapter}.
  */
 @Singleton
-public class CodexSessionReader implements SessionSource {
+public class ClaudeCodeSessionReader implements SessionSource {
 
-    /** The flavor selector value the frontend sends for Codex sessions. */
-    public static final String FLAVOR = "codex";
+    /** The flavor selector value the frontend sends for Claude Code sessions. */
+    public static final String FLAVOR = "claude-code";
+
+    private static final int SUMMARY_SCAN_LINES = 256;
 
     @Override
     public boolean handles(String flavor) {
         return FLAVOR.equals(flavor);
     }
 
-    private Path sessionsDir() {
-        return Paths.get(System.getProperty("user.home"), ".codex", "sessions");
+    private Path projectsDir() {
+        return Paths.get(System.getProperty("user.home"), ".claude", "projects");
     }
 
-    /**
-     * @return one entry per Codex session ({@code id}, {@code summary}, {@code updatedAt}), newest
-     *     first. Empty when no Codex sessions exist.
-     */
+    @Override
     public List<Map<String, String>> listConversations() {
-        Path root = sessionsDir();
+        Path root = projectsDir();
         if (!Files.isDirectory(root)) return List.of();
 
         try (Stream<Path> paths = Files.walk(root)) {
@@ -74,11 +72,6 @@ public class CodexSessionReader implements SessionSource {
         }
     }
 
-    // Cap how many lines we scan per file when deriving a title for the list view. The clean user
-    // prompt is always near the top, so this avoids loading entire (possibly multi-MB) rollouts into
-    // memory just to populate the sidebar.
-    private static final int SUMMARY_SCAN_LINES = 256;
-
     private Map<String, String> describe(Path file) {
         try {
             String id = stripExtension(file.getFileName().toString());
@@ -86,9 +79,9 @@ public class CodexSessionReader implements SessionSource {
             try (Stream<String> lines = Files.lines(file)) {
                 head = lines.limit(SUMMARY_SCAN_LINES).toList();
             }
-            String summary = CodexAdapter
+            String summary = ClaudeCodeAdapter
                 .deriveSummary(head)
-                .orElse("Codex session " + id.substring(0, Math.min(8, id.length())));
+                .orElse("Claude Code session " + id.substring(0, Math.min(8, id.length())));
             long modified = Files.getLastModifiedTime(file).toMillis();
 
             Map<String, String> info = new HashMap<>();
@@ -101,37 +94,29 @@ public class CodexSessionReader implements SessionSource {
         }
     }
 
-    /**
-     * @param id the session id (the rollout filename without its {@code .jsonl} extension)
-     * @return the session's timeline as a JSON array string, or {@code "[]"} if not found
-     */
+    @Override
     public String transcriptJson(String id) throws IOException {
         Path file = findById(id);
         if (file == null) return "[]";
-        return CodexAdapter.toTranscriptJson(Files.readAllLines(file));
+        return ClaudeCodeAdapter.toTranscriptJson(Files.readAllLines(file));
     }
 
-    /**
-     * @return whether a Codex session with this id exists.
-     */
+    @Override
     public boolean sessionExists(String id) throws IOException {
         return findById(id) != null;
     }
 
-    /**
-     * @return the condensed analysis input for a session (one list of lines per sequence), or empty
-     *     when the session is not found.
-     */
+    @Override
     public List<List<String>> analysisSequences(String id) throws IOException {
         Path file = findById(id);
         if (file == null) return List.of();
-        return CodexAdapter.toAnalysisSequences(Files.readAllLines(file));
+        return ClaudeCodeAdapter.toAnalysisSequences(Files.readAllLines(file));
     }
 
-    // Analysis summaries are cached in a tool-owned hidden directory under ~/.codex/sessions so we
-    // never write alongside (or into) the files Codex itself manages.
+    // Summaries are cached in a tool-owned hidden directory under ~/.claude/projects so we never
+    // write alongside the files Claude Code itself manages.
     private SummaryCache cache() {
-        return new SummaryCache(sessionsDir().resolve(".agybrainviz"));
+        return new SummaryCache(projectsDir().resolve(".agybrainviz"));
     }
 
     @Override
@@ -152,7 +137,7 @@ public class CodexSessionReader implements SessionSource {
     // Locate a session by matching its id against actual filenames (never build a path from the id,
     // which would allow traversal).
     private Path findById(String id) throws IOException {
-        Path root = sessionsDir();
+        Path root = projectsDir();
         if (!Files.isDirectory(root)) return null;
         try (Stream<Path> paths = Files.walk(root)) {
             return paths

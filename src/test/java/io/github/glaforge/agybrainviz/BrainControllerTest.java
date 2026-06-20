@@ -95,10 +95,23 @@ class BrainControllerTest {
         Files.writeString(file, content);
     }
 
-    // All Codex sessions share one ~/.codex/sessions tree (unlike the per-flavor Antigravity dirs),
+    private void writeClaudeCodeSession(String relPath, String content) throws IOException {
+        Path file = tempHome.resolve(".claude").resolve("projects").resolve(relPath);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+    }
+
+    // Codex and Claude Code sessions each share one tree (unlike the per-flavor Antigravity dirs),
     // so list-count assertions must start from a clean slate.
     private void resetCodexSessions() throws IOException {
-        Path dir = tempHome.resolve(".codex").resolve("sessions");
+        deleteTree(tempHome.resolve(".codex").resolve("sessions"));
+    }
+
+    private void resetClaudeCodeSessions() throws IOException {
+        deleteTree(tempHome.resolve(".claude").resolve("projects"));
+    }
+
+    private void deleteTree(Path dir) throws IOException {
         if (!Files.exists(dir)) return;
         try (Stream<Path> paths = Files.walk(dir)) {
             paths
@@ -303,6 +316,46 @@ class BrainControllerTest {
         assertEquals("newest", arr.get(0).get("summary").asText());
         // The malformed one still lists, with a generated fallback title.
         assertTrue(arr.get(1).get("summary").asText().startsWith("Codex session"));
+    }
+
+    // ----- claude-code flavor -----
+
+    @Test
+    void listsClaudeCodeSessionsWithSummaryFromUserPrompt() throws IOException {
+        resetClaudeCodeSessions();
+        writeClaudeCodeSession(
+            "-Users-me-proj/11111111-2222-3333-4444-555555555555.jsonl",
+            "{\"type\":\"user\",\"timestamp\":\"2026-06-07T00:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"Refactor the parser\"}}\n"
+        );
+
+        JsonNode arr = MAPPER.readTree(get("/api/brain/conversations?flavor=claude-code"));
+        assertEquals(1, arr.size());
+        assertEquals("11111111-2222-3333-4444-555555555555", arr.get(0).get("id").asText());
+        assertEquals("Refactor the parser", arr.get(0).get("summary").asText());
+    }
+
+    @Test
+    void claudeCodeTranscriptIsAdaptedToTheStepSchema() throws IOException {
+        resetClaudeCodeSessions();
+        String id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        writeClaudeCodeSession(
+            "-Users-me-proj/" + id + ".jsonl",
+            "{\"type\":\"user\",\"timestamp\":\"t\",\"message\":{\"role\":\"user\",\"content\":\"hi\"}}\n" +
+            "{\"type\":\"assistant\",\"timestamp\":\"t\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"u1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}\n"
+        );
+
+        JsonNode arr = MAPPER.readTree(
+            get("/api/brain/conversations/" + id + "/transcript?flavor=claude-code")
+        );
+        assertEquals(2, arr.size());
+        assertEquals("USER_INPUT", arr.get(0).get("type").asText());
+        assertEquals("Bash", arr.get(1).get("tool_calls").get(0).get("name").asText());
+    }
+
+    @Test
+    void claudeCodeTranscriptReturnsEmptyArrayForUnknownId() {
+        String body = get("/api/brain/conversations/no-such-cc-id/transcript?flavor=claude-code");
+        assertEquals("[]", body.trim());
     }
 
     // ----- getFileContent -----

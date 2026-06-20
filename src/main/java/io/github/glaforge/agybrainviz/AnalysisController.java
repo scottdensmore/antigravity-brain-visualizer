@@ -71,7 +71,7 @@ public class AnalysisController {
     private final ExecutorService executor;
     private final AiConfig aiConfig;
     private final TokenCounter tokenCounter;
-    private final CodexSessionReader codexReader;
+    private final List<SessionSource> sessionSources;
 
     @Inject
     public AnalysisController(
@@ -79,13 +79,17 @@ public class AnalysisController {
         @Named(TaskExecutors.IO) ExecutorService executor,
         AiConfig aiConfig,
         TokenCounter tokenCounter,
-        CodexSessionReader codexReader
+        List<SessionSource> sessionSources
     ) {
         this.analyzerService = analyzerService;
         this.executor = executor;
         this.aiConfig = aiConfig;
         this.tokenCounter = tokenCounter;
-        this.codexReader = codexReader;
+        this.sessionSources = sessionSources;
+    }
+
+    private Optional<SessionSource> sourceFor(String flavor) {
+        return sessionSources.stream().filter(s -> s.handles(flavor)).findFirst();
     }
 
     private static final Map<String, Object> runningTasks = new ConcurrentHashMap<>();
@@ -108,29 +112,33 @@ public class AnalysisController {
         }
 
         try {
-            boolean codex = CodexSessionReader.FLAVOR.equals(flavor.orElse(""));
+            Optional<SessionSource> source = sourceFor(flavor.orElse(""));
+            boolean external = source.isPresent();
             boolean forceRecompute = force.orElse(false);
 
-            // Antigravity caches the summary inside the agent's own brain dir; Codex caches via the
-            // CodexSessionReader. Antigravity paths are resolved up front; for Codex they stay null.
-            Path logsDir = codex
+            // Antigravity caches the summary inside the agent's own brain dir; external sources
+            // (Codex, Claude Code) cache via their SessionSource. Antigravity paths are resolved up
+            // front; for external sources they stay null.
+            Path logsDir = external
                 ? null
                 : getBrainPath(flavor.orElse("antigravity-cli"))
                     .resolve(id)
                     .resolve(".system_generated")
                     .resolve("logs");
-            Path transcriptPath = codex ? null : logsDir.resolve("transcript.jsonl");
-            Path summaryJsonPath = codex ? null : logsDir.resolve("summary.json");
-            Path shortTitlePath = codex ? null : logsDir.resolve("short_title.txt");
+            Path transcriptPath = external ? null : logsDir.resolve("transcript.jsonl");
+            Path summaryJsonPath = external ? null : logsDir.resolve("summary.json");
+            Path shortTitlePath = external ? null : logsDir.resolve("short_title.txt");
 
-            boolean exists = codex ? codexReader.sessionExists(id) : Files.exists(transcriptPath);
+            boolean exists = external
+                ? source.get().sessionExists(id)
+                : Files.exists(transcriptPath);
             if (!exists) {
                 return "{\"summary\": \"No transcript found.\"}";
             }
 
             if (!forceRecompute) {
-                Optional<String> cached = codex
-                    ? codexReader.cachedSummary(id)
+                Optional<String> cached = external
+                    ? source.get().cachedSummary(id)
                     : (
                         Files.exists(summaryJsonPath)
                             ? Optional.of(Files.readString(summaryJsonPath))
@@ -139,8 +147,8 @@ public class AnalysisController {
                 if (cached.isPresent()) {
                     return cached.get();
                 }
-            } else if (codex) {
-                codexReader.deleteCache(id);
+            } else if (external) {
+                source.get().deleteCache(id);
             } else {
                 Files.deleteIfExists(summaryJsonPath);
             }
@@ -149,8 +157,8 @@ public class AnalysisController {
             AnalysisResponse responseObj = null;
 
             try {
-                List<List<String>> sequences = codex
-                    ? codexReader.analysisSequences(id)
+                List<List<String>> sequences = external
+                    ? source.get().analysisSequences(id)
                     : TranscriptParser.parseSequences(Files.readAllLines(transcriptPath));
 
                 ToIntFunction<String> tokenFn = tokenCounter::estimate;
@@ -282,8 +290,8 @@ public class AnalysisController {
 
                 String title = responseObj.shortTitle();
                 try {
-                    if (codex) {
-                        codexReader.writeCache(id, jsonResponse, title);
+                    if (external) {
+                        source.get().writeCache(id, jsonResponse, title);
                     } else {
                         // The short title is best-effort; a failure here must not block caching or
                         // returning the summary.

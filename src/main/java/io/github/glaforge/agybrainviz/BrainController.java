@@ -39,11 +39,15 @@ import java.util.stream.Stream;
 @Controller("/api/brain")
 public class BrainController {
 
-    private final CodexSessionReader codexReader;
+    private final List<SessionSource> sessionSources;
 
     @Inject
-    public BrainController(CodexSessionReader codexReader) {
-        this.codexReader = codexReader;
+    public BrainController(List<SessionSource> sessionSources) {
+        this.sessionSources = sessionSources;
+    }
+
+    private Optional<SessionSource> sourceFor(String flavor) {
+        return sessionSources.stream().filter(s -> s.handles(flavor)).findFirst();
     }
 
     private Path getBrainPath(String flavor) {
@@ -54,8 +58,9 @@ public class BrainController {
     @ExecuteOn(TaskExecutors.IO)
     @Get("/conversations")
     public List<Map<String, String>> listConversations(@QueryValue Optional<String> flavor) {
-        if (CodexSessionReader.FLAVOR.equals(flavor.orElse(""))) {
-            return codexReader.listConversations();
+        Optional<SessionSource> source = sourceFor(flavor.orElse(""));
+        if (source.isPresent()) {
+            return source.get().listConversations();
         }
         Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
         if (!Files.exists(brainPath)) return List.of();
@@ -145,8 +150,9 @@ public class BrainController {
     @Get(value = "/conversations/{id}/transcript", produces = "application/json")
     public String getTranscript(@PathVariable String id, @QueryValue Optional<String> flavor)
         throws IOException {
-        if (CodexSessionReader.FLAVOR.equals(flavor.orElse(""))) {
-            return codexReader.transcriptJson(id);
+        Optional<SessionSource> source = sourceFor(flavor.orElse(""));
+        if (source.isPresent()) {
+            return source.get().transcriptJson(id);
         }
         Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
         Path transcriptPath = brainPath

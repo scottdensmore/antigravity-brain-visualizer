@@ -222,5 +222,62 @@ export function seedFixtures(home) {
     })
   );
 
+  // ---- Claude Code sessions (flavor: claude-code) ----
+  const ccId = "cc111111-2222-3333-4444-555555555555";
+  const ccFile = path.join(
+    gemini,
+    "..",
+    ".claude",
+    "projects",
+    "-Users-me-proj",
+    ccId + ".jsonl"
+  );
+  fs.mkdirSync(path.dirname(ccFile), { recursive: true });
+  fs.writeFileSync(
+    ccFile,
+    jsonl([
+      { type: "summary", summary: "Implement login flow", leafUuid: "x" },
+      {
+        type: "user",
+        timestamp: "2026-06-19T15:00:00.000Z",
+        message: { role: "user", content: "Implement login flow" },
+      },
+      {
+        type: "assistant",
+        timestamp: "2026-06-19T15:00:02.000Z",
+        message: {
+          role: "assistant",
+          content: [
+            { type: "text", text: "Reading the auth module." },
+            { type: "tool_use", id: "u1", name: "Read", input: { file_path: "Auth.swift" } },
+          ],
+        },
+      },
+      {
+        type: "user",
+        timestamp: "2026-06-19T15:00:03.000Z",
+        message: {
+          role: "user",
+          content: [
+            { type: "tool_result", tool_use_id: "u1", content: "class Auth {}", is_error: false },
+          ],
+        },
+      },
+    ])
+  );
+  const ccCacheDir = path.join(gemini, "..", ".claude", "projects", ".agybrainviz");
+  fs.mkdirSync(ccCacheDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(ccCacheDir, ccId + ".summary.json"),
+    JSON.stringify({
+      shortTitle: "Login flow",
+      summary: "The agent implemented a login flow by reading and editing the auth module.",
+      flow: ["Read the auth module"],
+      agentActions: [{ action: "read", description: "Read Auth.swift" }],
+      issues: [],
+      recommendations: [],
+    })
+  );
+
   return { home, configPath };
 }
