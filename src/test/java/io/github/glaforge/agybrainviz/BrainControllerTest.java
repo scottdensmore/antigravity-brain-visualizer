@@ -30,6 +30,8 @@ import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -85,6 +87,28 @@ class BrainControllerTest {
 
     private String get(String uri) {
         return client.toBlocking().retrieve(uri);
+    }
+
+    private void writeCodexSession(String relPath, String content) throws IOException {
+        Path file = tempHome.resolve(".codex").resolve("sessions").resolve(relPath);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+    }
+
+    // All Codex sessions share one ~/.codex/sessions tree (unlike the per-flavor Antigravity dirs),
+    // so list-count assertions must start from a clean slate.
+    private void resetCodexSessions() throws IOException {
+        Path dir = tempHome.resolve(".codex").resolve("sessions");
+        if (!Files.exists(dir)) return;
+        try (Stream<Path> paths = Files.walk(dir)) {
+            paths
+                .sorted(Comparator.reverseOrder())
+                .forEach(p -> {
+                    try {
+                        Files.delete(p);
+                    } catch (IOException ignored) {}
+                });
+        }
     }
 
     // ----- listConversations -----
@@ -214,6 +238,71 @@ class BrainControllerTest {
         String body = get("/api/brain/conversations/conv-2/transcript?flavor=" + flavor);
         JsonNode arr = MAPPER.readTree(body);
         assertEquals("full", arr.get(0).get("which").asText());
+    }
+
+    // ----- codex flavor -----
+
+    @Test
+    void listsCodexSessionsWithSummaryFromUserMessage() throws IOException {
+        resetCodexSessions();
+        writeCodexSession(
+            "2026/06/20/rollout-2026-06-20T12-00-00-codexsession1.jsonl",
+            "{\"type\":\"event_msg\",\"timestamp\":\"2026-06-20T12:00:00Z\",\"payload\":{\"type\":\"user_message\",\"message\":\"Refactor the parser\"}}\n"
+        );
+
+        String body = get("/api/brain/conversations?flavor=codex");
+        JsonNode arr = MAPPER.readTree(body);
+        assertEquals(1, arr.size());
+        assertEquals("rollout-2026-06-20T12-00-00-codexsession1", arr.get(0).get("id").asText());
+        assertEquals("Refactor the parser", arr.get(0).get("summary").asText());
+    }
+
+    @Test
+    void codexTranscriptIsAdaptedToTheStepSchema() throws IOException {
+        String id = "rollout-2026-06-20T13-00-00-codexsession2";
+        writeCodexSession(
+            "2026/06/20/" + id + ".jsonl",
+            "{\"type\":\"response_item\",\"timestamp\":\"2026-06-20T13:00:00Z\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}}\n" +
+            "{\"type\":\"response_item\",\"timestamp\":\"2026-06-20T13:00:01Z\",\"payload\":{\"type\":\"function_call\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"ls\\\"}\",\"call_id\":\"c1\"}}\n"
+        );
+
+        String body = get("/api/brain/conversations/" + id + "/transcript?flavor=codex");
+        JsonNode arr = MAPPER.readTree(body);
+        assertEquals(2, arr.size());
+        assertEquals("USER_INPUT", arr.get(0).get("type").asText());
+        assertEquals("exec_command", arr.get(1).get("tool_calls").get(0).get("name").asText());
+    }
+
+    @Test
+    void codexTranscriptReturnsEmptyArrayForUnknownId() {
+        String body = get("/api/brain/conversations/no-such-codex-id/transcript?flavor=codex");
+        assertEquals("[]", body.trim());
+    }
+
+    @Test
+    void codexSessionsSortNewestFirstAndFallBackToDefaultTitle() throws IOException {
+        resetCodexSessions();
+        // A malformed rollout (no parseable user message) falls back to a generated title.
+        writeCodexSession("2026/06/19/rollout-older-codexolder.jsonl", "not valid json\n");
+        writeCodexSession(
+            "2026/06/20/rollout-newer-codexnewer.jsonl",
+            "{\"type\":\"event_msg\",\"timestamp\":\"t\",\"payload\":{\"type\":\"user_message\",\"message\":\"newest\"}}\n"
+        );
+        Path newer = tempHome
+            .resolve(".codex")
+            .resolve("sessions")
+            .resolve("2026/06/20/rollout-newer-codexnewer.jsonl");
+        Files.setLastModifiedTime(
+            newer,
+            java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() + 60_000)
+        );
+
+        JsonNode arr = MAPPER.readTree(get("/api/brain/conversations?flavor=codex"));
+        assertEquals(2, arr.size());
+        assertEquals("rollout-newer-codexnewer", arr.get(0).get("id").asText());
+        assertEquals("newest", arr.get(0).get("summary").asText());
+        // The malformed one still lists, with a generated fallback title.
+        assertTrue(arr.get(1).get("summary").asText().startsWith("Codex session"));
     }
 
     // ----- getFileContent -----

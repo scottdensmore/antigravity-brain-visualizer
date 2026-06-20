@@ -141,5 +141,70 @@ export function seedFixtures(home) {
     },
   });
 
+  // ---- OpenAI Codex sessions (flavor: codex) ----
+  const codexFile = path.join(
+    gemini,
+    "..",
+    ".codex",
+    "sessions",
+    "2026",
+    "06",
+    "20",
+    "rollout-2026-06-20T14-00-00-codexsession.jsonl"
+  );
+  fs.mkdirSync(path.dirname(codexFile), { recursive: true });
+  fs.writeFileSync(
+    codexFile,
+    jsonl([
+      {
+        type: "session_meta",
+        timestamp: "2026-06-20T14:00:00.000Z",
+        payload: { id: "codexsession", cwd: "/repo" },
+      },
+      {
+        type: "event_msg",
+        timestamp: "2026-06-20T14:00:00.100Z",
+        payload: { type: "user_message", message: "Investigate the flaky test" },
+      },
+      {
+        type: "response_item",
+        timestamp: "2026-06-20T14:00:00.100Z",
+        payload: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "Investigate the flaky test" }],
+        },
+      },
+      {
+        type: "response_item",
+        timestamp: "2026-06-20T14:00:02.000Z",
+        payload: {
+          type: "message",
+          role: "assistant",
+          content: [{ type: "output_text", text: "Running the test suite to reproduce." }],
+        },
+      },
+      {
+        type: "response_item",
+        timestamp: "2026-06-20T14:00:03.000Z",
+        payload: {
+          type: "function_call",
+          name: "exec_command",
+          arguments: JSON.stringify({ cmd: "npm test" }),
+          call_id: "call_codex_1",
+        },
+      },
+      {
+        type: "response_item",
+        timestamp: "2026-06-20T14:00:05.000Z",
+        payload: {
+          type: "function_call_output",
+          call_id: "call_codex_1",
+          output: "Process exited with code 0\nOutput:\nAll tests passed",
+        },
+      },
+    ])
+  );
+
   return { home, configPath };
 }
