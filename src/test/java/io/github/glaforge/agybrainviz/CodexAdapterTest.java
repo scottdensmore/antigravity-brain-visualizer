@@ -161,6 +161,37 @@ class CodexAdapterTest {
     }
 
     @Test
+    void buildsAnalysisSequencesGroupedByUserInput() {
+        List<List<String>> seqs = CodexAdapter.toAnalysisSequences(
+            List.of(
+                USER_MSG,
+                ASSISTANT_MSG,
+                FUNCTION_CALL,
+                FUNCTION_OUTPUT_OK,
+                FUNCTION_OUTPUT_FAIL
+            )
+        );
+        assertEquals(1, seqs.size());
+        List<String> lines = seqs.get(0);
+        assertTrue(lines.get(0).startsWith("USER REQUEST: Fix the bug"));
+        assertTrue(lines.get(1).startsWith("ASSISTANT: On it."));
+        assertEquals("AGENT ACTION: [exec_command] git status", lines.get(2));
+        // Successful output is omitted; the failed one becomes a SYSTEM EVENT/ERROR line.
+        assertTrue(lines.stream().anyMatch(l -> l.startsWith("SYSTEM EVENT/ERROR:")));
+        assertFalse(lines.stream().anyMatch(l -> l.contains("clean")));
+    }
+
+    @Test
+    void analysisSequencesSplitOnEachUserInput() {
+        String secondUser =
+            "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"again\"}]}}";
+        List<List<String>> seqs = CodexAdapter.toAnalysisSequences(
+            List.of(USER_MSG, ASSISTANT_MSG, secondUser)
+        );
+        assertEquals(2, seqs.size());
+    }
+
+    @Test
     void producesValidJsonArray() throws Exception {
         JsonNode arr = MAPPER.readTree(
             CodexAdapter.toTranscriptJson(List.of(USER_MSG, FUNCTION_CALL))
