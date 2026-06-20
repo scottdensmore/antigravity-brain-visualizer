@@ -85,6 +85,26 @@ describe("triggerAnalysis", () => {
     expect(html).toContain("UNRESOLVED");
   });
 
+  it("does not clobber the view when a newer session selection supersedes the request", async () => {
+    let resolveSummarize;
+    global.fetch = vi.fn((url) =>
+      url.includes("/progress")
+        ? Promise.resolve({ ok: true, json: () => Promise.resolve({ progress: 100, phase: "x" }) })
+        : new Promise((resolve) => {
+            resolveSummarize = () =>
+              resolve({ ok: true, json: () => Promise.resolve({ summary: "stale result" }) });
+          })
+    );
+
+    const pending = triggerAnalysis("old-session", true);
+    // The user selects a different session before the first request resolves.
+    state.currentPollSessionId = "new-session";
+    resolveSummarize();
+    await pending;
+
+    expect(document.getElementById("ai-summary-text").innerHTML).not.toContain("stale result");
+  });
+
   it("renders from cache without fetching when not forced", async () => {
     global.fetch = vi.fn();
     state.summaryCache["cached-session"] = "<p>cached content</p>";
