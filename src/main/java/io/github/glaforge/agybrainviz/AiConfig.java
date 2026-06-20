@@ -33,7 +33,7 @@ import java.util.Optional;
  *   <li>{@code AI_PROVIDER} — {@code gemini} (default) or {@code ollama}
  *   <li>{@code GEMINI_API_KEY}, {@code GEMINI_MODEL} (default {@code gemini-3.5-flash})
  *   <li>{@code OLLAMA_BASE_URL} (default {@code http://localhost:11434}),
- *       {@code OLLAMA_MODEL} (default {@code gemma3})
+ *       {@code OLLAMA_MODEL} (default {@code gemma4})
  * </ul>
  *
  * <p>Reading through this bean (rather than {@code System.getenv} inline) gives tests a seam: the
@@ -49,7 +49,7 @@ public class AiConfig {
 
     static final String DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
     static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-    static final String DEFAULT_OLLAMA_MODEL = "gemma3";
+    static final String DEFAULT_OLLAMA_MODEL = "gemma4";
 
     private final String providerName;
     private final String geminiApiKey;
