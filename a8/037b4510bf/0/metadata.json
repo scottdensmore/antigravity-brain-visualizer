@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "a8037b4510bf",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-20T02:11:29.42774Z",
+  "branch": "test/critical-user-journey-coverage",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "6f5198d12fbf",
+  "token_usage": {
+    "input_tokens": 26110,
+    "cache_creation_tokens": 562454,
+    "cache_read_tokens": 32817851,
+    "output_tokens": 200981,
+    "api_call_count": 153
+  },
+  "session_metrics": {
+    "turn_count": 2
+  }
+}
