@@ -87,3 +87,8 @@ This project provides an interactive web UI for inspecting Antigravity AI agent 
   deleted on merge). Merge with `gh pr merge <n> --squash --delete-branch`,
   never `--merge` or `--rebase`. The squashed commit takes the PR title and
   body, so keep both clean and descriptive.
+- **Merge as soon as all PR checks are green** — once every required CI check
+  (Backend, Frontend unit, End-to-end) passes, proceed with the squash merge
+  without waiting for further approval. To let GitHub merge automatically when
+  the checks pass, queue it with `gh pr merge <n> --squash --auto --delete-branch`
+  (repository auto-merge is enabled).
