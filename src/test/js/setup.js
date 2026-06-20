@@ -10,3 +10,23 @@ globalThis.marked = {
 globalThis.hljs = {
   highlightElement: () => {},
 };
+
+// jsdom does not implement these layout/scroll APIs; stub them so code that calls them runs.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+if (!Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = () => {};
+}
+
+// jsdom does not implement IntersectionObserver (used by the timeline scrubber).
+if (!globalThis.IntersectionObserver) {
+  globalThis.IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  };
+}

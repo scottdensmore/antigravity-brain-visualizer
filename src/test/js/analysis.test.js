@@ -63,6 +63,28 @@ describe("triggerAnalysis", () => {
     expect(document.getElementById("current-session-title").innerText).toBe("Fixed The Bug");
   });
 
+  it("marks issues as resolved or unresolved based on the circumvention field", async () => {
+    const data = {
+      summary: "s",
+      issues: [
+        { error: "broke A", circumvention: "restarted the service" },
+        { error: "broke B", circumvention: "none" },
+      ],
+    };
+    global.fetch = vi.fn((url) =>
+      url.includes("/progress")
+        ? Promise.resolve({ ok: true, json: () => Promise.resolve({ progress: 100, phase: "x" }) })
+        : Promise.resolve({ ok: true, json: () => Promise.resolve(data) })
+    );
+
+    await triggerAnalysis("issues-session", true);
+
+    const html = document.getElementById("ai-summary-text").innerHTML;
+    expect(html).toContain("RESOLUTION");
+    expect(html).toContain("restarted the service");
+    expect(html).toContain("UNRESOLVED");
+  });
+
   it("renders from cache without fetching when not forced", async () => {
     global.fetch = vi.fn();
     state.summaryCache["cached-session"] = "<p>cached content</p>";

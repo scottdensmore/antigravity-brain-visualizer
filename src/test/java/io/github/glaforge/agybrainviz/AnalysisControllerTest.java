@@ -31,6 +31,11 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
@@ -66,6 +71,10 @@ class AnalysisControllerTest {
     private static final List<String> ANALYZE_CALLS = new CopyOnWriteArrayList<>();
     private static final AtomicInteger CONSOLIDATE_CALLS = new AtomicInteger(0);
 
+    // Optional latches to deterministically hold an in-flight analyze() call (concurrency test).
+    private static final AtomicReference<CountDownLatch> ANALYZE_STARTED = new AtomicReference<>();
+    private static final AtomicReference<CountDownLatch> ANALYZE_RELEASE = new AtomicReference<>();
+
     private static String originalUserHome;
     private static Path tempHome;
 
@@ -89,6 +98,8 @@ class AnalysisControllerTest {
         TOKEN_RESULT.set(10);
         ANALYZE_CALLS.clear();
         CONSOLIDATE_CALLS.set(0);
+        ANALYZE_STARTED.set(null);
+        ANALYZE_RELEASE.set(null);
     }
 
     @MockBean(GeminiConfig.class)
@@ -117,6 +128,15 @@ class AnalysisControllerTest {
             @Override
             public AnalysisResponse analyze(String transcript) {
                 ANALYZE_CALLS.add(transcript);
+                CountDownLatch started = ANALYZE_STARTED.get();
+                if (started != null) {
+                    started.countDown();
+                    try {
+                        ANALYZE_RELEASE.get().await(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
                 return new AnalysisResponse(
                     "Chunk Title",
                     List.of("chunk flow"),
@@ -255,5 +275,58 @@ class AnalysisControllerTest {
         assertEquals("Final Title", node.get("shortTitle").asText());
         assertEquals(3, ANALYZE_CALLS.size());
         assertTrue(CONSOLIDATE_CALLS.get() >= 1);
+    }
+
+    @Test
+    void forceRecomputeOverwritesAnExistingCachedSummary() throws IOException {
+        String id = "force-session";
+        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n");
+        Files.writeString(logsDir(id).resolve("summary.json"), "{\"summary\":\"stale\"}");
+
+        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
+        JsonNode node = MAPPER.readTree(body);
+
+        assertEquals("chunk summary", node.get("summary").asText());
+        // The LLM was invoked even though a cached summary existed.
+        assertEquals(1, ANALYZE_CALLS.size());
+        // The cache file was overwritten with the freshly computed result.
+        assertTrue(Files.readString(logsDir(id).resolve("summary.json")).contains("chunk summary"));
+    }
+
+    @Test
+    void summarizeReportsAlreadyRunningForAConcurrentRequest() throws Exception {
+        String id = "concurrent-session";
+        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n");
+
+        // Note: this test assumes the IO executor is the default unbounded/cached pool — request #1
+        // holds one thread on f.get(), its chunk task holds a second on the release latch, and
+        // request #2 needs a third. If the IO pool is ever pinned to a small fixed size this would
+        // block until the 10s latch timeout rather than asserting cleanly.
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        ANALYZE_STARTED.set(started);
+        ANALYZE_RELEASE.set(release);
+
+        ExecutorService background = Executors.newSingleThreadExecutor();
+        try {
+            Future<String> first = background.submit(() ->
+                get("/api/analysis/conversations/" + id + "/summarize?force=true")
+            );
+            // Wait until the first request is inside analyze() and holding the per-id lock.
+            assertTrue(started.await(5, TimeUnit.SECONDS), "first analysis did not start");
+
+            String second = get("/api/analysis/conversations/" + id + "/summarize?force=true");
+            assertTrue(
+                second.contains("already running"),
+                "concurrent request should be rejected, got: " + second
+            );
+
+            release.countDown();
+            String firstResult = first.get(10, TimeUnit.SECONDS);
+            assertTrue(firstResult.contains("chunk summary"));
+        } finally {
+            release.countDown();
+            background.shutdownNow();
+        }
     }
 }

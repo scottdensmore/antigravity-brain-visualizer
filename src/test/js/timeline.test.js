@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderTranscript } from "../../main/resources/public/modules/timeline.js";
 
 let container;
@@ -44,6 +44,55 @@ describe("renderTranscript", () => {
     expect(container.querySelectorAll(".sequence-wrapper")).toHaveLength(2);
   });
 
+  it("renders tool calls with their name and arguments", () => {
+    const steps = [
+      {
+        source: "MODEL",
+        type: "RUN_TOOL",
+        tool_calls: [{ name: "edit_file", args: { path: "/a.txt" } }],
+        created_at: "2026-06-19T10:00:00Z",
+      },
+    ];
+    renderTranscript(steps, container);
+    const toolCall = container.querySelector(".tool-call");
+    expect(toolCall).not.toBeNull();
+    expect(toolCall.querySelector(".tool-name").textContent).toContain("edit_file");
+    expect(toolCall.textContent).toContain("/a.txt");
+  });
+
+  it("renders an explicit error box for steps carrying an error", () => {
+    const steps = [
+      {
+        type: "ERROR_MESSAGE",
+        status: "ERROR",
+        error: "Boom: stack trace here",
+        created_at: "2026-06-19T10:00:00Z",
+      },
+    ];
+    renderTranscript(steps, container);
+    const errorBox = container.querySelector(".code-block");
+    expect(errorBox).not.toBeNull();
+    expect(errorBox.innerHTML).toContain("ERROR:");
+    expect(errorBox.textContent).toContain("Boom: stack trace here");
+  });
+
+  it("splits a tagged user request into request and system-context blocks", () => {
+    const steps = [
+      {
+        type: "USER_INPUT",
+        source: "USER_EXPLICIT",
+        content:
+          "<USER_REQUEST>\nPlease do X\n</USER_REQUEST><CURRENT_FILE>secret.txt</CURRENT_FILE>",
+        created_at: "2026-06-19T10:00:00Z",
+      },
+    ];
+    renderTranscript(steps, container);
+    const requestBlock = container.querySelector(".user-request-block");
+    const contextBlock = container.querySelector(".system-context-block");
+    expect(requestBlock.textContent).toContain("Please do X");
+    expect(contextBlock.textContent).toContain("secret.txt");
+  });
+
   it("appends a bottom timeline marker and fires the transcriptLoaded event", () => {
     let fired = false;
     const handler = () => {
@@ -59,5 +108,28 @@ describe("renderTranscript", () => {
     window.removeEventListener("transcriptLoaded", handler);
     expect(container.querySelector("#timeline-bottom-marker")).not.toBeNull();
     expect(fired).toBe(true);
+  });
+});
+
+describe("scrollToTime", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("highlights the step card nearest the target time", () => {
+    vi.useFakeTimers();
+    const steps = [
+      { type: "USER_INPUT", content: "q1", created_at: "2026-06-19T10:00:00Z" },
+      { type: "USER_INPUT", content: "q2", created_at: "2026-06-19T10:05:00Z" },
+    ];
+    renderTranscript(steps, container);
+
+    const target = new Date("2026-06-19T10:05:00Z").getTime();
+    window.scrollToTime(target);
+
+    const cards = container.querySelectorAll(".step-card");
+    // The second card matches the target timestamp and receives the highlight box-shadow.
+    expect(cards[1].style.boxShadow).toContain("accent-blue");
+    expect(cards[0].style.boxShadow).toBe("");
   });
 });

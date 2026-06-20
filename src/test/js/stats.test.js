@@ -95,4 +95,45 @@ describe("renderStats", () => {
     const sub = document.querySelector("#duration-stat-card .stat-sub").textContent;
     expect(sub).toContain("2 active segments");
   });
+
+  it("renders the tool distribution chart with tool names and counts", () => {
+    const steps = [
+      { type: "USER_INPUT", content: "hi", created_at: "2026-06-19T10:00:00Z" },
+      { source: "MODEL", type: "RUN_TOOL", tool_calls: [{ name: "edit" }], created_at: "2026-06-19T10:00:01Z" },
+      { source: "MODEL", type: "RUN_TOOL", tool_calls: [{ name: "edit" }], created_at: "2026-06-19T10:00:02Z" },
+      { source: "MODEL", type: "RUN_TOOL", tool_calls: [{ name: "run" }], created_at: "2026-06-19T10:00:03Z" },
+    ];
+    renderStats(steps);
+    const chart = document.getElementById("tools-chart");
+    // Assert on the row label (title attribute) rather than a bare substring to avoid passing on
+    // incidental markup.
+    expect(chart.innerHTML).toContain('title="edit"');
+    expect(chart.innerHTML).toContain('title="run"');
+  });
+
+  it("renders the issues breakdown chart with the error message", () => {
+    const steps = [
+      { type: "USER_INPUT", content: "hi", created_at: "2026-06-19T10:00:00Z" },
+      {
+        type: "ERROR_MESSAGE",
+        status: "ERROR",
+        error: "Something failed badly",
+        created_at: "2026-06-19T10:00:01Z",
+      },
+    ];
+    renderStats(steps);
+    const chart = document.getElementById("errors-chart");
+    expect(chart.innerHTML).toContain("Something failed badly");
+  });
+
+  it("renders the session timeline chart with a position indicator", () => {
+    const steps = [
+      { type: "USER_INPUT", content: "q1", created_at: "2026-06-19T10:00:00Z" },
+      { source: "MODEL", type: "PLANNER_RESPONSE", content: "a", created_at: "2026-06-19T10:00:30Z" },
+    ];
+    renderStats(steps);
+    const chart = document.getElementById("duration-chart");
+    expect(chart.innerHTML).toContain("Session Timeline");
+    expect(document.getElementById("session-timeline-indicator")).not.toBeNull();
+  });
 });
