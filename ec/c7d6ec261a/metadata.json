@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "ecc7d6ec261a",
+  "strategy": "manual-commit",
+  "branch": "chore/auto-merge-on-green",
+  "checkpoints_count": 5,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/ec/c7d6ec261a/0/metadata.json",
+      "transcript": "/ec/c7d6ec261a/0/full.jsonl",
+      "content_hash": "/ec/c7d6ec261a/0/content_hash.txt",
+      "prompt": "/ec/c7d6ec261a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40993,
+    "cache_creation_tokens": 955254,
+    "cache_read_tokens": 52050821,
+    "output_tokens": 244393,
+    "api_call_count": 205
+  }
+}
