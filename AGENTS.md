@@ -82,3 +82,8 @@ This project provides an interactive web UI for inspecting Antigravity AI agent 
 - Ensure all code is formatted (`./gradlew spotlessApply`).
 - Do not commit any sensitive data or API keys (e.g. `GEMINI_API_KEY`).
 - Use Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`).
+- Always **squash and merge** pull requests — the repository is configured
+  squash-only (merge commits and rebase merges are disabled, and the branch is
+  deleted on merge). Merge with `gh pr merge <n> --squash --delete-branch`,
+  never `--merge` or `--rebase`. The squashed commit takes the PR title and
+  body, so keep both clean and descriptive.
