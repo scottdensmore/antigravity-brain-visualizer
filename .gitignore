@@ -58,3 +58,8 @@ out/
 
 # OS specific
 Thumbs.db
+
+# Node / frontend tests
+node_modules/
+npm-debug.log*
+coverage/

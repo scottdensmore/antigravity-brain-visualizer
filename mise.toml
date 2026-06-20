@@ -1,0 +1,3 @@
+[tools]
+# The Micronaut 5 Gradle plugins and the project's source compatibility require a Java 25 JVM.
+java = "temurin-25"

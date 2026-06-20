@@ -1,0 +1,14 @@
+{
+  "name": "agy-brain-visualizer-frontend-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dev-only test harness for the Antigravity Brain Visualizer vanilla-JS frontend modules. The application ships with no build step; these dependencies are used only to run the unit tests.",
+  "type": "module",
+  "scripts": {
+    "test": "TZ=UTC vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}
