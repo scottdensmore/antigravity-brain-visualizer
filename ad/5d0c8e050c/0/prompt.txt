@@ -1,0 +1,85 @@
+You can add .claude and .entire
+
+---
+
+How are you running all the UI tests?
+
+---
+
+Should we add playwrite?
+
+---
+
+Yes lets add all the tests to CI
+
+---
+
+Lets take care of that minor issue right now
+
+---
+
+Ok how can I run this locally
+
+---
+
+What is the workflow for this project?
+
+---
+
+We should ensure the pr is setup to squash and merge
+
+---
+
+Lets change the workflow so it always does squash merge
+
+---
+
+Make a change to the workflow so when the PR checks goes green you can do the squash merge
+
+---
+
+We can do that later
+
+---
+
+Now that we have a good test suite: We should add the ability to use a local gemma4 model through Ollama instead of callling out to a remote gemini model with a key. Both should be supported.
+
+---
+
+You can default to gemma4 here is the info https://ollama.com/library/gemma4
+
+---
+
+Now that we have support for a local model: lets add support for OpenAI codex to the available visualizers
+
+---
+
+We should fix those limitations
+
+---
+
+Got this while running this WARN  i.n.u.c.AbstractEventExecutor - A task raised an exception. Task: io.micronaut.http.netty.EventLoopFlow$Delayed@4e29ce22
+java.lang.IllegalStateException: onNext before request?
+        at io.micronaut.http.server.netty.handler.PipeliningServerHandler$StreamingOutboundHandler.add0(PipeliningServerHandler.java:1243)
+        at io.micronaut.http.server.netty.handler.PipeliningServerHandler$StreamingOutboundHandler.add(PipeliningServerHandler.java:1237)
+        at io.micronaut.http.body.stream.BaseSharedBuffer.add(BaseSharedBuffer.java:367)
+        at io.micronaut.http.netty.body.StreamingNettyByteBody$SharedBuffer.add(StreamingNettyByteBody.java:252)
+        at io.micronaut.http.body.AbstractBodyAdapter.onNext(AbstractBodyAdapter.java:117)
+        at io.micronaut.http.netty.body.NettyBodyAdapter.lambda$onNext$0(NettyBodyAdapter.java:44)
+        at io.micronaut.http.netty.EventLoopFlow$Delayed.run(EventLoopFlow.java:141)
+        at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+        at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+        at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+        at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+        at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+        at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+        at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+        at java.base/java.lang.Thread.run(Thread.java:1474)
+
+---
+
+Ok lets leave it. One issue I am having is that the conversation analysis for  Codex is never finishing.
+
+---
+
+Lets add support for Claude Code
