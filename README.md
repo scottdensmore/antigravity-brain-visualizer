@@ -71,12 +71,42 @@ Alternatively, you can clone this repository and run or build it locally from so
 
 ## Running the Application (from Sources)
 
-To run the application locally, you must provide your Gemini API key:
+The transcript analysis can be powered by either the remote **Google Gemini** API (default) or a
+**local model served by [Ollama](https://ollama.com/)** (e.g. Gemma) — no API key or network
+required.
+
+### Option A — Gemini (default)
+
+To run with the hosted Gemini model, provide your API key:
 
 ```bash
 export GEMINI_API_KEY="your-api-key-here"
 ./gradlew run
 ```
+
+### Option B — Local model via Ollama
+
+Pull a model and make sure Ollama is running (`ollama serve`), then start the app with
+`AI_PROVIDER=ollama`:
+
+```bash
+ollama pull gemma3            # or any Gemma tag you prefer
+export AI_PROVIDER=ollama
+export OLLAMA_MODEL=gemma3    # optional; defaults to gemma3
+./gradlew run
+```
+
+No `GEMINI_API_KEY` is needed in this mode.
+
+#### AI configuration reference
+
+| Variable          | Applies to | Default                  | Description                                  |
+| ----------------- | ---------- | ------------------------ | -------------------------------------------- |
+| `AI_PROVIDER`     | both       | `gemini`                 | `gemini` or `ollama`                         |
+| `GEMINI_API_KEY`  | gemini     | _(required for gemini)_  | Google Gemini API key                        |
+| `GEMINI_MODEL`    | gemini     | `gemini-3.5-flash`       | Gemini model name                            |
+| `OLLAMA_BASE_URL` | ollama     | `http://localhost:11434` | Ollama server URL                            |
+| `OLLAMA_MODEL`    | ollama     | `gemma3`                 | Local model tag to use                       |
 
 Once the server starts, open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to interact with the visualizer.
 

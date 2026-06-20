@@ -18,23 +18,44 @@ package io.github.glaforge.agybrainviz;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ResponseFormat;
 import dev.langchain4j.model.google.genai.GoogleGenAiChatModel;
+import dev.langchain4j.model.ollama.OllamaChatModel;
 import io.micronaut.context.annotation.Factory;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import java.time.Duration;
 
+/**
+ * Produces the {@link ChatModel} used by {@link AnalyzerService}, choosing between the remote Google
+ * Gemini API and a local Ollama model based on {@link AiConfig#provider()}.
+ */
 @Factory
 public class ChatModelFactory {
 
+    private final AiConfig aiConfig;
+
+    @Inject
+    public ChatModelFactory(AiConfig aiConfig) {
+        this.aiConfig = aiConfig;
+    }
+
     @Singleton
     public ChatModel chatModel() {
-        String apiKey = System.getenv("GEMINI_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
-            apiKey = "dummy";
+        if (aiConfig.provider() == AiConfig.Provider.OLLAMA) {
+            return OllamaChatModel
+                .builder()
+                .baseUrl(aiConfig.ollamaBaseUrl())
+                .modelName(aiConfig.ollamaModel())
+                .temperature(0.0)
+                // Local models can be slower than the hosted API, so allow more time per request.
+                .timeout(Duration.ofMinutes(5))
+                .responseFormat(ResponseFormat.JSON)
+                .build();
         }
+
         return GoogleGenAiChatModel
             .builder()
-            .apiKey(apiKey)
-            .modelName("gemini-3.5-flash")
+            .apiKey(aiConfig.geminiApiKey().orElse("dummy"))
+            .modelName(aiConfig.geminiModel())
             .temperature(0.0)
             .maxRetries(0)
             .timeout(Duration.ofMinutes(2))

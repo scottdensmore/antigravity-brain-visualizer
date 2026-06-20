@@ -7,7 +7,7 @@ This project provides an interactive web UI for inspecting Antigravity AI agent 
 ## Technology Stack
 - **Backend**: Java 21+, Micronaut
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3 (No framework)
-- **AI Integration**: LangChain4j, Google Gemini models (Docs: https://docs.langchain4j.dev/integrations/language-models/google-genai/)
+- **AI Integration**: LangChain4j, with a pluggable provider — Google Gemini (remote, default) or a local model via Ollama (e.g. Gemma). Selected with `AI_PROVIDER` (`gemini` | `ollama`). (Docs: https://docs.langchain4j.dev/integrations/language-models/google-genai/ and https://docs.langchain4j.dev/integrations/language-models/ollama/)
 - **Build Tool**: Gradle
 
 ## Development Environment & Commands

@@ -40,6 +40,8 @@ dependencies {
 
     // LangChain4j Google GenAI
     implementation("dev.langchain4j:langchain4j-google-genai")
+    // LangChain4j Ollama (local models, e.g. Gemma)
+    implementation("dev.langchain4j:langchain4j-ollama")
     implementation("dev.langchain4j:langchain4j")
     
     // Micronaut Langchain4j
