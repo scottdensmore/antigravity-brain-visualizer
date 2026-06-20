@@ -1,0 +1,13 @@
+You can add .claude and .entire
+
+---
+
+How are you running all the UI tests?
+
+---
+
+Should we add playwrite?
+
+---
+
+Yes lets add all the tests to CI
