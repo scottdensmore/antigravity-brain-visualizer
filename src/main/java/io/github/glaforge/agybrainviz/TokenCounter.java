@@ -21,25 +21,27 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 /**
- * Estimates the number of tokens in a piece of text using the Google GenAI tokenizer.
+ * Estimates the number of tokens in a piece of text, used to size analysis chunks.
  *
- * <p>The underlying {@link TokenCountEstimator} is built lazily on first use so that constructing
- * the bean (e.g. at application startup) never performs network I/O. Wrapping the estimator in a
- * bean lets tests replace token counting with a deterministic stub.
+ * <p>For the Gemini provider this delegates to the Google GenAI tokenizer (built lazily on first use
+ * so constructing the bean never performs network I/O). For the Ollama provider there is no cheap
+ * remote tokenizer, so a character-based heuristic (~4 chars per token) is used — entirely local.
  *
- * <p>Because the estimator is built on first {@link #estimate(String)} call — which the analysis
- * pipeline invokes inside a try/catch that falls back to a character-length heuristic — a failure to
- * build the estimator (or to estimate) degrades to that heuristic rather than aborting the analysis.
+ * <p>The Gemini estimator is built on first {@link #estimate(String)} call, which the analysis
+ * pipeline invokes inside a try/catch that falls back to a character-length heuristic, so a failure
+ * to build or estimate degrades gracefully rather than aborting the analysis.
  */
 @Singleton
 public class TokenCounter {
 
-    private final GeminiConfig config;
+    private static final int APPROX_CHARS_PER_TOKEN = 4;
+
+    private final AiConfig aiConfig;
     private volatile TokenCountEstimator estimator;
 
     @Inject
-    public TokenCounter(GeminiConfig config) {
-        this.config = config;
+    public TokenCounter(AiConfig aiConfig) {
+        this.aiConfig = aiConfig;
     }
 
     /**
@@ -47,6 +49,9 @@ public class TokenCounter {
      * @return the estimated token count for {@code text}
      */
     public int estimate(String text) {
+        if (aiConfig.provider() == AiConfig.Provider.OLLAMA) {
+            return Math.max(1, text.length() / APPROX_CHARS_PER_TOKEN);
+        }
         return delegate().estimateTokenCountInText(text);
     }
 
@@ -59,8 +64,8 @@ public class TokenCounter {
                     local =
                         GoogleGenAiTokenCountEstimator
                             .builder()
-                            .apiKey(config.apiKey().orElse("dummy"))
-                            .modelName("gemini-3.5-flash")
+                            .apiKey(aiConfig.geminiApiKey().orElse("dummy"))
+                            .modelName(aiConfig.geminiModel())
                             .build();
                     estimator = local;
                 }

@@ -46,7 +46,7 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 
 /**
  * Integration tests for {@link AnalysisController}, covering the "generate AI analysis" journey. The
- * LLM ({@link AnalyzerService}), the API-key accessor ({@link GeminiConfig}) and the token estimator
+ * LLM ({@link AnalyzerService}), the provider config ({@link AiConfig}) and the token estimator
  * ({@link TokenCounter}) are replaced with deterministic mock beans so the orchestration, caching,
  * and error paths are exercised without any network access.
  *
@@ -64,6 +64,7 @@ class AnalysisControllerTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     // Controllable mock state, shared with the @MockBean factory methods below.
+    private static final AtomicReference<String> PROVIDER = new AtomicReference<>("gemini");
     private static final AtomicReference<Optional<String>> API_KEY = new AtomicReference<>(
         Optional.of("test-key")
     );
@@ -94,6 +95,7 @@ class AnalysisControllerTest {
 
     @BeforeEach
     void resetMocks() {
+        PROVIDER.set("gemini");
         API_KEY.set(Optional.of("test-key"));
         TOKEN_RESULT.set(10);
         ANALYZE_CALLS.clear();
@@ -102,11 +104,18 @@ class AnalysisControllerTest {
         ANALYZE_RELEASE.set(null);
     }
 
-    @MockBean(GeminiConfig.class)
-    GeminiConfig geminiConfig() {
-        return new GeminiConfig() {
+    @MockBean(AiConfig.class)
+    AiConfig aiConfig() {
+        return new AiConfig("gemini", "", "", "", "") {
             @Override
-            public Optional<String> apiKey() {
+            public Provider provider() {
+                return "ollama".equalsIgnoreCase(PROVIDER.get())
+                    ? Provider.OLLAMA
+                    : Provider.GEMINI;
+            }
+
+            @Override
+            public Optional<String> geminiApiKey() {
                 return API_KEY.get();
             }
         };
@@ -114,7 +123,7 @@ class AnalysisControllerTest {
 
     @MockBean(TokenCounter.class)
     TokenCounter tokenCounter() {
-        return new TokenCounter(new GeminiConfig()) {
+        return new TokenCounter(new AiConfig("gemini", "", "", "", "")) {
             @Override
             public int estimate(String text) {
                 return TOKEN_RESULT.get();
@@ -211,6 +220,20 @@ class AnalysisControllerTest {
         String body = get("/api/analysis/conversations/any-id/summarize");
         JsonNode node = MAPPER.readTree(body);
         assertTrue(node.get("summary").asText().contains("GEMINI_API_KEY"));
+    }
+
+    @Test
+    void summarizeRunsWithoutAnApiKeyWhenUsingOllama() throws IOException {
+        // Ollama needs no key: the guard must pass and serve the cached analysis.
+        PROVIDER.set("ollama");
+        API_KEY.set(Optional.empty());
+        String id = "ollama-session";
+        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"hi\"}\n");
+        Files.writeString(logsDir(id).resolve("summary.json"), "{\"summary\":\"local result\"}");
+
+        String body = get("/api/analysis/conversations/" + id + "/summarize");
+        JsonNode node = MAPPER.readTree(body);
+        assertEquals("local result", node.get("summary").asText());
     }
 
     @Test

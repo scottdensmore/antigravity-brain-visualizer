@@ -69,19 +69,19 @@ public class AnalysisController {
 
     private final AnalyzerService analyzerService;
     private final ExecutorService executor;
-    private final GeminiConfig geminiConfig;
+    private final AiConfig aiConfig;
     private final TokenCounter tokenCounter;
 
     @Inject
     public AnalysisController(
         AnalyzerService analyzerService,
         @Named(TaskExecutors.IO) ExecutorService executor,
-        GeminiConfig geminiConfig,
+        AiConfig aiConfig,
         TokenCounter tokenCounter
     ) {
         this.analyzerService = analyzerService;
         this.executor = executor;
-        this.geminiConfig = geminiConfig;
+        this.aiConfig = aiConfig;
         this.tokenCounter = tokenCounter;
     }
 
@@ -94,8 +94,10 @@ public class AnalysisController {
         @QueryValue Optional<Boolean> force,
         @QueryValue Optional<String> flavor
     ) throws IOException {
-        if (geminiConfig.apiKey().isEmpty()) {
-            return "{\"summary\": \"Error: GEMINI_API_KEY environment variable is not set. Cannot use LangChain4j analysis.\"}";
+        if (!aiConfig.isConfigured()) {
+            // Serialize via Jackson so the message is always valid JSON, regardless of its content.
+            return new ObjectMapper()
+                .writeValueAsString(Map.of("summary", aiConfig.notConfiguredMessage()));
         }
 
         if (runningTasks.putIfAbsent(id, new Object()) != null) {
