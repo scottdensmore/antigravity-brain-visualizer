@@ -1,0 +1,9 @@
+You can add .claude and .entire
+
+---
+
+How are you running all the UI tests?
+
+---
+
+Should we add playwrite?

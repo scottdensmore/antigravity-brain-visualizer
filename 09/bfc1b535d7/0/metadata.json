@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "09bfc1b535d7",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-20T02:07:04.032447Z",
+  "branch": "test/critical-user-journey-coverage",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    ".github/workflows/e2e.yml",
+    ".gitignore",
+    "e2e/analysis.spec.js",
+    "e2e/file-preview.spec.js",
+    "e2e/fixtures.mjs",
+    "e2e/global-setup.mjs",
+    "e2e/layout.spec.js",
+    "e2e/sessions.spec.js",
+    "e2e/transcript.spec.js",
+    "package-lock.json",
+    "package.json",
+    "playwright.config.js",
+    "src/test/js/analysis.test.js"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "6f5198d12fbf",
+  "token_usage": {
+    "input_tokens": 25963,
+    "cache_creation_tokens": 549932,
+    "cache_read_tokens": 29761755,
+    "output_tokens": 192943,
+    "api_call_count": 144
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-20T02:07:04.000727Z",
+    "agent_lines": 520,
+    "agent_removed": 1,
+    "human_added": 68,
+    "human_modified": 15,
+    "human_removed": 0,
+    "total_committed": 603,
+    "total_lines_changed": 604,
+    "agent_percentage": 86.25827814569537,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}
