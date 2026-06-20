@@ -182,6 +182,15 @@ class CodexAdapterTest {
     }
 
     @Test
+    void analysisLineFallsBackToFullArgsWhenNoKnownField() {
+        // No cmd/command/file_path key -> the whole args object is summarized.
+        String fc =
+            "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"function_call\",\"name\":\"grep\",\"arguments\":\"{\\\"pattern\\\":\\\"abc\\\"}\",\"call_id\":\"c\"}}";
+        List<List<String>> seqs = CodexAdapter.toAnalysisSequences(List.of(USER_MSG, fc));
+        assertTrue(seqs.get(0).get(1).contains("pattern"));
+    }
+
+    @Test
     void analysisSequencesSplitOnEachUserInput() {
         String secondUser =
             "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"again\"}]}}";
