@@ -202,6 +202,12 @@ class AnalysisControllerTest {
         return client.toBlocking().retrieve(uri);
     }
 
+    private void writeCodexSession(String relPath, String content) throws IOException {
+        Path file = tempHome.resolve(".codex").resolve("sessions").resolve(relPath);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+    }
+
     // ----- progress endpoint -----
 
     @Test
@@ -241,6 +247,35 @@ class AnalysisControllerTest {
         String body = get("/api/analysis/conversations/no-transcript-here/summarize");
         JsonNode node = MAPPER.readTree(body);
         assertEquals("No transcript found.", node.get("summary").asText());
+    }
+
+    // ----- codex source analysis -----
+
+    @Test
+    void summarizesCodexSessionAndCachesResult() throws IOException {
+        String id = "rollout-2026-06-20T15-00-00-codexanalysis";
+        writeCodexSession(
+            "2026/06/20/" + id + ".jsonl",
+            "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"do it\"}]}}\n" +
+            "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"function_call\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"ls\\\"}\",\"call_id\":\"c1\"}}\n"
+        );
+
+        String body = get(
+            "/api/analysis/conversations/" + id + "/summarize?flavor=codex&force=true"
+        );
+        assertEquals("chunk summary", MAPPER.readTree(body).get("summary").asText());
+        assertEquals(1, ANALYZE_CALLS.size());
+
+        // A subsequent non-forced request is served from the Codex cache without re-invoking the LLM.
+        String again = get("/api/analysis/conversations/" + id + "/summarize?flavor=codex");
+        assertEquals("Chunk Title", MAPPER.readTree(again).get("shortTitle").asText());
+        assertEquals(1, ANALYZE_CALLS.size());
+    }
+
+    @Test
+    void codexSummarizeReturnsNoTranscriptForUnknownId() throws IOException {
+        String body = get("/api/analysis/conversations/unknown-codex/summarize?flavor=codex");
+        assertEquals("No transcript found.", MAPPER.readTree(body).get("summary").asText());
     }
 
     @Test

@@ -147,6 +147,68 @@ final class CodexAdapter {
     }
 
     /**
+     * Condenses a Codex rollout into LLM-analysis input: one list of short lines per user-initiated
+     * sequence, mirroring {@link TranscriptParser#parseSequences(List)} for Antigravity. User
+     * prompts, assistant messages, tool calls, and failed tool outputs are summarized; successful
+     * outputs and empty reasoning are omitted to keep the token footprint small.
+     *
+     * @param lines the raw JSONL lines of a Codex rollout file
+     * @return one list of summary lines per sequence
+     */
+    static List<List<String>> toAnalysisSequences(List<String> lines) {
+        List<List<String>> sequences = new ArrayList<>();
+        List<String> current = new ArrayList<>();
+        for (ObjectNode step : toSteps(lines)) {
+            String type = step.path("type").asText("");
+            String summaryLine = analysisLine(step, type);
+            if (summaryLine == null) continue;
+            if ("USER_INPUT".equals(type) && !current.isEmpty()) {
+                sequences.add(TranscriptParser.deduplicateSequence(current));
+                current = new ArrayList<>();
+            }
+            current.add(summaryLine);
+        }
+        if (!current.isEmpty()) {
+            sequences.add(TranscriptParser.deduplicateSequence(current));
+        }
+        return sequences;
+    }
+
+    private static String analysisLine(ObjectNode step, String type) {
+        switch (type) {
+            case "USER_INPUT":
+                return "USER REQUEST: " + truncate(step.path("content").asText(""), 2000);
+            case "MESSAGE":
+                return "ASSISTANT: " + truncate(step.path("content").asText(""), 2000);
+            case "FUNCTION_CALL":
+                {
+                    JsonNode tool = step.path("tool_calls").path(0);
+                    String name = tool.path("name").asText("unknown");
+                    return "AGENT ACTION: [" + name + "] " + argsSummary(tool.path("args"));
+                }
+            case "FUNCTION_OUTPUT":
+                if ("ERROR".equals(step.path("status").asText(""))) {
+                    return "SYSTEM EVENT/ERROR: " + truncate(step.path("content").asText(""), 500);
+                }
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    private static String argsSummary(JsonNode args) {
+        if (args == null || args.isMissingNode() || args.isNull()) return "";
+        JsonNode cmd = args.get("cmd");
+        String text = (cmd != null && cmd.isTextual()) ? cmd.asText() : args.toString();
+        return truncate(text, 200);
+    }
+
+    private static String truncate(String text, int max) {
+        if (text == null) return "";
+        return text.length() > max ? text.substring(0, max) : text;
+    }
+
+    /**
      * Derives a short session title from the first clean user prompt ({@code event_msg/user_message}),
      * falling back to the first user {@code response_item} message.
      *

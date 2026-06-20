@@ -206,5 +206,21 @@ export function seedFixtures(home) {
     ])
   );
 
+  // Seed a cached Codex analysis so selecting the session serves it from cache (the e2e server runs
+  // with a dummy key and would otherwise attempt a real LLM call on auto-analysis).
+  const codexCacheDir = path.join(gemini, "..", ".codex", "sessions", ".agybrainviz");
+  fs.mkdirSync(codexCacheDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(codexCacheDir, "rollout-2026-06-20T14-00-00-codexsession.summary.json"),
+    JSON.stringify({
+      shortTitle: "Flaky test investigation",
+      summary: "The agent reproduced and analyzed a flaky test via the suite.",
+      flow: ["Ran the test suite"],
+      agentActions: [{ action: "run", description: "Ran npm test" }],
+      issues: [],
+      recommendations: [],
+    })
+  );
+
   return { home, configPath };
 }

@@ -33,4 +33,14 @@ test.describe("OpenAI Codex sessions", () => {
     await expect(page.locator("#user-queries-stat-card .stat-value")).toHaveText("1");
     await expect(page.locator("#tools-stat-card .stat-value")).toHaveText("1");
   });
+
+  test("shows the AI analysis for a Codex session", async ({ page }) => {
+    await page.goto("/");
+    await page.selectOption("#flavor-select", "codex");
+    await page.locator('.conv-item:has-text("Investigate the flaky test")').click();
+
+    await expect(page.locator("#ai-summary-text")).toContainText(
+      "reproduced and analyzed a flaky test"
+    );
+  });
 });

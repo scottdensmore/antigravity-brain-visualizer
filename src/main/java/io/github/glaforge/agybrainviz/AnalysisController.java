@@ -71,18 +71,21 @@ public class AnalysisController {
     private final ExecutorService executor;
     private final AiConfig aiConfig;
     private final TokenCounter tokenCounter;
+    private final CodexSessionReader codexReader;
 
     @Inject
     public AnalysisController(
         AnalyzerService analyzerService,
         @Named(TaskExecutors.IO) ExecutorService executor,
         AiConfig aiConfig,
-        TokenCounter tokenCounter
+        TokenCounter tokenCounter,
+        CodexSessionReader codexReader
     ) {
         this.analyzerService = analyzerService;
         this.executor = executor;
         this.aiConfig = aiConfig;
         this.tokenCounter = tokenCounter;
+        this.codexReader = codexReader;
     }
 
     private static final Map<String, Object> runningTasks = new ConcurrentHashMap<>();
@@ -105,32 +108,40 @@ public class AnalysisController {
         }
 
         try {
-            Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
-            Path transcriptPath = brainPath
-                .resolve(id)
-                .resolve(".system_generated")
-                .resolve("logs")
-                .resolve("transcript.jsonl");
-            if (!Files.exists(transcriptPath)) {
+            boolean codex = CodexSessionReader.FLAVOR.equals(flavor.orElse(""));
+            boolean forceRecompute = force.orElse(false);
+
+            // Antigravity caches the summary inside the agent's own brain dir; Codex caches via the
+            // CodexSessionReader. Antigravity paths are resolved up front; for Codex they stay null.
+            Path logsDir = codex
+                ? null
+                : getBrainPath(flavor.orElse("antigravity-cli"))
+                    .resolve(id)
+                    .resolve(".system_generated")
+                    .resolve("logs");
+            Path transcriptPath = codex ? null : logsDir.resolve("transcript.jsonl");
+            Path summaryJsonPath = codex ? null : logsDir.resolve("summary.json");
+            Path shortTitlePath = codex ? null : logsDir.resolve("short_title.txt");
+
+            boolean exists = codex ? codexReader.sessionExists(id) : Files.exists(transcriptPath);
+            if (!exists) {
                 return "{\"summary\": \"No transcript found.\"}";
             }
 
-            boolean forceRecompute = force.orElse(false);
-            Path summaryJsonPath = brainPath
-                .resolve(id)
-                .resolve(".system_generated")
-                .resolve("logs")
-                .resolve("summary.json");
-            Path shortTitlePath = brainPath
-                .resolve(id)
-                .resolve(".system_generated")
-                .resolve("logs")
-                .resolve("short_title.txt");
-
-            if (!forceRecompute && Files.exists(summaryJsonPath)) {
-                String json = Files.readString(summaryJsonPath);
-                return json;
-            } else if (forceRecompute) {
+            if (!forceRecompute) {
+                Optional<String> cached = codex
+                    ? codexReader.cachedSummary(id)
+                    : (
+                        Files.exists(summaryJsonPath)
+                            ? Optional.of(Files.readString(summaryJsonPath))
+                            : Optional.empty()
+                    );
+                if (cached.isPresent()) {
+                    return cached.get();
+                }
+            } else if (codex) {
+                codexReader.deleteCache(id);
+            } else {
                 Files.deleteIfExists(summaryJsonPath);
             }
 
@@ -138,8 +149,9 @@ public class AnalysisController {
             AnalysisResponse responseObj = null;
 
             try {
-                List<String> allLines = Files.readAllLines(transcriptPath);
-                List<List<String>> sequences = TranscriptParser.parseSequences(allLines);
+                List<List<String>> sequences = codex
+                    ? codexReader.analysisSequences(id)
+                    : TranscriptParser.parseSequences(Files.readAllLines(transcriptPath));
 
                 ToIntFunction<String> tokenFn = tokenCounter::estimate;
 
@@ -268,16 +280,20 @@ public class AnalysisController {
 
                 String jsonResponse = mapper.writeValueAsString(responseObj);
 
-                // Try to extract shortTitle for shortTitlePath caching
+                String title = responseObj.shortTitle();
                 try {
-                    String title = responseObj.shortTitle();
-                    if (title != null && !title.isEmpty()) {
-                        Files.writeString(shortTitlePath, title.trim());
+                    if (codex) {
+                        codexReader.writeCache(id, jsonResponse, title);
+                    } else {
+                        // The short title is best-effort; a failure here must not block caching or
+                        // returning the summary.
+                        try {
+                            if (title != null && !title.isEmpty()) {
+                                Files.writeString(shortTitlePath, title.trim());
+                            }
+                        } catch (Exception ignore) {}
+                        Files.writeString(summaryJsonPath, jsonResponse);
                     }
-                } catch (Exception e) {}
-
-                try {
-                    Files.writeString(summaryJsonPath, jsonResponse);
                     return jsonResponse;
                 } catch (Exception e) {
                     throw new Exception("Invalid JSON response");

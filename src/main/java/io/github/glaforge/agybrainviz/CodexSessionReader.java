@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -103,6 +104,66 @@ public class CodexSessionReader {
         Path file = findById(id);
         if (file == null) return "[]";
         return CodexAdapter.toTranscriptJson(Files.readAllLines(file));
+    }
+
+    /**
+     * @return whether a Codex session with this id exists.
+     */
+    public boolean sessionExists(String id) throws IOException {
+        return findById(id) != null;
+    }
+
+    /**
+     * @return the condensed analysis input for a session (one list of lines per sequence), or empty
+     *     when the session is not found.
+     */
+    public List<List<String>> analysisSequences(String id) throws IOException {
+        Path file = findById(id);
+        if (file == null) return List.of();
+        return CodexAdapter.toAnalysisSequences(Files.readAllLines(file));
+    }
+
+    // Analysis summaries are cached in a tool-owned hidden directory under ~/.codex/sessions so we
+    // never write alongside (or into) the files Codex itself manages.
+    private Path cacheDir() {
+        return sessionsDir().resolve(".agybrainviz");
+    }
+
+    // Resolve a cache file from an id, guarding against traversal even if a caller skips the
+    // sessionExists() gate (the id originates from a URL path variable).
+    private Path cacheFile(String id, String suffix) {
+        Path dir = cacheDir().normalize();
+        Path file = dir.resolve(id + suffix).normalize();
+        if (!file.startsWith(dir)) {
+            throw new IllegalArgumentException("Invalid session id: " + id);
+        }
+        return file;
+    }
+
+    /**
+     * @return the cached summary JSON for a session, if present.
+     */
+    public Optional<String> cachedSummary(String id) throws IOException {
+        Path file = cacheFile(id, ".summary.json");
+        return Files.exists(file) ? Optional.of(Files.readString(file)) : Optional.empty();
+    }
+
+    /** Deletes any cached summary and title for a session (used on forced recompute). */
+    public void deleteCache(String id) throws IOException {
+        Files.deleteIfExists(cacheFile(id, ".summary.json"));
+        Files.deleteIfExists(cacheFile(id, ".short_title.txt"));
+    }
+
+    /** Writes the computed summary JSON (and optional short title) to the cache. */
+    public void writeCache(String id, String summaryJson, String title) throws IOException {
+        Files.createDirectories(cacheDir());
+        Files.writeString(cacheFile(id, ".summary.json"), summaryJson);
+        // The short title is best-effort and must not fail the summary cache write.
+        if (title != null && !title.isBlank()) {
+            try {
+                Files.writeString(cacheFile(id, ".short_title.txt"), title.trim());
+            } catch (IOException ignore) {}
+        }
     }
 
     // Locate a session by matching its id against actual filenames (never build a path from the id,
