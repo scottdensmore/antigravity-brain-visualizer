@@ -58,3 +58,15 @@ out/
 
 # OS specific
 Thumbs.db
+
+# Node / frontend tests
+node_modules/
+npm-debug.log*
+coverage/
+
+# Playwright (E2E)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.last-run.json

@@ -15,24 +15,97 @@
  */
 import { escapeHtml, formatTime } from "./utils.js";
 
-let modal, modalTitle, modalContent;
+const SUPPORTED_HIGHLIGHT_EXTS = [
+  "js",
+  "json",
+  "java",
+  "html",
+  "css",
+  "md",
+  "sh",
+  "bash",
+  "yaml",
+  "yml",
+  "xml",
+  "sql",
+  "kt",
+  "kts",
+  "gradle",
+  "properties",
+  "py",
+  "go",
+  "rs",
+  "cpp",
+  "c",
+  "ts",
+  "jsx",
+  "tsx",
+];
+
+// Map a file path to a highlight.js language class, or "" when the extension is unsupported.
+export function languageClassFor(path) {
+  const ext = path.split(".").pop().toLowerCase();
+  return SUPPORTED_HIGHLIGHT_EXTS.includes(ext) ? `language-${ext}` : "";
+}
+
+// Extract the filesystem path from a file:// href (strips the scheme, any line-number hash, and
+// percent-encoding).
+export function pathFromFileLink(href) {
+  let path = href.replace("file://", "");
+  path = path.split("#")[0];
+  return decodeURIComponent(path);
+}
+
+// Fetch a file from the backend and render it in the preview modal. On failure, alerts the user.
+export async function openFilePreview(path) {
+  const modal = document.getElementById("file-modal");
+  const modalTitle = document.getElementById("file-modal-title");
+  const modalContent = document.getElementById("file-modal-content");
+
+  try {
+    const res = await fetch(`/api/brain/file?path=${encodeURIComponent(path)}`);
+    if (!res.ok) {
+      if (res.status === 404) throw new Error("File not found");
+      throw new Error("Failed to load file");
+    }
+    const content = await res.text();
+
+    modalTitle.innerText = path;
+
+    const langClass = languageClassFor(path);
+    modalContent.className = langClass;
+    modalContent.innerHTML = escapeHtml(content);
+
+    if (langClass && window.hljs) {
+      delete modalContent.dataset.highlighted;
+      hljs.highlightElement(modalContent);
+    }
+
+    modal.classList.remove("hidden");
+  } catch (err) {
+    alert(err.message + ":\n" + path);
+  }
+}
+
+export function closeFileModal() {
+  const modal = document.getElementById("file-modal");
+  if (modal) modal.classList.add("hidden");
+}
 
 export function initUI() {
-  modal = document.getElementById("file-modal");
-  modalTitle = document.getElementById("file-modal-title");
-  modalContent = document.getElementById("file-modal-content");
+  const modal = document.getElementById("file-modal");
   const closeBtn = document.getElementById("close-modal-btn");
 
   if (closeBtn) {
     closeBtn.addEventListener("click", () => {
-      modal.classList.add("hidden");
+      closeFileModal();
     });
   }
 
   if (modal) {
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
-        modal.classList.add("hidden");
+        closeFileModal();
       }
     });
   }
@@ -42,73 +115,13 @@ export function initUI() {
     const link = e.target.closest("a");
     if (link && link.href && link.href.startsWith("file://")) {
       e.preventDefault();
-
-      let path = link.href.replace("file://", "");
-      path = path.split("#")[0]; // Strip line numbers hash like #L10-L20
-      path = decodeURIComponent(path);
-
-      try {
-        const res = await fetch(
-          `/api/brain/file?path=${encodeURIComponent(path)}`
-        );
-        if (!res.ok) {
-          if (res.status === 404) throw new Error("File not found");
-          throw new Error("Failed to load file");
-        }
-        const content = await res.text();
-
-        modalTitle.innerText = path;
-
-        const ext = path.split(".").pop().toLowerCase();
-        const supportedExts = [
-          "js",
-          "json",
-          "java",
-          "html",
-          "css",
-          "md",
-          "sh",
-          "bash",
-          "yaml",
-          "yml",
-          "xml",
-          "sql",
-          "kt",
-          "kts",
-          "gradle",
-          "properties",
-          "py",
-          "go",
-          "rs",
-          "cpp",
-          "c",
-          "ts",
-          "jsx",
-          "tsx",
-        ];
-        let langClass = "";
-        if (supportedExts.includes(ext)) {
-          langClass = `language-${ext}`;
-        }
-
-        modalContent.className = langClass;
-        modalContent.innerHTML = escapeHtml(content);
-
-        if (langClass && window.hljs) {
-          delete modalContent.dataset.highlighted;
-          hljs.highlightElement(modalContent);
-        }
-
-        modal.classList.remove("hidden");
-      } catch (err) {
-        alert(err.message + ":\n" + path);
-      }
+      await openFilePreview(pathFromFileLink(link.href));
     }
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal && !modal.classList.contains("hidden")) {
-      modal.classList.add("hidden");
+      closeFileModal();
     }
   });
 

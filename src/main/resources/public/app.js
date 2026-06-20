@@ -182,7 +182,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-async function loadConversations() {
+export function filterAndSortConversations(
+  conversations,
+  searchTerm,
+  descending
+) {
+  let filtered = [...conversations];
+  const term = (searchTerm || "").toLowerCase();
+  if (term) {
+    filtered = filtered.filter(
+      (c) =>
+        c.summary.toLowerCase().includes(term) ||
+        c.id.toLowerCase().includes(term)
+    );
+  }
+  if (!descending) {
+    filtered.reverse();
+  }
+  return filtered;
+}
+
+export async function loadConversations() {
   const list = document.getElementById("conversations-list");
   const flavor = encodeURIComponent(
     document.getElementById("flavor-select").value
@@ -197,25 +217,17 @@ async function loadConversations() {
   }
 }
 
-function renderConversationsList() {
+export function renderConversationsList() {
   const list = document.getElementById("conversations-list");
   list.innerHTML = "";
 
-  let filtered = [...allConversations];
   const searchTerm =
-    document.getElementById("conversation-search")?.value.toLowerCase() || "";
-
-  if (searchTerm) {
-    filtered = filtered.filter(
-      (c) =>
-        c.summary.toLowerCase().includes(searchTerm) ||
-        c.id.toLowerCase().includes(searchTerm)
-    );
-  }
-
-  if (!sortDescending) {
-    filtered.reverse();
-  }
+    document.getElementById("conversation-search")?.value || "";
+  const filtered = filterAndSortConversations(
+    allConversations,
+    searchTerm,
+    sortDescending
+  );
 
   if (filtered.length === 0) {
     list.innerHTML = '<div class="loading-state">No sessions found</div>';
@@ -323,7 +335,7 @@ function renderConversationsList() {
   }
 }
 
-async function selectConversation(id, element) {
+export async function selectConversation(id, element) {
   document
     .querySelectorAll(".conv-item")
     .forEach((el) => el.classList.remove("active"));
