@@ -1,0 +1,49 @@
+You can add .claude and .entire
+
+---
+
+How are you running all the UI tests?
+
+---
+
+Should we add playwrite?
+
+---
+
+Yes lets add all the tests to CI
+
+---
+
+Lets take care of that minor issue right now
+
+---
+
+Ok how can I run this locally
+
+---
+
+What is the workflow for this project?
+
+---
+
+We should ensure the pr is setup to squash and merge
+
+---
+
+Lets change the workflow so it always does squash merge
+
+---
+
+Make a change to the workflow so when the PR checks goes green you can do the squash merge
+
+---
+
+We can do that later
+
+---
+
+Now that we have a good test suite: We should add the ability to use a local gemma4 model through Ollama instead of callling out to a remote gemini model with a key. Both should be supported.
+
+---
+
+You can default to gemma4 here is the info https://ollama.com/library/gemma4

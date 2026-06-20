@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "5da036a388c1",
+  "strategy": "manual-commit",
+  "branch": "chore/default-ollama-gemma4",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/AiConfig.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AiConfigTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5d/a036a388c1/0/metadata.json",
+      "transcript": "/5d/a036a388c1/0/full.jsonl",
+      "content_hash": "/5d/a036a388c1/0/content_hash.txt",
+      "prompt": "/5d/a036a388c1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 42133,
+    "cache_creation_tokens": 1477326,
+    "cache_read_tokens": 75958615,
+    "output_tokens": 294826,
+    "api_call_count": 259
+  }
+}

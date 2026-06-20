@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "5da036a388c1",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-20T04:43:16.386269Z",
+  "branch": "chore/default-ollama-gemma4",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/AiConfig.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AiConfigTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "afe24209f0c8",
+  "token_usage": {
+    "input_tokens": 42133,
+    "cache_creation_tokens": 1477326,
+    "cache_read_tokens": 75958615,
+    "output_tokens": 294826,
+    "api_call_count": 259
+  },
+  "session_metrics": {
+    "turn_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-20T04:43:16.335142Z",
+    "agent_lines": 249,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 259,
+    "total_lines_changed": 260,
+    "agent_percentage": 96.15384615384616,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}
