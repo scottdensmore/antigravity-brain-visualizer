@@ -190,6 +190,10 @@ export async function triggerAnalysis(sessionId, force) {
       html += `</div>`;
     }
 
+    // A newer session selection may have superseded this request while it was in flight (the user
+    // clicked another session). If so, don't clobber the now-current analysis.
+    if (state.currentPollSessionId !== sessionId) return;
+
     aiText.innerHTML =
       html || "<span style='color:red;'>Failed to parse analysis data.</span>";
     state.summaryCache[sessionId] = aiText.innerHTML;

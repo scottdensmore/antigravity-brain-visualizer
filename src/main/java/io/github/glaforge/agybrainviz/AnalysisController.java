@@ -15,12 +15,7 @@
  */
 package io.github.glaforge.agybrainviz;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.model.TokenCountEstimator;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.google.genai.GoogleGenAiTokenCountEstimator;
-import dev.langchain4j.service.AiServices;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
@@ -44,6 +39,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.ToIntFunction;
 
 @Controller("/api/analysis")
 public class AnalysisController {
@@ -73,53 +69,20 @@ public class AnalysisController {
 
     private final AnalyzerService analyzerService;
     private final ExecutorService executor;
+    private final GeminiConfig geminiConfig;
+    private final TokenCounter tokenCounter;
 
     @Inject
     public AnalysisController(
         AnalyzerService analyzerService,
-        @Named(TaskExecutors.IO) ExecutorService executor
+        @Named(TaskExecutors.IO) ExecutorService executor,
+        GeminiConfig geminiConfig,
+        TokenCounter tokenCounter
     ) {
         this.analyzerService = analyzerService;
         this.executor = executor;
-    }
-
-    private void splitIntoSafeChunks(
-        List<String> lines,
-        TokenCountEstimator estimator,
-        int maxTokens,
-        List<List<String>> safeChunks
-    ) {
-        if (lines.isEmpty()) return;
-        String text = String.join("\n", lines);
-        try {
-            int tokens = estimator.estimateTokenCountInText(text);
-            if (tokens <= maxTokens || lines.size() == 1) {
-                safeChunks.add(lines);
-            } else {
-                int mid = lines.size() / 2;
-                splitIntoSafeChunks(lines.subList(0, mid), estimator, maxTokens, safeChunks);
-                splitIntoSafeChunks(
-                    lines.subList(mid, lines.size()),
-                    estimator,
-                    maxTokens,
-                    safeChunks
-                );
-            }
-        } catch (Exception e) {
-            int fallbackTokens = text.length() / 2;
-            if (fallbackTokens <= maxTokens || lines.size() == 1) {
-                safeChunks.add(lines);
-            } else {
-                int mid = lines.size() / 2;
-                splitIntoSafeChunks(lines.subList(0, mid), estimator, maxTokens, safeChunks);
-                splitIntoSafeChunks(
-                    lines.subList(mid, lines.size()),
-                    estimator,
-                    maxTokens,
-                    safeChunks
-                );
-            }
-        }
+        this.geminiConfig = geminiConfig;
+        this.tokenCounter = tokenCounter;
     }
 
     private static final Map<String, Object> runningTasks = new ConcurrentHashMap<>();
@@ -131,8 +94,7 @@ public class AnalysisController {
         @QueryValue Optional<Boolean> force,
         @QueryValue Optional<String> flavor
     ) throws IOException {
-        String apiKey = System.getenv("GEMINI_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
+        if (geminiConfig.apiKey().isEmpty()) {
             return "{\"summary\": \"Error: GEMINI_API_KEY environment variable is not set. Cannot use LangChain4j analysis.\"}";
         }
 
@@ -175,76 +137,9 @@ public class AnalysisController {
 
             try {
                 List<String> allLines = Files.readAllLines(transcriptPath);
-                List<List<String>> sequences = new ArrayList<>();
-                List<String> currentSequence = new ArrayList<>();
+                List<List<String>> sequences = TranscriptParser.parseSequences(allLines);
 
-                for (String line : allLines) {
-                    if (line.trim().isEmpty()) continue;
-                    try {
-                        JsonNode node = mapper.readTree(line);
-                        String type = node.path("type").asText("");
-                        if (
-                            "USER_INPUT".equals(type) ||
-                            "USER_EXPLICIT".equals(node.path("source").asText(""))
-                        ) {
-                            if (!currentSequence.isEmpty()) {
-                                sequences.add(deduplicateSequence(currentSequence));
-                                currentSequence = new ArrayList<>();
-                            }
-                            String content = node.path("content").asText("");
-                            currentSequence.add(
-                                "USER REQUEST: " +
-                                content.substring(0, Math.min(2000, content.length()))
-                            );
-                        } else if (
-                            "PLANNER_RESPONSE".equals(type) ||
-                            "MODEL".equals(node.path("source").asText(""))
-                        ) {
-                            JsonNode tools = node.path("tool_calls");
-                            if (!tools.isMissingNode() && tools.isArray()) {
-                                for (JsonNode tool : tools) {
-                                    String name = tool.path("name").asText("unknown");
-                                    String action = tool
-                                        .path("arguments")
-                                        .path("toolAction")
-                                        .asText("");
-                                    String tgt = tool
-                                        .path("arguments")
-                                        .path("TargetFile")
-                                        .asText("");
-                                    if (tgt.isEmpty()) tgt =
-                                        tool.path("arguments").path("CommandLine").asText("");
-                                    currentSequence.add(
-                                        "AGENT ACTION: [" + name + "] " + action + " -> " + tgt
-                                    );
-                                }
-                            }
-                        } else if (
-                            node.has("error") ||
-                            (
-                                node.has("content") &&
-                                node.path("content").asText("").contains("Exception")
-                            )
-                        ) {
-                            String err = node.path("content").asText("");
-                            currentSequence.add(
-                                "SYSTEM EVENT/ERROR: " +
-                                err.substring(0, Math.min(500, err.length()))
-                            );
-                        }
-                    } catch (Exception e) {
-                        // skip malformed
-                    }
-                }
-                if (!currentSequence.isEmpty()) {
-                    sequences.add(deduplicateSequence(currentSequence));
-                }
-
-                TokenCountEstimator estimator = GoogleGenAiTokenCountEstimator
-                    .builder()
-                    .apiKey(apiKey)
-                    .modelName("gemini-3.5-flash")
-                    .build();
+                ToIntFunction<String> tokenFn = tokenCounter::estimate;
 
                 progressMap.put(id, new ProgressState(5, "Estimating Tokens & Chunking...")); // Phase 1: Estimating
 
@@ -253,7 +148,12 @@ public class AnalysisController {
                     combinedLines.addAll(seq);
                 }
                 List<List<String>> optimalChunks = new ArrayList<>();
-                splitIntoSafeChunks(combinedLines, estimator, MAX_TOKENS_PER_CHUNK, optimalChunks);
+                TranscriptParser.splitIntoSafeChunks(
+                    combinedLines,
+                    tokenFn,
+                    MAX_TOKENS_PER_CHUNK,
+                    optimalChunks
+                );
 
                 System.out.println(
                     "Total optimal chunks to process in parallel: " + optimalChunks.size()
@@ -355,7 +255,7 @@ public class AnalysisController {
 
                     try {
                         responseObj =
-                            recursivelyConsolidate(seqResponses, estimator, mapper, 500_000);
+                            recursivelyConsolidate(seqResponses, tokenFn, mapper, 500_000);
                     } finally {
                         consolidationDone.set(true);
                         fakeProgress.cancel(true);
@@ -400,13 +300,13 @@ public class AnalysisController {
 
     private AnalysisResponse recursivelyConsolidate(
         List<AnalysisResponse> responses,
-        TokenCountEstimator estimator,
+        ToIntFunction<String> tokenFn,
         ObjectMapper mapper,
         int maxTokens
     ) throws Exception {
         String json = mapper.writeValueAsString(responses);
         try {
-            int tokens = estimator.estimateTokenCountInText(json);
+            int tokens = tokenFn.applyAsInt(json);
             if (tokens <= maxTokens) {
                 return analyzerService.consolidateAnalysis(json);
             }
@@ -417,39 +317,16 @@ public class AnalysisController {
         int mid = responses.size() / 2;
         AnalysisResponse r1 = recursivelyConsolidate(
             responses.subList(0, mid),
-            estimator,
+            tokenFn,
             mapper,
             maxTokens
         );
         AnalysisResponse r2 = recursivelyConsolidate(
             responses.subList(mid, responses.size()),
-            estimator,
+            tokenFn,
             mapper,
             maxTokens
         );
         return analyzerService.consolidateAnalysis(mapper.writeValueAsString(List.of(r1, r2)));
-    }
-
-    private List<String> deduplicateSequence(List<String> sequence) {
-        if (sequence.isEmpty()) return sequence;
-        List<String> deduped = new ArrayList<>();
-        String lastLine = null;
-        int count = 0;
-        for (String line : sequence) {
-            if (line.equals(lastLine)) {
-                count++;
-            } else {
-                if (count > 1) {
-                    deduped.set(deduped.size() - 1, lastLine + " (repeated " + count + " times)");
-                }
-                deduped.add(line);
-                lastLine = line;
-                count = 1;
-            }
-        }
-        if (count > 1) {
-            deduped.set(deduped.size() - 1, lastLine + " (repeated " + count + " times)");
-        }
-        return deduped;
     }
 }
