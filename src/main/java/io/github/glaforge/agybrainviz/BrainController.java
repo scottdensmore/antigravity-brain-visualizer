@@ -23,6 +23,7 @@ import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import jakarta.inject.Inject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,6 +39,13 @@ import java.util.stream.Stream;
 @Controller("/api/brain")
 public class BrainController {
 
+    private final CodexSessionReader codexReader;
+
+    @Inject
+    public BrainController(CodexSessionReader codexReader) {
+        this.codexReader = codexReader;
+    }
+
     private Path getBrainPath(String flavor) {
         if (flavor == null || flavor.isEmpty()) flavor = "antigravity-cli";
         return Paths.get(System.getProperty("user.home"), ".gemini", flavor, "brain");
@@ -46,6 +54,9 @@ public class BrainController {
     @ExecuteOn(TaskExecutors.IO)
     @Get("/conversations")
     public List<Map<String, String>> listConversations(@QueryValue Optional<String> flavor) {
+        if (CodexSessionReader.FLAVOR.equals(flavor.orElse(""))) {
+            return codexReader.listConversations();
+        }
         Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
         if (!Files.exists(brainPath)) return List.of();
 
@@ -134,6 +145,9 @@ public class BrainController {
     @Get(value = "/conversations/{id}/transcript", produces = "application/json")
     public String getTranscript(@PathVariable String id, @QueryValue Optional<String> flavor)
         throws IOException {
+        if (CodexSessionReader.FLAVOR.equals(flavor.orElse(""))) {
+            return codexReader.transcriptJson(id);
+        }
         Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
         Path transcriptPath = brainPath
             .resolve(id)

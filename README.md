@@ -25,7 +25,8 @@ Additionally, it leverages Google's Gemini LLMs to automatically generate compre
 
 **Session Management**
 *   **Session Loading**: Parses local `.gemini/brain` directories to list past and active agent sessions.
-*   **Search & Filtering**: Includes a text search input to find sessions, and a dropdown to filter sessions by agent type (CLI, IDE, Agent).
+*   **Multiple Sources**: In addition to Antigravity transcripts, the dropdown can render **OpenAI Codex** CLI sessions read from `~/.codex/sessions` (select "OpenAI Codex"). Codex rollout files are adapted into the same timeline view. *(AI summarization currently applies to Antigravity transcripts.)*
+*   **Search & Filtering**: Includes a text search input to find sessions, and a dropdown to filter sessions by source/agent type (Antigravity CLI, IDE, Agent, or OpenAI Codex).
 *   **Sorting & Refreshing**: Provides toggle controls to sort sessions chronologically and a refresh button to load new sessions.
 *   **Session Metadata**: Hovering over a session displays an overview popover containing metadata such as step counts and session IDs.
 *   **Adjustable Layout**: The sidebar features a drag handle to resize its width or collapse it entirely.
