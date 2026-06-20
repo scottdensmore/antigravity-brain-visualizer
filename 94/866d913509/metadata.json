@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "94866d913509",
+  "strategy": "manual-commit",
+  "branch": "fix/ollama-disable-thinking",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/94/866d913509/0/metadata.json",
+      "transcript": "/94/866d913509/0/full.jsonl",
+      "content_hash": "/94/866d913509/0/content_hash.txt",
+      "prompt": "/94/866d913509/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 63514,
+    "cache_creation_tokens": 3265224,
+    "cache_read_tokens": 133927316,
+    "output_tokens": 430453,
+    "api_call_count": 363
+  }
+}
