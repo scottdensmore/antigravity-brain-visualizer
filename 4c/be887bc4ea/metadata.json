@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "4cbe887bc4ea",
+  "strategy": "manual-commit",
+  "branch": "feat/codex-analysis",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "README.md",
+    "e2e/codex.spec.js",
+    "e2e/fixtures.mjs",
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexAdapter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexSessionReader.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AnalysisControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/CodexAdapterTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4c/be887bc4ea/0/metadata.json",
+      "transcript": "/4c/be887bc4ea/0/full.jsonl",
+      "content_hash": "/4c/be887bc4ea/0/content_hash.txt",
+      "prompt": "/4c/be887bc4ea/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 61759,
+    "cache_creation_tokens": 2606061,
+    "cache_read_tokens": 112941997,
+    "output_tokens": 382078,
+    "api_call_count": 329
+  }
+}

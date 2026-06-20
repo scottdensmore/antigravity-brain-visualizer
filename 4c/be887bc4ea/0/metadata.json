@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "4cbe887bc4ea",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-20T20:20:48.303529Z",
+  "branch": "feat/codex-analysis",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "README.md",
+    "e2e/codex.spec.js",
+    "e2e/fixtures.mjs",
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexAdapter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexSessionReader.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AnalysisControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/CodexAdapterTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "86a5d93be96a",
+  "token_usage": {
+    "input_tokens": 61759,
+    "cache_creation_tokens": 2606061,
+    "cache_read_tokens": 112941997,
+    "output_tokens": 382078,
+    "api_call_count": 329
+  },
+  "session_metrics": {
+    "turn_count": 14
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}
