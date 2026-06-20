@@ -46,6 +46,12 @@ public class ChatModelFactory {
                 .baseUrl(aiConfig.ollamaBaseUrl())
                 .modelName(aiConfig.ollamaModel())
                 .temperature(0.0)
+                // Disable "thinking": for reasoning-capable local models (e.g. Gemma) Ollama would
+                // otherwise generate a long hidden chain-of-thought on every analysis call, which
+                // can take minutes per request and makes the analysis appear to hang. We only need
+                // the structured summary, not the reasoning.
+                .think(false)
+                .returnThinking(false)
                 // Local models can be slower than the hosted API, so allow more time per request.
                 .timeout(Duration.ofMinutes(5))
                 .responseFormat(ResponseFormat.JSON)
