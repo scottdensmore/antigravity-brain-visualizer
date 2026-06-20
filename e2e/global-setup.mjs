@@ -14,7 +14,8 @@ export default function globalSetup() {
 
   const libs = path.join(projectRoot, "build", "libs");
   const hasJar =
-    fs.existsSync(libs) && fs.readdirSync(libs).some((f) => f.endsWith("-all.jar"));
+    fs.existsSync(libs) &&
+    fs.readdirSync(libs, { recursive: true }).some((f) => String(f).endsWith("-all.jar"));
   if (!hasJar) {
     throw new Error(
       "No runnable jar found in build/libs (expected *-all.jar).\n" +

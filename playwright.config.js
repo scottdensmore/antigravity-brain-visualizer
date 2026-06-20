@@ -8,10 +8,11 @@ const E2E_HOME = path.join(projectRoot, "build", "e2e-home");
 
 // Launch the prebuilt fat jar with user.home pointed at the seeded fixtures. A dummy GEMINI_API_KEY
 // lets the cached-analysis path run without contacting the real LLM (the cache lookup is gated
-// behind the key check). The single quotes keep the glob from being expanded before sh runs it.
+// behind the key check). `find` (not a top-level glob) locates the jar even when the project
+// version embeds a slash — e.g. a PR's GITHUB_REF_NAME of "1/merge" nests the jar in a subdir.
 const serverCommand =
   `sh -c 'java -Duser.home="${E2E_HOME}" -Dmicronaut.server.port=${PORT} ` +
-  `-jar $(ls build/libs/*-all.jar | head -1)'`;
+  `-jar "$(find build/libs -name "*-all.jar" | head -1)"'`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -22,7 +23,9 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  reporter: process.env.CI
+    ? [["github"], ["html", { open: "never" }]]
+    : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",

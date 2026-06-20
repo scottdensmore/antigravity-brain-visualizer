@@ -30,6 +30,10 @@ jobs:
         run: npm ci
 
       - name: Build the application jar
+        # Override GITHUB_REF_NAME so the project version (and thus the jar filename) has no slash;
+        # a PR ref like "1/merge" would otherwise nest the jar in a subdirectory.
+        env:
+          GITHUB_REF_NAME: e2e
         run: ./gradlew shadowJar -x test --no-daemon
 
       - name: Install Playwright browser
