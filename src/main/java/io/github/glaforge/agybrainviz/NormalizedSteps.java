@@ -25,21 +25,53 @@ import java.util.List;
  * such as {@link CodexAdapter} and {@link ClaudeCodeAdapter}) into condensed LLM-analysis input: one
  * list of short lines per user-initiated sequence, mirroring
  * {@link TranscriptParser#parseSequences(List)}. User prompts, agent tool calls, and failed tool
- * outputs are summarized; assistant narration, successful outputs, and reasoning are omitted — this
- * keeps the token footprint small (assistant prose dominates verbose sessions) and matches what the
- * Antigravity analyzer feeds the model.
+ * outputs are summarized; successful outputs and reasoning are omitted. Assistant narration is
+ * mostly omitted because its prose dominates verbose sessions, but the <em>final</em> assistant
+ * message (the agent's outcome/conclusion) is always kept, plus a small budget of earlier assistant
+ * messages — this preserves the stated outcome for the summary while keeping the token footprint
+ * small.
  */
 final class NormalizedSteps {
 
     private NormalizedSteps() {}
 
+    // The final assistant message (outcome) is always included up to this length; earlier assistant
+    // messages share a small total budget so verbose sessions don't blow up the analysis input.
+    private static final int ASSISTANT_FINAL_MAX = 2000;
+    private static final int ASSISTANT_OTHER_MAX_EACH = 500;
+    private static final int ASSISTANT_OTHER_BUDGET = 2000;
+
     static List<List<String>> toAnalysisSequences(List<ObjectNode> steps) {
+        int lastMessageIndex = lastMessageIndex(steps);
+        int assistantBudget = ASSISTANT_OTHER_BUDGET;
+
         List<List<String>> sequences = new ArrayList<>();
         List<String> current = new ArrayList<>();
-        for (ObjectNode step : steps) {
+        for (int i = 0; i < steps.size(); i++) {
+            ObjectNode step = steps.get(i);
             String type = step.path("type").asText("");
-            String line = analysisLine(step, type);
-            if (line == null) continue;
+
+            String line;
+            if ("MESSAGE".equals(type)) {
+                String content = step.path("content").asText("");
+                if (content.isBlank()) continue;
+                if (i == lastMessageIndex) {
+                    line = "ASSISTANT: " + truncate(content, ASSISTANT_FINAL_MAX);
+                } else if (assistantBudget > 0) {
+                    String text = truncate(
+                        content,
+                        Math.min(ASSISTANT_OTHER_MAX_EACH, assistantBudget)
+                    );
+                    assistantBudget -= text.length();
+                    line = "ASSISTANT: " + text;
+                } else {
+                    continue;
+                }
+            } else {
+                line = analysisLine(step, type);
+                if (line == null) continue;
+            }
+
             if ("USER_INPUT".equals(type) && !current.isEmpty()) {
                 sequences.add(TranscriptParser.deduplicateSequence(current));
                 current = new ArrayList<>();
@@ -50,6 +82,20 @@ final class NormalizedSteps {
             sequences.add(TranscriptParser.deduplicateSequence(current));
         }
         return sequences;
+    }
+
+    private static int lastMessageIndex(List<ObjectNode> steps) {
+        int idx = -1;
+        for (int i = 0; i < steps.size(); i++) {
+            ObjectNode step = steps.get(i);
+            if (
+                "MESSAGE".equals(step.path("type").asText("")) &&
+                !step.path("content").asText("").isBlank()
+            ) {
+                idx = i;
+            }
+        }
+        return idx;
     }
 
     private static String analysisLine(ObjectNode step, String type) {
