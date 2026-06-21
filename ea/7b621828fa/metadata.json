@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "ea7b621828fa",
+  "strategy": "manual-commit",
+  "branch": "fix/analysis-drop-assistant-narration",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/ea/7b621828fa/0/metadata.json",
+      "transcript": "/ea/7b621828fa/0/full.jsonl",
+      "content_hash": "/ea/7b621828fa/0/content_hash.txt",
+      "prompt": "/ea/7b621828fa/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 78097,
+    "cache_creation_tokens": 4754810,
+    "cache_read_tokens": 176504903,
+    "output_tokens": 506948,
+    "api_call_count": 424
+  }
+}
