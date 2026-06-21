@@ -24,9 +24,10 @@ import java.util.List;
  * Shared logic for turning normalized timeline steps (the schema produced by the per-source adapters
  * such as {@link CodexAdapter} and {@link ClaudeCodeAdapter}) into condensed LLM-analysis input: one
  * list of short lines per user-initiated sequence, mirroring
- * {@link TranscriptParser#parseSequences(List)}. User prompts, assistant messages, tool calls, and
- * failed tool outputs are summarized; successful outputs and empty reasoning are omitted to keep the
- * token footprint small.
+ * {@link TranscriptParser#parseSequences(List)}. User prompts, agent tool calls, and failed tool
+ * outputs are summarized; assistant narration, successful outputs, and reasoning are omitted — this
+ * keeps the token footprint small (assistant prose dominates verbose sessions) and matches what the
+ * Antigravity analyzer feeds the model.
  */
 final class NormalizedSteps {
 
@@ -55,8 +56,6 @@ final class NormalizedSteps {
         switch (type) {
             case "USER_INPUT":
                 return "USER REQUEST: " + truncate(step.path("content").asText(""), 2000);
-            case "MESSAGE":
-                return "ASSISTANT: " + truncate(step.path("content").asText(""), 2000);
             case "FUNCTION_CALL":
                 {
                     JsonNode tool = step.path("tool_calls").path(0);
