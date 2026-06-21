@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "2b71b4a5021e",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-21T21:40:15.954313Z",
+  "branch": "chore/rename-to-agent-brain-visualizer",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "src/main/resources/public/index.html"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "b0db8ab1b4de",
+  "token_usage": {
+    "input_tokens": 93316,
+    "cache_creation_tokens": 6445814,
+    "cache_read_tokens": 245265826,
+    "output_tokens": 584649,
+    "api_call_count": 508
+  },
+  "session_metrics": {
+    "turn_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-21T21:40:15.876849Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 90,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 90,
+    "total_lines_changed": 103,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}

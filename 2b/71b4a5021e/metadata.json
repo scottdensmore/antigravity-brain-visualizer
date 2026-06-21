@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "2b71b4a5021e",
+  "strategy": "manual-commit",
+  "branch": "chore/rename-to-agent-brain-visualizer",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "src/main/resources/public/index.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2b/71b4a5021e/0/metadata.json",
+      "transcript": "/2b/71b4a5021e/0/full.jsonl",
+      "content_hash": "/2b/71b4a5021e/0/content_hash.txt",
+      "prompt": "/2b/71b4a5021e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 93316,
+    "cache_creation_tokens": 6445814,
+    "cache_read_tokens": 245265826,
+    "output_tokens": 584649,
+    "api_call_count": 508
+  }
+}
