@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="logo.png" alt="Antigravity Brain Visualizer Logo" width="800"/>
+  <img src="logo.svg" alt="Agent Brain Visualizer Logo" width="800"/>
 </p>
 
-# Antigravity Brain Visualizer
+# Agent Brain Visualizer
 
 <p align="center">
-  <img src="screenshot.png" alt="Antigravity Brain Visualizer Screenshot" width="800"/>
+  <img src="screenshot.png" alt="Agent Brain Visualizer Screenshot" width="800"/>
 </p>
 
 ## What is this project?
-The Antigravity Brain Visualizer is a dedicated companion tool for developers working with Antigravity AI agents. Antigravity agents construct complex reasoning chains, dispatch background tasks, spawn subagents, and execute system commands over long-running sessions. The agent records all of these interactions in detailed JSONL transcript files (the agent's "brain"). 
+The Agent Brain Visualizer is a dedicated companion tool for developers working with AI coding agents. Agents construct complex reasoning chains, dispatch background tasks, spawn subagents, and execute system commands over long-running sessions, recording all of these interactions in detailed JSONL transcript files (the agent's "brain"). It reads sessions from Antigravity (CLI/IDE/Agent), OpenAI Codex, and Claude Code.
 
 This visualizer parses those raw JSONL brain transcripts and renders them in a scannable and interactive web interface, allowing developers to inspect the agent's exact decision-making process.
 
@@ -60,7 +60,7 @@ This project prioritizes a lightweight, high-performance, and maintainable archi
 
 ## Installation
 
-The easiest way to install and use the Antigravity Brain Visualizer is to download the pre-compiled native executable for your operating system.
+The easiest way to install and use the Agent Brain Visualizer is to download the pre-compiled native executable for your operating system.
 
 1. Navigate to the [Releases](https://github.com/glaforge/antigravity-brain-visualizer/releases) section of this repository.
 2. Download the appropriate `.zip` asset for your OS (macOS, Linux, or Windows).
