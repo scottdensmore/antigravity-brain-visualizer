@@ -25,7 +25,7 @@ public class Application {
                 printHelp();
                 System.exit(0);
             } else if ("-v".equals(arg) || "--version".equals(arg)) {
-                System.out.println("Antigravity Brain Visualizer version " + Version.VERSION);
+                System.out.println("Agent Brain Visualizer version " + Version.VERSION);
                 System.exit(0);
             }
         }
@@ -34,9 +34,9 @@ public class Application {
 
     private static void printHelp() {
         System.out.println("""
-                Antigravity Brain Visualizer
-                ============================
-                A web interface for inspecting Antigravity AI agent execution transcripts.
+                Agent Brain Visualizer
+                ======================
+                A web interface for inspecting AI agent execution transcripts.
 
                 Usage:
                   export GEMINI_API_KEY="<your-key>"

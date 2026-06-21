@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" width="640" height="180" role="img" aria-label="Agent Brain Visualizer">
+  <defs>
+    <linearGradient id="abvGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="50%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="640" height="180" rx="24" fill="#0e1726"/>
+
+  <!-- Brain-in-magnifier icon -->
+  <g fill="none" stroke="url(#abvGrad)" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="80" cy="80" r="46" stroke-width="7"/>
+    <line x1="113" y1="113" x2="150" y2="150" stroke-width="13"/>
+    <!-- neural network edges -->
+    <g stroke-width="2.5" opacity="0.85">
+      <line x1="80" y1="55" x2="60" y2="76"/>
+      <line x1="80" y1="55" x2="100" y2="76"/>
+      <line x1="60" y1="76" x2="80" y2="82"/>
+      <line x1="100" y1="76" x2="80" y2="82"/>
+      <line x1="60" y1="76" x2="70" y2="102"/>
+      <line x1="100" y1="76" x2="95" y2="102"/>
+      <line x1="80" y1="82" x2="70" y2="102"/>
+      <line x1="80" y1="82" x2="95" y2="102"/>
+    </g>
+  </g>
+  <!-- neural network nodes -->
+  <g fill="url(#abvGrad)">
+    <circle cx="80" cy="55" r="5"/>
+    <circle cx="60" cy="76" r="5"/>
+    <circle cx="100" cy="76" r="5"/>
+    <circle cx="80" cy="82" r="5"/>
+    <circle cx="70" cy="102" r="5"/>
+    <circle cx="95" cy="102" r="5"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="184" y="84" font-family="'Segoe UI', Roboto, system-ui, -apple-system, Helvetica, Arial, sans-serif"
+        font-size="52" font-weight="700" fill="#f8fafc">Agent</text>
+  <text x="184" y="138" font-family="'Segoe UI', Roboto, system-ui, -apple-system, Helvetica, Arial, sans-serif"
+        font-size="44" font-weight="500" fill="#cbd5e1">Brain Visualizer</text>
+</svg>

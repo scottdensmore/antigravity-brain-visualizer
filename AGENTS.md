@@ -1,6 +1,6 @@
-# Antigravity Brain Visualizer
+# Agent Brain Visualizer
 
-You are an AI coding assistant working on the **Antigravity Brain Visualizer** project. 
+You are an AI coding assistant working on the **Agent Brain Visualizer** project. 
 This project provides an interactive web UI for inspecting Antigravity AI agent JSONL execution transcripts.
 *(Context: Transcripts consist of sequential JSON objects like `USER_INPUT`, `MODEL`, and `TOOL_CALL`, which the frontend parses and renders into a timeline).*
 
