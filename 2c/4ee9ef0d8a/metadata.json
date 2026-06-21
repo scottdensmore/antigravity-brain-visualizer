@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "2c4ee9ef0d8a",
+  "strategy": "manual-commit",
+  "branch": "feat/analysis-keep-final-assistant",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/2c/4ee9ef0d8a/0/metadata.json",
+      "transcript": "/2c/4ee9ef0d8a/0/full.jsonl",
+      "content_hash": "/2c/4ee9ef0d8a/0/content_hash.txt",
+      "prompt": "/2c/4ee9ef0d8a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 81580,
+    "cache_creation_tokens": 4777668,
+    "cache_read_tokens": 186706921,
+    "output_tokens": 523770,
+    "api_call_count": 437
+  }
+}
