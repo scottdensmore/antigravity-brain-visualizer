@@ -132,11 +132,12 @@ class ClaudeCodeAdapterTest {
         assertEquals(1, seqs.size());
         List<String> lines = seqs.get(0);
         assertTrue(lines.contains("USER REQUEST: Fix the bug"));
-        assertEquals("AGENT ACTION: [Read] /a.txt", lines.get(1));
+        // The final assistant message (the outcome) is kept.
+        assertTrue(lines.contains("ASSISTANT: On it."));
+        assertTrue(lines.contains("AGENT ACTION: [Read] /a.txt"));
         assertTrue(lines.stream().anyMatch(l -> l.startsWith("SYSTEM EVENT/ERROR:")));
-        // Successful tool output and assistant narration are omitted.
+        // Successful tool output is omitted.
         assertFalse(lines.stream().anyMatch(l -> l.contains("file contents")));
-        assertFalse(lines.stream().anyMatch(l -> l.startsWith("ASSISTANT:")));
     }
 
     @Test
