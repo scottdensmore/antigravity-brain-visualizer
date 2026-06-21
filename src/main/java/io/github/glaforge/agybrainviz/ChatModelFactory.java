@@ -63,8 +63,10 @@ public class ChatModelFactory {
             .apiKey(aiConfig.geminiApiKey().orElse("dummy"))
             .modelName(aiConfig.geminiModel())
             .temperature(0.0)
-            .maxRetries(0)
-            .timeout(Duration.ofMinutes(2))
+            // Retry transient API/network failures (e.g. HTTP timeouts on the large consolidation
+            // request) instead of failing the whole analysis after the per-chunk work succeeded.
+            .maxRetries(2)
+            .timeout(Duration.ofMinutes(3))
             .responseFormat(ResponseFormat.JSON)
             .build();
     }
