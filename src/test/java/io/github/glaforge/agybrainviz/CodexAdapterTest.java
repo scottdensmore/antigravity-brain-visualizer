@@ -174,11 +174,12 @@ class CodexAdapterTest {
         assertEquals(1, seqs.size());
         List<String> lines = seqs.get(0);
         assertTrue(lines.get(0).startsWith("USER REQUEST: Fix the bug"));
-        assertTrue(lines.get(1).startsWith("ASSISTANT: On it."));
-        assertEquals("AGENT ACTION: [exec_command] git status", lines.get(2));
+        assertEquals("AGENT ACTION: [exec_command] git status", lines.get(1));
         // Successful output is omitted; the failed one becomes a SYSTEM EVENT/ERROR line.
         assertTrue(lines.stream().anyMatch(l -> l.startsWith("SYSTEM EVENT/ERROR:")));
         assertFalse(lines.stream().anyMatch(l -> l.contains("clean")));
+        // Assistant narration is omitted to keep the analysis input compact.
+        assertFalse(lines.stream().anyMatch(l -> l.startsWith("ASSISTANT:")));
     }
 
     @Test
