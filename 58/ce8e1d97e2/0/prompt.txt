@@ -1,0 +1,171 @@
+You can add .claude and .entire
+
+---
+
+How are you running all the UI tests?
+
+---
+
+Should we add playwrite?
+
+---
+
+Yes lets add all the tests to CI
+
+---
+
+Lets take care of that minor issue right now
+
+---
+
+Ok how can I run this locally
+
+---
+
+What is the workflow for this project?
+
+---
+
+We should ensure the pr is setup to squash and merge
+
+---
+
+Lets change the workflow so it always does squash merge
+
+---
+
+Make a change to the workflow so when the PR checks goes green you can do the squash merge
+
+---
+
+We can do that later
+
+---
+
+Now that we have a good test suite: We should add the ability to use a local gemma4 model through Ollama instead of callling out to a remote gemini model with a key. Both should be supported.
+
+---
+
+You can default to gemma4 here is the info https://ollama.com/library/gemma4
+
+---
+
+Now that we have support for a local model: lets add support for OpenAI codex to the available visualizers
+
+---
+
+We should fix those limitations
+
+---
+
+Got this while running this WARN  i.n.u.c.AbstractEventExecutor - A task raised an exception. Task: io.micronaut.http.netty.EventLoopFlow$Delayed@4e29ce22
+java.lang.IllegalStateException: onNext before request?
+        at io.micronaut.http.server.netty.handler.PipeliningServerHandler$StreamingOutboundHandler.add0(PipeliningServerHandler.java:1243)
+        at io.micronaut.http.server.netty.handler.PipeliningServerHandler$StreamingOutboundHandler.add(PipeliningServerHandler.java:1237)
+        at io.micronaut.http.body.stream.BaseSharedBuffer.add(BaseSharedBuffer.java:367)
+        at io.micronaut.http.netty.body.StreamingNettyByteBody$SharedBuffer.add(StreamingNettyByteBody.java:252)
+        at io.micronaut.http.body.AbstractBodyAdapter.onNext(AbstractBodyAdapter.java:117)
+        at io.micronaut.http.netty.body.NettyBodyAdapter.lambda$onNext$0(NettyBodyAdapter.java:44)
+        at io.micronaut.http.netty.EventLoopFlow$Delayed.run(EventLoopFlow.java:141)
+        at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:148)
+        at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:141)
+        at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:535)
+        at io.netty.channel.SingleThreadIoEventLoop.run(SingleThreadIoEventLoop.java:201)
+        at io.netty.util.concurrent.SingleThreadEventExecutor$5.run(SingleThreadEventExecutor.java:1195)
+        at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+        at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+        at java.base/java.lang.Thread.run(Thread.java:1474)
+
+---
+
+Ok lets leave it. One issue I am having is that the conversation analysis for  Codex is never finishing.
+
+---
+
+Lets add support for Claude Code
+
+---
+
+The analyzer for claude is taking way to long. Not sure why that is
+
+---
+
+Did we loose any fidelity?
+
+---
+
+Yeah lets do that. I want to make sure we get the best summaries we can.
+
+---
+
+how do I run this with the gemini key again?
+
+---
+
+Got this message
+Exception caught during analysis:
+com.google.genai.errors.GenAiIOException: Failed to execute HTTP request.
+        at com.google.genai.HttpApiClient.executeRequest(HttpApiClient.java:94)
+        at com.google.genai.HttpApiClient.request(HttpApiClient.java:67)
+        at com.google.genai.HttpApiClient.request(HttpApiClient.java:35)
+        at com.google.genai.Models.privateGenerateContent(Models.java:5777)
+        at com.google.genai.Models.generateContent(Models.java:7315)
+        at dev.langchain4j.model.google.genai.GoogleGenAiChatModel.lambda$doChat$0(GoogleGenAiChatModel.java:130)
+        at dev.langchain4j.internal.ExceptionMapper.withExceptionMapper(ExceptionMapper.java:29)
+        at dev.langchain4j.internal.RetryUtils.lambda$withRetryMappingExceptions$1(RetryUtils.java:326)
+        at dev.langchain4j.internal.RetryUtils$RetryPolicy.withRetry(RetryUtils.java:204)
+        at dev.langchain4j.internal.RetryUtils.withRetry(RetryUtils.java:263)
+        at dev.langchain4j.internal.RetryUtils.withRetryMappingExceptions(RetryUtils.java:326)
+        at dev.langchain4j.internal.RetryUtils.withRetryMappingExceptions(RetryUtils.java:309)
+        at dev.langchain4j.model.google.genai.GoogleGenAiChatModel.doChat(GoogleGenAiChatModel.java:129)
+        at dev.langchain4j.model.chat.ChatModel.chat(ChatModel.java:61)
+        at dev.langchain4j.model.chat.ChatModel.chat(ChatModel.java:36)
+        at dev.langchain4j.guardrail.SynchronousChatExecutor.execute(SynchronousChatExecutor.java:32)
+        at dev.langchain4j.guardrail.AbstractChatExecutor.executeInternal(AbstractChatExecutor.java:66)
+        at dev.langchain4j.guardrail.AbstractChatExecutor.execute(AbstractChatExecutor.java:52)
+        at dev.langchain4j.service.DefaultAiServices$1.invoke(DefaultAiServices.java:333)
+        at dev.langchain4j.service.DefaultAiServices$1.invoke(DefaultAiServices.java:162)
+        at jdk.proxy2/jdk.proxy2.$Proxy33.consolidateAnalysis(Unknown Source)
+        at io.github.glaforge.agybrainviz.$AnalyzerService$Intercepted$Definition$Exec.dispatch(Unknown Source)
+        at io.micronaut.context.AbstractExecutableMethodsDefinition$DispatchedExecutableMethod.invoke(AbstractExecutableMethodsDefinition.java:458)
+        at io.micronaut.langchain4j.interceptor.AiServiceInterceptor.intercept(AiServiceInterceptor.java:47)
+        at io.micronaut.aop.chain.MethodInterceptorChain.proceed(MethodInterceptorChain.java:142)
+        at io.github.glaforge.agybrainviz.AnalyzerService$Intercepted.consolidateAnalysis(Unknown Source)
+        at io.github.glaforge.agybrainviz.AnalysisController.recursivelyConsolidate(AnalysisController.java:356)
+        at io.github.glaforge.agybrainviz.AnalysisController.recursivelyConsolidate(AnalysisController.java:350)
+        at io.github.glaforge.agybrainviz.AnalysisController.summarizeConversation(AnalysisController.java:280)
+        at io.github.glaforge.agybrainviz.$AnalysisController$Definition$Exec.dispatch(Unknown Source)
+        at io.micronaut.context.AbstractExecutableMethodsDefinition$DispatchedExecutableMethod.invokeUnsafe(AbstractExecutableMethodsDefinition.java:463)
+        at io.micronaut.context.DefaultBeanContext$BeanContextUnsafeExecutionHandle.invokeUnsafe(DefaultBeanContext.java:3820)
+        at io.micronaut.web.router.AbstractRouteMatch.execute(AbstractRouteMatch.java:265)
+        at io.micronaut.web.router.DefaultUriRouteMatch.execute(DefaultUriRouteMatch.java:39)
+        at io.micronaut.http.server.RouteExecutor.lambda$executeRouteAndConvertBody$0(RouteExecutor.java:475)
+        at io.micronaut.core.propagation.ThreadContext.propagate(ThreadContext.java:98)
+        at io.micronaut.core.propagation.PropagatedContextImpl.propagate(PropagatedContextImpl.java:91)
+        at io.micronaut.http.server.RouteExecutor.executeRouteAndConvertBody(RouteExecutor.java:469)
+        at io.micronaut.http.server.RouteExecutor.lambda$callRoute$2(RouteExecutor.java:445)
+        at io.micronaut.core.execution.ExecutionFlow.lambda$async$0(ExecutionFlow.java:98)
+        at io.micronaut.core.propagation.ThreadContext.propagate(ThreadContext.java:120)
+        at io.micronaut.core.propagation.PropagatedContextImpl.propagate(PropagatedContextImpl.java:152)
+        at io.micronaut.core.propagation.PropagatedContextImpl.lambda$wrap$2(PropagatedContextImpl.java:172)
+        at io.micronaut.core.propagation.ThreadContext.propagate(ThreadContext.java:125)
+        at io.micronaut.core.propagation.PropagatedContextImpl.propagate(PropagatedContextImpl.java:152)
+        at io.micronaut.core.propagation.PropagatedContextImpl.lambda$wrap$2(PropagatedContextImpl.java:172)
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+        at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.io.InterruptedIOException: timeout
+        at okhttp3.internal.connection.RealCall.timeoutExit(RealCall.kt:398)
+        at okhttp3.internal.connection.RealCall.callDone(RealCall.kt:360)
+        at okhttp3.internal.connection.RealCall.noMoreExchanges$okhttp(RealCall.kt:325)
+        at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:209)
+        at okhttp3.internal.connection.RealCall.execute(RealCall.kt:154)
+        at com.google.genai.HttpApiClient.executeRequest(HttpApiClient.java:92)
+        ... 48 more
+Caused by: java.io.IOException: Canceled
+        at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:72)
+        at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+        at com.google.genai.RetryInterceptor.intercept(RetryInterceptor.java:82)
+        at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:109)
+        at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:201)
+        ... 50 more
