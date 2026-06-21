@@ -16,6 +16,7 @@
 package io.github.glaforge.agybrainviz;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
@@ -76,6 +78,10 @@ class AnalysisControllerTest {
     private static final AtomicReference<CountDownLatch> ANALYZE_STARTED = new AtomicReference<>();
     private static final AtomicReference<CountDownLatch> ANALYZE_RELEASE = new AtomicReference<>();
 
+    // Failure injection for the graceful-fallback tests.
+    private static final AtomicBoolean ANALYZE_FAILS = new AtomicBoolean(false);
+    private static final AtomicBoolean CONSOLIDATE_FAILS = new AtomicBoolean(false);
+
     private static String originalUserHome;
     private static Path tempHome;
 
@@ -102,6 +108,8 @@ class AnalysisControllerTest {
         CONSOLIDATE_CALLS.set(0);
         ANALYZE_STARTED.set(null);
         ANALYZE_RELEASE.set(null);
+        ANALYZE_FAILS.set(false);
+        CONSOLIDATE_FAILS.set(false);
     }
 
     @MockBean(AiConfig.class)
@@ -137,6 +145,7 @@ class AnalysisControllerTest {
             @Override
             public AnalysisResponse analyze(String transcript) {
                 ANALYZE_CALLS.add(transcript);
+                if (ANALYZE_FAILS.get()) throw new RuntimeException("analyze failed");
                 CountDownLatch started = ANALYZE_STARTED.get();
                 if (started != null) {
                     started.countDown();
@@ -164,6 +173,7 @@ class AnalysisControllerTest {
             @Override
             public AnalysisResponse consolidateAnalysis(String combinedSummariesJson) {
                 CONSOLIDATE_CALLS.incrementAndGet();
+                if (CONSOLIDATE_FAILS.get()) throw new RuntimeException("consolidation failed");
                 return new AnalysisResponse(
                     "Final Title",
                     List.of("final flow"),
@@ -319,6 +329,46 @@ class AnalysisControllerTest {
         JsonNode node = MAPPER.readTree(body);
         assertEquals("previously cached", node.get("summary").asText());
         assertTrue(ANALYZE_CALLS.isEmpty(), "cached path must not invoke the LLM");
+    }
+
+    // ----- graceful failure -----
+
+    @Test
+    void fallsBackToLocalMergeWhenConsolidationFails() throws IOException {
+        String id = "consolidation-fallback";
+        writeTranscript(
+            id,
+            "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n" +
+            "{\"type\":\"PLANNER_RESPONSE\",\"tool_calls\":[" +
+            "{\"name\":\"a\",\"arguments\":{\"CommandLine\":\"one\"}}," +
+            "{\"name\":\"b\",\"arguments\":{\"CommandLine\":\"two\"}}]}\n"
+        );
+        TOKEN_RESULT.set(100_001); // force multiple chunks -> consolidation
+        CONSOLIDATE_FAILS.set(true);
+
+        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
+        JsonNode node = MAPPER.readTree(body);
+        String summary = node.get("summary").asText();
+
+        // Not a hard error; the partial chunk analyses are merged locally instead.
+        assertFalse(summary.startsWith("Error generating summary"));
+        assertTrue(summary.contains("partial analyses"));
+        assertTrue(summary.contains("chunk summary"));
+        assertEquals("Chunk Title", node.get("shortTitle").asText());
+        // A degraded fallback must NOT be cached, so a later load retries the real consolidation.
+        assertFalse(Files.exists(logsDir(id).resolve("summary.json")));
+    }
+
+    @Test
+    void returnsClearMessageWhenTheModelFailsForEveryChunk() throws IOException {
+        String id = "all-chunks-fail";
+        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n");
+        ANALYZE_FAILS.set(true);
+
+        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
+        String summary = MAPPER.readTree(body).get("summary").asText();
+        assertFalse(summary.startsWith("Error generating summary"));
+        assertTrue(summary.contains("could not be generated"));
     }
 
     // ----- summarize: full pipeline -----

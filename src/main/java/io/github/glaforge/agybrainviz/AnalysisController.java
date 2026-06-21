@@ -155,6 +155,7 @@ public class AnalysisController {
 
             ObjectMapper mapper = new ObjectMapper();
             AnalysisResponse responseObj = null;
+            boolean consolidationFellBack = false;
 
             try {
                 List<List<String>> sequences = external
@@ -248,7 +249,11 @@ public class AnalysisController {
                 }
 
                 if (seqResponses.isEmpty()) {
-                    return "{\"summary\": \"No transcript lines found.\"}";
+                    // Distinguish "nothing to analyze" from "the model failed for every chunk".
+                    String msg = optimalChunks.isEmpty()
+                        ? "No transcript lines found."
+                        : "Analysis could not be generated: the model did not return a result for any part of this conversation. Please try again.";
+                    return mapper.writeValueAsString(Map.of("summary", msg));
                 } else if (seqResponses.size() == 1) {
                     responseObj = seqResponses.get(0);
                 } else {
@@ -278,6 +283,15 @@ public class AnalysisController {
                     try {
                         responseObj =
                             recursivelyConsolidate(seqResponses, tokenFn, mapper, 500_000);
+                    } catch (Exception e) {
+                        // LLM consolidation failed (e.g. API timeout). Rather than discard all the
+                        // per-chunk work, merge the partial analyses locally so the user still gets
+                        // a usable summary.
+                        System.err.println(
+                            "Consolidation failed; using local merge fallback: " + e.getMessage()
+                        );
+                        responseObj = localMerge(seqResponses);
+                        consolidationFellBack = true;
                     } finally {
                         consolidationDone.set(true);
                         fakeProgress.cancel(true);
@@ -287,6 +301,13 @@ public class AnalysisController {
                 progressMap.put(id, new ProgressState(100, "Done"));
 
                 String jsonResponse = mapper.writeValueAsString(responseObj);
+
+                // Don't persist a degraded local-merge fallback: the consolidation failure was
+                // likely transient, so a later (non-forced) load should retry the LLM rather than
+                // serve the cruder summary.
+                if (consolidationFellBack) {
+                    return jsonResponse;
+                }
 
                 String title = responseObj.shortTitle();
                 try {
@@ -331,13 +352,17 @@ public class AnalysisController {
         int maxTokens
     ) throws Exception {
         String json = mapper.writeValueAsString(responses);
+        boolean withinBudget;
         try {
-            int tokens = tokenFn.applyAsInt(json);
-            if (tokens <= maxTokens) {
-                return analyzerService.consolidateAnalysis(json);
-            }
+            withinBudget = tokenFn.applyAsInt(json) <= maxTokens;
         } catch (Exception e) {
-            // fallback
+            // Only token estimation is best-effort here; fall back to a char-length heuristic so a
+            // failed estimate doesn't get mistaken for a failed consolidation.
+            withinBudget = (json.length() / 4) <= maxTokens;
+        }
+        // A consolidation failure below propagates to the caller (which falls back to a local merge).
+        if (withinBudget || responses.size() <= 1) {
+            return analyzerService.consolidateAnalysis(json);
         }
 
         int mid = responses.size() / 2;
@@ -354,5 +379,66 @@ public class AnalysisController {
             maxTokens
         );
         return analyzerService.consolidateAnalysis(mapper.writeValueAsString(List.of(r1, r2)));
+    }
+
+    /**
+     * Deterministically merges per-chunk analyses without calling the LLM. Used as a fallback when
+     * LLM consolidation fails, so the user still gets a usable (if less polished) summary instead of
+     * an error.
+     */
+    private AnalysisResponse localMerge(List<AnalysisResponse> responses) {
+        String shortTitle = "Session analysis";
+        StringBuilder summary = new StringBuilder();
+        List<String> flow = new ArrayList<>();
+        List<AgentAction> actions = new ArrayList<>();
+        List<Issue> issues = new ArrayList<>();
+        List<String> recommendations = new ArrayList<>();
+
+        for (AnalysisResponse r : responses) {
+            if (r == null) continue;
+            if (
+                "Session analysis".equals(shortTitle) &&
+                r.shortTitle() != null &&
+                !r.shortTitle().isBlank()
+            ) {
+                shortTitle = r.shortTitle();
+            }
+            if (r.summary() != null && !r.summary().isBlank()) {
+                if (summary.length() > 0) summary.append(" ");
+                summary.append(r.summary().trim());
+            }
+            if (r.flow() != null) {
+                for (String f : r.flow()) if (f != null && !flow.contains(f)) flow.add(f);
+            }
+            if (r.agentActions() != null) actions.addAll(r.agentActions());
+            if (r.issues() != null) issues.addAll(r.issues());
+            if (r.recommendations() != null) {
+                for (String rec : r.recommendations()) {
+                    if (rec != null && !recommendations.contains(rec)) recommendations.add(rec);
+                }
+            }
+        }
+
+        String summaryText = summary.length() > 4000
+            ? summary.substring(0, 4000) + "..."
+            : summary.toString();
+        summaryText =
+            "(Combined from " +
+            responses.size() +
+            " partial analyses; full consolidation was unavailable.) " +
+            summaryText;
+
+        return new AnalysisResponse(
+            shortTitle,
+            cap(flow, 40),
+            cap(actions, 40),
+            cap(issues, 40),
+            cap(recommendations, 30),
+            summaryText
+        );
+    }
+
+    private static <T> List<T> cap(List<T> list, int max) {
+        return list.size() > max ? new ArrayList<>(list.subList(0, max)) : list;
     }
 }
