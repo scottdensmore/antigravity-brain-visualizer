@@ -18,6 +18,7 @@ import { renderTranscript } from "./modules/timeline.js";
 import { renderStats } from "./modules/stats.js";
 import { triggerAnalysis } from "./modules/analysis.js";
 import { initUI } from "./modules/ui.js";
+import { showInsights } from "./modules/insights.js";
 
 let allConversations = [];
 let sortDescending = true;
@@ -134,6 +135,13 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!sessionId) return;
       triggerAnalysis(sessionId, true);
     });
+
+  const insightsBtn = document.getElementById("insights-btn");
+  if (insightsBtn) {
+    insightsBtn.addEventListener("click", () => {
+      showInsights(document.getElementById("flavor-select").value);
+    });
+  }
 
   const refreshBtn = document.getElementById("refresh-conversations-btn");
   if (refreshBtn) {
