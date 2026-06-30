@@ -1,0 +1,195 @@
+/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { escapeHtml } from "./utils.js";
+
+const FLAVOR_LABELS = {
+  "antigravity-cli": "Antigravity CLI",
+  "antigravity-ide": "Antigravity IDE",
+  antigravity: "Antigravity Agent",
+  codex: "OpenAI Codex",
+  "claude-code": "Claude Code",
+};
+
+function section(title, color, bodyHtml) {
+  return `<div style="margin-top:28px;">
+      <div style="font-size:0.75rem; font-weight:700; color:${color}; margin-bottom:16px; letter-spacing:0.05em; text-transform:uppercase;">${escapeHtml(
+    title
+  )}</div>
+      ${bodyHtml}
+    </div>`;
+}
+
+function emptyNote(text) {
+  return `<div class="stat-sub">${escapeHtml(text)}</div>`;
+}
+
+// A skill proposal: name + when-to-use header, numbered body in a copyable block.
+function skillCard(skill) {
+  const body = skill.body || "";
+  return `<div style="background:rgba(30,41,59,0.4); border:1px solid var(--border-color); border-radius:10px; padding:14px 16px; margin-bottom:12px;">
+      <div style="font-family:var(--mono,monospace); font-size:0.9rem; color:var(--accent-purple); font-weight:700;">${escapeHtml(
+        skill.name || "skill"
+      )}</div>
+      <div class="stat-sub" style="margin:4px 0 10px;">${escapeHtml(
+        skill.whenToUse || ""
+      )}</div>
+      <pre style="white-space:pre-wrap; margin:0; font-size:0.82rem; color:var(--text-primary); font-family:var(--mono,monospace);">${escapeHtml(
+        body
+      )}</pre>
+    </div>`;
+}
+
+// An AGENTS.md rule: imperative bullet + muted rationale.
+function ruleRow(rule) {
+  return `<div style="display:flex; gap:12px; margin-bottom:12px;">
+      <div style="color:#10b981; flex:0 0 auto;">▸</div>
+      <div>
+        <div style="font-size:0.9rem; color:var(--text-primary);">${escapeHtml(
+          rule.rule || ""
+        )}</div>
+        <div class="stat-sub" style="margin-top:2px;">${escapeHtml(
+          rule.rationale || ""
+        )}</div>
+      </div>
+    </div>`;
+}
+
+// A failure→fix pair from the structural evidence.
+function fixRow(pair) {
+  const fix = pair.fix && pair.fix.trim() ? pair.fix : "(no fix recorded)";
+  return `<div style="display:flex; gap:12px; margin-bottom:10px; align-items:baseline;">
+      <div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
+        pair.count || 1
+      }</div>
+      <div>
+        <div style="font-size:0.88rem; color:var(--error);">${escapeHtml(
+          pair.error || ""
+        )}</div>
+        <div class="stat-sub" style="margin-top:2px;">→ ${escapeHtml(fix)}</div>
+      </div>
+    </div>`;
+}
+
+function sequenceRow(seq) {
+  return `<div style="display:flex; gap:12px; margin-bottom:8px; align-items:baseline;">
+      <div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
+        seq.count || 1
+      }</div>
+      <div style="font-size:0.85rem; color:var(--text-primary); font-family:var(--mono,monospace);">${escapeHtml(
+        seq.name || ""
+      )}</div>
+    </div>`;
+}
+
+function list(items, render, emptyText) {
+  if (!items || items.length === 0) return emptyNote(emptyText);
+  return items.map(render).join("");
+}
+
+export function renderMining(report, container) {
+  if (!container) return;
+  const r = report || {};
+  const label = FLAVOR_LABELS[r.flavor] || r.flavor || "Sessions";
+  const skills = r.skills || [];
+  const rules = r.agentsRules || [];
+  const gaps = r.toolingGaps || [];
+  const sequences = r.toolSequences || [];
+  const fixes = r.failureFixes || [];
+  const recs = r.recommendations || [];
+
+  const noteHtml =
+    r.aiGenerated === false && r.note
+      ? `<div style="margin:14px 0; padding:10px 14px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.4); border-radius:8px; font-size:0.85rem; color:var(--text-primary);">${escapeHtml(
+          r.note
+        )}</div>`
+      : "";
+
+  // The AI-proposed assets only render when the model ran; otherwise we lead with the evidence.
+  const proposalsHtml = r.aiGenerated
+    ? section(
+        "Proposed Skills",
+        "var(--accent-purple)",
+        list(skills, skillCard, "No skills proposed")
+      ) +
+      section(
+        "Proposed AGENTS.md Rules",
+        "#10b981",
+        list(rules, ruleRow, "No rules proposed")
+      ) +
+      section(
+        "Tooling Gaps",
+        "#f59e0b",
+        list(
+          gaps,
+          (g) =>
+            `<div style="font-size:0.88rem; color:var(--text-primary); margin-bottom:6px;">• ${escapeHtml(
+              g
+            )}</div>`,
+          "No tooling gaps identified"
+        )
+      )
+    : "";
+
+  container.innerHTML = `
+    <div class="mining-view" style="padding:8px 4px 40px;">
+      <h2 style="margin:0 0 4px; font-size:1.4rem; color:var(--text-primary);">Mined Improvements</h2>
+      <div class="stat-sub" style="margin-bottom:8px;">${escapeHtml(label)} · ${
+    r.sessionCount || 0
+  } sessions · ${r.analyzedSessions || 0} AI-analyzed</div>
+      ${noteHtml}
+      ${proposalsHtml}
+      ${section(
+        "Evidence · Recurring Workflows",
+        "var(--accent-purple)",
+        list(sequences, sequenceRow, "No recurring tool sequences yet")
+      )}
+      ${section(
+        "Evidence · Failure → Fix",
+        "var(--error)",
+        list(fixes, fixRow, "No failures recorded in analyses yet")
+      )}
+      ${section(
+        "Evidence · Recommendation Backlog",
+        "#10b981",
+        list(
+          recs,
+          (rec) =>
+            `<div style="display:flex; gap:12px; margin-bottom:6px;"><div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
+              rec.count || 1
+            }</div><div style="font-size:0.88rem; color:var(--text-primary);">${escapeHtml(
+              rec.name || ""
+            )}</div></div>`,
+          "No recommendations yet — generate AI analysis on more sessions"
+        )
+      )}
+    </div>`;
+}
+
+export async function showMining(flavor) {
+  const container = document.getElementById("transcript-container");
+  if (!container) return;
+  container.innerHTML =
+    '<div class="loading-state" style="text-align:center; padding:40px; color:#94a3b8;">Mining skills &amp; rules from sessions…</div>';
+  try {
+    const res = await fetch(`/api/mine?flavor=${encodeURIComponent(flavor)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const report = await res.json();
+    renderMining(report, container);
+  } catch (e) {
+    container.innerHTML =
+      '<div class="loading-state" style="text-align:center; color:red;">Failed to mine improvements.</div>';
+  }
+}

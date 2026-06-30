@@ -99,7 +99,8 @@ class InsightsServiceTest {
             null
         );
 
-        InsightsReport r = new InsightsService(List.of(fake)).forFlavor("fake");
+        InsightsReport r = new InsightsService(new SessionCollector(List.of(fake)))
+            .forFlavor("fake");
 
         assertEquals("fake", r.flavor());
         assertEquals(2, r.sessionCount());
@@ -116,13 +117,14 @@ class InsightsServiceTest {
     @Test
     void capsScanAtMaxSessionsButReportsTrueTotal() throws IOException {
         FakeSource fake = new FakeSource();
-        int total = InsightsService.MAX_SESSIONS + 50;
+        int total = SessionCollector.MAX_SESSIONS + 50;
         for (int i = 0; i < total; i++) {
             fake.add("s" + i, "[]", null);
         }
 
-        InsightsReport r = new InsightsService(List.of(fake)).forFlavor("fake");
+        InsightsReport r = new InsightsService(new SessionCollector(List.of(fake)))
+            .forFlavor("fake");
         assertEquals(total, r.sessionCount());
-        assertEquals(InsightsService.MAX_SESSIONS, r.sampledSessions());
+        assertEquals(SessionCollector.MAX_SESSIONS, r.sampledSessions());
     }
 }
