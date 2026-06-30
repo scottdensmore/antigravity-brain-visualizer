@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "0a80120c19c9",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-30T04:34:10.73593Z",
+  "branch": "feat/skill-agents-miner",
+  "checkpoints_count": 4,
+  "save_step_count": 2,
+  "files_touched": [
+    "e2e/mine.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/AgentsRule.java",
+    "src/main/java/io/github/glaforge/agybrainviz/FixPair.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MineController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MinerAdvisorService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MinerService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MiningProposal.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MiningReport.java",
+    "src/main/java/io/github/glaforge/agybrainviz/PatternMiner.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionCollector.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SkillProposal.java",
+    "src/main/resources/public/app.js",
+    "src/main/resources/public/index.html",
+    "src/main/resources/public/modules/mine.js",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MineControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MinerServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/PatternMinerTest.java",
+    "src/test/js/mine.test.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "ad46fac2e715",
+  "token_usage": {
+    "input_tokens": 155034,
+    "cache_creation_tokens": 9558238,
+    "cache_read_tokens": 294586882,
+    "output_tokens": 721420,
+    "api_call_count": 612
+  },
+  "session_metrics": {
+    "turn_count": 29
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1618,
+      "agent_lines_removed": 155,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}

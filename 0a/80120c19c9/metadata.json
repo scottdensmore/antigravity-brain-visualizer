@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.7.7",
+  "checkpoint_id": "0a80120c19c9",
+  "strategy": "manual-commit",
+  "branch": "feat/skill-agents-miner",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "e2e/mine.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/AgentsRule.java",
+    "src/main/java/io/github/glaforge/agybrainviz/FixPair.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MineController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MinerAdvisorService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MinerService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MiningProposal.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MiningReport.java",
+    "src/main/java/io/github/glaforge/agybrainviz/PatternMiner.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionCollector.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SkillProposal.java",
+    "src/main/resources/public/app.js",
+    "src/main/resources/public/index.html",
+    "src/main/resources/public/modules/mine.js",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MineControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MinerServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/PatternMinerTest.java",
+    "src/test/js/mine.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0a/80120c19c9/0/metadata.json",
+      "transcript": "/0a/80120c19c9/0/full.jsonl",
+      "content_hash": "/0a/80120c19c9/0/content_hash.txt",
+      "prompt": "/0a/80120c19c9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 155034,
+    "cache_creation_tokens": 9558238,
+    "cache_read_tokens": 294586882,
+    "output_tokens": 721420,
+    "api_call_count": 612
+  }
+}
