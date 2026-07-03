@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "1707f7fb900b",
+  "strategy": "manual-commit",
+  "branch": "feat/eval-llm-judge",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "e2e/eval.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisJudgeService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalReport.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/JudgeScore.java",
+    "src/main/java/io/github/glaforge/agybrainviz/JudgeSummary.java",
+    "src/main/java/io/github/glaforge/agybrainviz/JudgedCase.java",
+    "src/main/resources/public/modules/eval.js",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalServiceTest.java",
+    "src/test/js/eval.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/17/07f7fb900b/0/metadata.json",
+      "transcript": "/17/07f7fb900b/0/full.jsonl",
+      "compact_transcript": "/17/07f7fb900b/0/transcript.jsonl",
+      "content_hash": "/17/07f7fb900b/0/content_hash.txt",
+      "prompt": "/17/07f7fb900b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 27184,
+    "cache_creation_tokens": 487740,
+    "cache_read_tokens": 18237433,
+    "output_tokens": 80025,
+    "api_call_count": 77
+  }
+}
