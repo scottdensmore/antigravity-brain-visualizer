@@ -37,7 +37,10 @@ public class EvalController {
 
     @ExecuteOn(TaskExecutors.IO)
     @Get(produces = "application/json")
-    public EvalReport eval(@QueryValue Optional<String> flavor) throws IOException {
-        return evalService.forFlavor(flavor.orElse("antigravity-cli"));
+    public EvalReport eval(
+        @QueryValue Optional<String> flavor,
+        @QueryValue Optional<Boolean> judge
+    ) throws IOException {
+        return evalService.forFlavor(flavor.orElse("antigravity-cli"), judge.orElse(false));
     }
 }

@@ -66,6 +66,60 @@ function passRateRow(item, evaluated) {
     </div>`;
 }
 
+function rubricCard(label, value) {
+  const v = value ?? 0;
+  return `<div class="stat-card">
+      <div class="stat-label">${label}</div>
+      <div class="stat-value" style="color:${scoreColor(v * 20)};">${escapeHtml(
+    String(v)
+  )}<span style="font-size:0.9rem; color:var(--text-secondary);"> / 5</span></div>
+      <div class="stat-sub">average</div>
+    </div>`;
+}
+
+function judgedRow(c) {
+  const s = c.score || {};
+  return `<div style="display:flex; gap:16px; align-items:baseline; margin-bottom:12px;">
+      <div style="flex:0 0 150px; font-size:0.82rem; color:var(--text-secondary); font-weight:600;">F ${
+        s.faithfulness
+      } · A ${s.actionability} · C ${s.clarity}</div>
+      <div style="min-width:0;">
+        <div style="font-size:0.88rem; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(
+          c.sessionId || ""
+        )}">${escapeHtml(c.title || c.sessionId || "session")}</div>
+        <div class="stat-sub" style="margin-top:2px;">${escapeHtml(
+          s.comment || ""
+        )}</div>
+      </div>
+    </div>`;
+}
+
+function judgeHtmlFor(report, evaluated) {
+  const j = report.judge || {};
+  if (j.ran) {
+    const cards = `<div class="stats-grid">
+        ${rubricCard("FAITHFULNESS", j.avgFaithfulness)}
+        ${rubricCard("ACTIONABILITY", j.avgActionability)}
+        ${rubricCard("CLARITY", j.avgClarity)}
+      </div>`;
+    const rows = (j.cases || []).map(judgedRow).join("");
+    return section(
+      `LLM judge · rubric 1–5 · ${j.judgedSessions || 0} judged`,
+      "var(--accent-purple)",
+      cards + `<div style="margin-top:20px;">${rows}</div>`
+    );
+  }
+  if (evaluated > 0) {
+    return `<div style="margin-top:28px;">
+        <button id="run-judge-btn" class="btn" style="padding:8px 14px; font-size:0.85rem; background:rgba(139,92,246,0.15); border:1px solid var(--accent-purple); color:var(--text-primary); cursor:pointer; border-radius:8px;">⚖️ Run LLM judge</button>
+        <div class="stat-sub" style="margin-top:8px;">${escapeHtml(
+          j.note || ""
+        )}</div>
+      </div>`;
+  }
+  return "";
+}
+
 function worstRow(c) {
   const failed = (c.failed || []).map((f) => CHECK_LABELS[f] || f);
   const failsHtml = failed.length
@@ -130,16 +184,28 @@ export function renderEval(report, container) {
         </div>
       </div>
       ${bodyHtml}
+      ${judgeHtmlFor(r, evaluated)}
     </div>`;
+
+  // The "Run LLM judge" button re-fetches this same source with the judge enabled.
+  const judgeBtn = container.querySelector("#run-judge-btn");
+  if (judgeBtn) {
+    judgeBtn.addEventListener("click", () => showEval(r.flavor, true));
+  }
 }
 
-export async function showEval(flavor) {
+export async function showEval(flavor, judge = false) {
   const container = document.getElementById("transcript-container");
   if (!container) return;
-  container.innerHTML =
-    '<div class="loading-state" style="text-align:center; padding:40px; color:#94a3b8;">Scoring analysis quality…</div>';
+  const loading = judge
+    ? "Running the LLM judge…"
+    : "Scoring analysis quality…";
+  container.innerHTML = `<div class="loading-state" style="text-align:center; padding:40px; color:#94a3b8;">${loading}</div>`;
   try {
-    const res = await fetch(`/api/eval?flavor=${encodeURIComponent(flavor)}`);
+    const url = `/api/eval?flavor=${encodeURIComponent(flavor)}${
+      judge ? "&judge=true" : ""
+    }`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const report = await res.json();
     renderEval(report, container);

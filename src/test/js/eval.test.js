@@ -16,6 +16,31 @@ const REPORT = {
   worstCases: [
     { sessionId: "s-bad", title: "Broken run", score: 33, passed: [], failed: ["schema-complete", "not-degenerate"] },
   ],
+  judge: {
+    ran: false,
+    note: "Run the LLM judge to add faithfulness / actionability / clarity scores.",
+    judgedSessions: 0,
+    cases: [],
+  },
+};
+
+const JUDGED = {
+  ...REPORT,
+  judge: {
+    ran: true,
+    note: "",
+    judgedSessions: 2,
+    avgFaithfulness: 4.5,
+    avgActionability: 3,
+    avgClarity: 4,
+    cases: [
+      {
+        sessionId: "s1",
+        title: "Parser fix",
+        score: { faithfulness: 5, actionability: 3, clarity: 4, comment: "Accurate and specific." },
+      },
+    ],
+  },
 };
 
 beforeEach(() => {
@@ -48,6 +73,41 @@ describe("renderEval", () => {
     expect(html).toContain("No analyzed sessions yet");
     // Overview cards still render.
     expect(html).toContain("AVG SCORE");
+  });
+
+  it("shows a Run-LLM-judge button and note when the judge has not run", () => {
+    const c = document.getElementById("transcript-container");
+    renderEval(REPORT, c);
+    const html = c.innerHTML;
+    expect(c.querySelector("#run-judge-btn")).not.toBeNull();
+    expect(html).toContain("Run the LLM judge");
+    // No rubric section yet.
+    expect(html).not.toContain("FAITHFULNESS");
+  });
+
+  it("renders the rubric averages and per-case scores when the judge ran", () => {
+    const c = document.getElementById("transcript-container");
+    renderEval(JUDGED, c);
+    const html = c.innerHTML;
+    expect(html).toContain("FAITHFULNESS");
+    expect(html).toContain("4.5"); // avg faithfulness
+    expect(html).toContain("2 judged");
+    expect(html).toContain("Parser fix");
+    expect(html).toContain("Accurate and specific.");
+    // The button is gone once the judge has run.
+    expect(c.querySelector("#run-judge-btn")).toBeNull();
+  });
+
+  it("clicking Run-LLM-judge re-fetches with judge=true", async () => {
+    const c = document.getElementById("transcript-container");
+    renderEval(REPORT, c);
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(JUDGED) })
+    );
+    c.querySelector("#run-judge-btn").click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("judge=true"));
   });
 
   it("escapes dynamic values so markup can't be injected", () => {

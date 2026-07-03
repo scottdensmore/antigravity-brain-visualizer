@@ -14,6 +14,8 @@ test.describe("Analysis Eval", () => {
     await expect(tc).toContainText("gemini");
     // Both seeded sessions carry a cached analysis, so the pass-rate section renders.
     await expect(tc).toContainText("Check pass-rates");
+    // The LLM judge is opt-in: its button is offered (the rubric itself needs a real model).
+    await expect(tc.locator("#run-judge-btn")).toBeVisible();
   });
 
   test("eval follows the selected source", async ({ page }) => {
