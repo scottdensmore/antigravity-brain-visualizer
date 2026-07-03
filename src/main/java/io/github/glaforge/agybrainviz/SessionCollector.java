@@ -72,7 +72,7 @@ public class SessionCollector {
             String id = info.get("id");
             List<JsonNode> steps = parseArray(source.transcriptJson(id));
             JsonNode summary = source.cachedSummary(id).map(this::parseJson).orElse(null);
-            sessions.add(new FleetInsights.Session(steps, summary));
+            sessions.add(new FleetInsights.Session(id, steps, summary));
         }
         return new Collected(conversations.size(), sessions);
     }
@@ -103,7 +103,9 @@ public class SessionCollector {
                 List<JsonNode> steps = parseLines(Files.readAllLines(transcript));
                 Path logs = dir.resolve(".system_generated").resolve("logs");
                 JsonNode summary = readJson(logs.resolve("summary.json"));
-                sessions.add(new FleetInsights.Session(steps, summary));
+                sessions.add(
+                    new FleetInsights.Session(dir.getFileName().toString(), steps, summary)
+                );
             } catch (IOException e) {
                 // A session may be deleted/rotated mid-scan; skip it rather than failing the report.
             }

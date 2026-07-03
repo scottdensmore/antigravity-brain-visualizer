@@ -20,6 +20,7 @@ import { triggerAnalysis } from "./modules/analysis.js";
 import { initUI } from "./modules/ui.js";
 import { showInsights } from "./modules/insights.js";
 import { showMining } from "./modules/mine.js";
+import { showEval } from "./modules/eval.js";
 
 let allConversations = [];
 let sortDescending = true;
@@ -148,6 +149,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (mineBtn) {
     mineBtn.addEventListener("click", () => {
       showMining(document.getElementById("flavor-select").value);
+    });
+  }
+
+  const evalBtn = document.getElementById("eval-btn");
+  if (evalBtn) {
+    evalBtn.addEventListener("click", () => {
+      showEval(document.getElementById("flavor-select").value);
     });
   }
 
