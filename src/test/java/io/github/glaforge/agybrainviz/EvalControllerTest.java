@@ -16,6 +16,7 @@
 package io.github.glaforge.agybrainviz;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -105,6 +106,24 @@ class EvalControllerTest {
         assertTrue(containsName(r.get("checkPassRates"), "schema-complete"));
         // The empty analysis is the lowest-scoring case.
         assertEquals("s-poor", r.get("worstCases").get(0).get("sessionId").asText());
+        // Judge is opt-in: absent by default, with a prompt to run it.
+        assertFalse(r.get("judge").get("ran").asBoolean());
+        assertTrue(r.get("judge").get("note").asText().contains("Run the LLM judge"));
+    }
+
+    @Test
+    void judgeRequestedDegradesWithoutAiKey() throws IOException {
+        writeAntigravity(
+            "s-good",
+            "{\"type\":\"USER_INPUT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n",
+            "{\"shortTitle\":\"t\",\"summary\":\"s\",\"flow\":[\"f\"],\"recommendations\":[\"r\"]}"
+        );
+
+        JsonNode r = get("/api/eval?flavor=antigravity-cli&judge=true");
+
+        // No GEMINI_API_KEY in the test environment, so the judge degrades gracefully.
+        assertFalse(r.get("judge").get("ran").asBoolean());
+        assertTrue(r.get("judge").get("note").asText().contains("Configure an AI provider"));
     }
 
     @Test

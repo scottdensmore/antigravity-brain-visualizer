@@ -25,6 +25,7 @@ import java.util.List;
  * @param modelLabel the AI provider/model currently configured, so two runs (e.g. after switching
  *     model or prompt and recomputing analyses) can be compared apples-to-apples
  * @param checkPassRates for each named check, how many of the evaluated sessions passed it
+ * @param judge the optional LLM-judge rubric layer (only populated when {@code ?judge=true})
  */
 @Serdeable
 public record EvalReport(
@@ -35,5 +36,6 @@ public record EvalReport(
     double avgScore,
     String modelLabel,
     List<NameCount> checkPassRates,
-    List<EvalCaseResult> worstCases
+    List<EvalCaseResult> worstCases,
+    JudgeSummary judge
 ) {}
