@@ -33,8 +33,16 @@ final class FleetInsights {
 
     private static final int TOP_N = 10;
 
-    /** One session's input: its normalized timeline steps and (optionally) its cached analysis JSON. */
-    record Session(List<JsonNode> steps, JsonNode cachedSummary) {}
+    /**
+     * One session's input: its id, normalized timeline steps and (optionally) its cached analysis
+     * JSON. The id is only needed by callers that report per-session (e.g. the eval scorer);
+     * aggregation ignores it, so a convenience constructor keeps id-agnostic callers terse.
+     */
+    record Session(String id, List<JsonNode> steps, JsonNode cachedSummary) {
+        Session(List<JsonNode> steps, JsonNode cachedSummary) {
+            this(null, steps, cachedSummary);
+        }
+    }
 
     static InsightsReport aggregate(String flavor, int totalSessionCount, List<Session> sessions) {
         Map<String, Integer> toolFreq = new LinkedHashMap<>();
@@ -120,7 +128,8 @@ final class FleetInsights {
         );
     }
 
-    private static boolean isError(JsonNode step) {
+    /** The canonical "did this step fail?" test, shared with {@link EvalScorer}. */
+    static boolean isError(JsonNode step) {
         String status = step.path("status").asText("");
         String type = step.path("type").asText("");
         String content = step.path("content").asText("");
