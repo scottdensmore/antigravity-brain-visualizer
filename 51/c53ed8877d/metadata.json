@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "51c53ed8877d",
+  "strategy": "manual-commit",
+  "branch": "feat/mine-export-files",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/main/resources/public/modules/mine.js",
+    "src/test/js/mine.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/51/c53ed8877d/0/metadata.json",
+      "transcript": "/51/c53ed8877d/0/full.jsonl",
+      "compact_transcript": "/51/c53ed8877d/0/transcript.jsonl",
+      "content_hash": "/51/c53ed8877d/0/content_hash.txt",
+      "prompt": "/51/c53ed8877d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 214636,
+    "cache_creation_tokens": 10911825,
+    "cache_read_tokens": 357831334,
+    "output_tokens": 911232,
+    "api_call_count": 806
+  }
+}
