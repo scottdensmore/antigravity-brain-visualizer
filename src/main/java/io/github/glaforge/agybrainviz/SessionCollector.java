@@ -22,7 +22,6 @@ import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -78,8 +77,7 @@ public class SessionCollector {
     }
 
     private Collected fromAntigravity(String flavor) throws IOException {
-        String dirName = (flavor == null || flavor.isEmpty()) ? "antigravity-cli" : flavor;
-        Path brain = Paths.get(System.getProperty("user.home"), ".gemini", dirName, "brain");
+        Path brain = AntigravityPaths.brainDir(flavor);
         if (!Files.isDirectory(brain)) {
             return new Collected(0, List.of());
         }
@@ -101,8 +99,9 @@ public class SessionCollector {
             if (transcript == null) continue;
             try {
                 List<JsonNode> steps = parseLines(Files.readAllLines(transcript));
-                Path logs = dir.resolve(".system_generated").resolve("logs");
-                JsonNode summary = readJson(logs.resolve("summary.json"));
+                JsonNode summary = readJson(
+                    AntigravityPaths.summaryJson(AntigravityPaths.logsDir(dir))
+                );
                 sessions.add(
                     new FleetInsights.Session(dir.getFileName().toString(), steps, summary)
                 );
@@ -115,17 +114,15 @@ public class SessionCollector {
 
     // A session is listed (and sorted) by its transcript.jsonl, mirroring BrainController.list.
     private Path transcriptOf(Path sessionDir) {
-        return nonEmpty(
-            sessionDir.resolve(".system_generated").resolve("logs").resolve("transcript.jsonl")
-        );
+        return nonEmpty(AntigravityPaths.transcript(AntigravityPaths.logsDir(sessionDir)));
     }
 
     // For reading, prefer transcript_full.jsonl when present, mirroring BrainController.getTranscript,
     // so the counts match the rendered timeline.
     private Path readableTranscript(Path sessionDir) {
-        Path logs = sessionDir.resolve(".system_generated").resolve("logs");
-        Path full = nonEmpty(logs.resolve("transcript_full.jsonl"));
-        return full != null ? full : nonEmpty(logs.resolve("transcript.jsonl"));
+        Path logs = AntigravityPaths.logsDir(sessionDir);
+        Path full = nonEmpty(AntigravityPaths.transcriptFull(logs));
+        return full != null ? full : nonEmpty(AntigravityPaths.transcript(logs));
     }
 
     private Path nonEmpty(Path file) {
