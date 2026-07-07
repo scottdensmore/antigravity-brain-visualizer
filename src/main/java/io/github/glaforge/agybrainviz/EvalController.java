@@ -15,24 +15,29 @@
  */
 package io.github.glaforge.agybrainviz;
 
+import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
-/** Scores the quality of a source's cached AI analyses. */
+/** Scores the quality of a source's cached AI analyses and persists run history for comparison. */
 @Controller("/api/eval")
 public class EvalController {
 
     private final EvalService evalService;
+    private final EvalRunStore runStore;
 
     @Inject
-    public EvalController(EvalService evalService) {
+    public EvalController(EvalService evalService, EvalRunStore runStore) {
         this.evalService = evalService;
+        this.runStore = runStore;
     }
 
     @ExecuteOn(TaskExecutors.IO)
@@ -42,5 +47,19 @@ public class EvalController {
         @QueryValue Optional<Boolean> judge
     ) throws IOException {
         return evalService.forFlavor(flavor.orElse("antigravity-cli"), judge.orElse(false));
+    }
+
+    /** Saves a snapshot of a completed eval run so it can be compared against later runs. */
+    @ExecuteOn(TaskExecutors.IO)
+    @Post(value = "/runs", produces = "application/json")
+    public EvalRunSnapshot saveRun(@Body EvalReport report) throws IOException {
+        return runStore.save(report);
+    }
+
+    /** The saved run history for a flavor, newest first. */
+    @ExecuteOn(TaskExecutors.IO)
+    @Get(value = "/runs", produces = "application/json")
+    public List<EvalRunSnapshot> listRuns(@QueryValue Optional<String> flavor) throws IOException {
+        return runStore.list(flavor.orElse("antigravity-cli"));
     }
 }

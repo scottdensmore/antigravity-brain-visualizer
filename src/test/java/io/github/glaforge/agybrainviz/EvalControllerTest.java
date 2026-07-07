@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -124,6 +126,28 @@ class EvalControllerTest {
         // No GEMINI_API_KEY in the test environment, so the judge degrades gracefully.
         assertFalse(r.get("judge").get("ran").asBoolean());
         assertTrue(r.get("judge").get("note").asText().contains("Configure an AI provider"));
+    }
+
+    @Test
+    void savesAndListsRunHistory() throws IOException {
+        // Round-trips the persistence path; no seeded sessions needed (and adding a session dir here
+        // would perturb the exact session counts other tests assert on this shared temp home).
+        String reportJson = client.toBlocking().retrieve("/api/eval?flavor=antigravity-cli");
+        String savedJson = client
+            .toBlocking()
+            .retrieve(
+                HttpRequest
+                    .POST("/api/eval/runs", reportJson)
+                    .contentType(MediaType.APPLICATION_JSON)
+            );
+        JsonNode saved = MAPPER.readTree(savedJson);
+        assertEquals("antigravity-cli", saved.get("flavor").asText());
+        assertTrue(saved.has("savedAt"));
+
+        JsonNode history = get("/api/eval/runs?flavor=antigravity-cli");
+        assertTrue(history.isArray());
+        assertTrue(history.size() >= 1);
+        assertEquals("antigravity-cli", history.get(0).get("flavor").asText());
     }
 
     @Test
