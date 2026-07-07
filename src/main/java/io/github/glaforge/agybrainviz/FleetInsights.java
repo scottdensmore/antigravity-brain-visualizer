@@ -128,6 +128,90 @@ final class FleetInsights {
         );
     }
 
+    /**
+     * The sessions that contributed a given tally item, using the same keying as {@link #aggregate}
+     * so a drilled-in value matches exactly what the report showed.
+     *
+     * @param category one of {@code tool}, {@code error}, {@code recommendation}, {@code issue}
+     */
+    static List<SessionRef> sessionsFor(String category, String key, List<Session> sessions) {
+        List<SessionRef> refs = new ArrayList<>();
+        if (category == null || key == null) return refs;
+        for (Session session : sessions) {
+            if (matches(category, key, session)) {
+                refs.add(new SessionRef(idOf(session), titleOf(session)));
+            }
+        }
+        return refs;
+    }
+
+    private static boolean matches(String category, String key, Session session) {
+        return switch (category) {
+            case "tool" -> hasTool(session, key);
+            case "error" -> hasError(session, key);
+            case "recommendation" -> hasRecommendation(session, key);
+            case "issue" -> hasIssue(session, key);
+            default -> false;
+        };
+    }
+
+    private static boolean hasTool(Session session, String key) {
+        for (JsonNode step : session.steps()) {
+            JsonNode toolCalls = step.path("tool_calls");
+            if (toolCalls.isArray()) {
+                for (JsonNode tool : toolCalls) {
+                    if (key.equals(tool.path("name").asText("unknown"))) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasError(Session session, String key) {
+        for (JsonNode step : session.steps()) {
+            if (isError(step) && key.equals(errorKey(step))) return true;
+        }
+        return false;
+    }
+
+    private static boolean hasRecommendation(Session session, String key) {
+        JsonNode summary = session.cachedSummary();
+        if (summary == null || summary.isMissingNode() || summary.isNull()) return false;
+        for (JsonNode rec : summary.path("recommendations")) {
+            if (key.equals(clean(rec.asText("")))) return true;
+        }
+        return false;
+    }
+
+    private static boolean hasIssue(Session session, String key) {
+        JsonNode summary = session.cachedSummary();
+        if (summary == null || summary.isMissingNode() || summary.isNull()) return false;
+        for (JsonNode issue : summary.path("issues")) {
+            if (key.equals(clean(issue.path("error").asText("")))) return true;
+        }
+        return false;
+    }
+
+    private static String idOf(Session session) {
+        return session.id() == null ? "unknown" : session.id();
+    }
+
+    /** A short label for a session: its analysis title, else its first user prompt, else its id. */
+    private static String titleOf(Session session) {
+        JsonNode summary = session.cachedSummary();
+        if (summary != null) {
+            String title = summary.path("shortTitle").asText("").strip();
+            if (!title.isBlank()) return truncate(title, 80);
+        }
+        for (JsonNode step : session.steps()) {
+            if ("USER_INPUT".equals(step.path("type").asText(""))) {
+                String content = step.path("content").asText("").strip();
+                if (!content.isBlank()) return truncate(content, 80);
+            }
+        }
+        return idOf(session);
+    }
+
     /** The canonical "did this step fail?" test, shared with {@link EvalScorer}. */
     static boolean isError(JsonNode step) {
         String status = step.path("status").asText("");

@@ -156,6 +156,76 @@ class FleetInsightsTest {
         assertTrue(r.topErrors().get(0).name().contains("'<v>'"));
     }
 
+    private ObjectNode userStep(String content) {
+        ObjectNode step = M.createObjectNode();
+        step.put("type", "USER_INPUT");
+        step.put("source", "USER_EXPLICIT");
+        step.put("content", content);
+        return step;
+    }
+
+    @Test
+    void drillsDownToTheSessionsBehindATallyItem() {
+        // Session A: uses Read, hits an NPE, and its analysis recommends a lint rule.
+        FleetInsights.Session a = new FleetInsights.Session(
+            "sess-a",
+            List.of(
+                userStep("fix the parser"),
+                toolStep("2026-06-19T10:00:00Z", "Read"),
+                errorStep("2026-06-19T10:00:05Z", "NullPointerException at X")
+            ),
+            summary(List.of("Add a lint rule"), List.of("NPE in parser"))
+        );
+        // Session B: only uses Bash, no errors, no analysis.
+        FleetInsights.Session b = new FleetInsights.Session(
+            "sess-b",
+            List.of(toolStep("2026-06-19T11:00:00Z", "Bash")),
+            null
+        );
+        List<FleetInsights.Session> sessions = List.of(a, b);
+
+        // Tool "Read" → only session A; its title comes from the first user prompt.
+        List<SessionRef> readers = FleetInsights.sessionsFor("tool", "Read", sessions);
+        assertEquals(1, readers.size());
+        assertEquals("sess-a", readers.get(0).id());
+        assertEquals("fix the parser", readers.get(0).title());
+
+        // Tool "Bash" → only session B.
+        assertEquals("sess-b", FleetInsights.sessionsFor("tool", "Bash", sessions).get(0).id());
+
+        // Error / recommendation / issue all resolve to session A, keyed exactly as the report shows.
+        assertEquals(
+            "sess-a",
+            FleetInsights.sessionsFor("error", "NullPointerException at X", sessions).get(0).id()
+        );
+        assertEquals(
+            1,
+            FleetInsights.sessionsFor("recommendation", "Add a lint rule", sessions).size()
+        );
+        assertEquals(1, FleetInsights.sessionsFor("issue", "NPE in parser", sessions).size());
+
+        // Unknown category or non-matching key → empty.
+        assertTrue(FleetInsights.sessionsFor("bogus", "Read", sessions).isEmpty());
+        assertTrue(FleetInsights.sessionsFor("tool", "Grep", sessions).isEmpty());
+    }
+
+    @Test
+    void drilldownTitlePrefersTheAnalysisShortTitle() {
+        ObjectNode summaryWithTitle = M.createObjectNode();
+        summaryWithTitle.put("shortTitle", "Parser fix");
+        summaryWithTitle.putArray("recommendations").add("Add a lint rule");
+        FleetInsights.Session s = new FleetInsights.Session(
+            "sess-a",
+            List.of(userStep("some long prompt that should be ignored")),
+            summaryWithTitle
+        );
+
+        SessionRef ref = FleetInsights
+            .sessionsFor("recommendation", "Add a lint rule", List.of(s))
+            .get(0);
+        assertEquals("Parser fix", ref.title());
+    }
+
     @Test
     void handlesNoSessions() {
         InsightsReport r = FleetInsights.aggregate("codex", 0, List.of());
