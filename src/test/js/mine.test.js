@@ -88,6 +88,53 @@ describe("renderMining", () => {
     expect(html).toContain("No recurring tool sequences yet");
     expect(html).toContain("No failures recorded");
   });
+
+  it("offers download buttons only when the model proposed skills/rules", () => {
+    const c = document.getElementById("transcript-container");
+    renderMining(REPORT, c);
+    expect(c.querySelector(".skill-dl-btn")).not.toBeNull();
+    expect(c.querySelector("#agents-dl-btn")).not.toBeNull();
+
+    // Evidence-only (no AI proposals) => no download buttons.
+    renderMining({ ...REPORT, aiGenerated: false, skills: [], agentsRules: [] }, c);
+    expect(c.querySelector(".skill-dl-btn")).toBeNull();
+    expect(c.querySelector("#agents-dl-btn")).toBeNull();
+  });
+
+  it("downloading a skill builds a SKILL.md blob named from its slug", () => {
+    const c = document.getElementById("transcript-container");
+    renderMining(REPORT, c);
+    const created = [];
+    global.URL.createObjectURL = vi.fn(() => "blob:x");
+    global.URL.revokeObjectURL = vi.fn();
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function () {
+        created.push({ download: this.download });
+      });
+
+    c.querySelector(".skill-dl-btn").click();
+
+    expect(global.URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(created[0].download).toBe("edit-and-verify.md");
+    clickSpy.mockRestore();
+  });
+
+  it("downloading AGENTS.md triggers a download", () => {
+    const c = document.getElementById("transcript-container");
+    renderMining(REPORT, c);
+    global.URL.createObjectURL = vi.fn(() => "blob:x");
+    global.URL.revokeObjectURL = vi.fn();
+    let name = null;
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () {
+      name = this.download;
+    });
+
+    c.querySelector("#agents-dl-btn").click();
+
+    expect(name).toBe("AGENTS.md");
+    expect(global.URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+  });
 });
 
 describe("showMining", () => {

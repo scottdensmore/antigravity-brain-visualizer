@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 import { escapeHtml } from "./utils.js";
+import {
+  slugify,
+  skillMarkdown,
+  agentsMarkdown,
+  downloadText,
+} from "./mine-export.js";
+
+const DL_BTN_STYLE =
+  "padding:4px 10px; font-size:0.72rem; background:rgba(30,41,59,0.6); border:1px solid var(--border-color); color:var(--text-primary); cursor:pointer; border-radius:6px; white-space:nowrap;";
 
 const FLAVOR_LABELS = {
   "antigravity-cli": "Antigravity CLI",
@@ -36,13 +45,16 @@ function emptyNote(text) {
   return `<div class="stat-sub">${escapeHtml(text)}</div>`;
 }
 
-// A skill proposal: name + when-to-use header, numbered body in a copyable block.
-function skillCard(skill) {
+// A skill proposal: name + when-to-use header, numbered body in a copyable block, and a download.
+function skillCard(skill, index) {
   const body = skill.body || "";
   return `<div style="background:rgba(30,41,59,0.4); border:1px solid var(--border-color); border-radius:10px; padding:14px 16px; margin-bottom:12px;">
-      <div style="font-family:var(--mono,monospace); font-size:0.9rem; color:var(--accent-purple); font-weight:700;">${escapeHtml(
-        skill.name || "skill"
-      )}</div>
+      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px;">
+        <div style="font-family:var(--mono,monospace); font-size:0.9rem; color:var(--accent-purple); font-weight:700;">${escapeHtml(
+          skill.name || "skill"
+        )}</div>
+        <button class="skill-dl-btn" data-skill-index="${index}" style="${DL_BTN_STYLE}">⬇ SKILL.md</button>
+      </div>
       <div class="stat-sub" style="margin:4px 0 10px;">${escapeHtml(
         skill.whenToUse || ""
       )}</div>
@@ -117,6 +129,11 @@ export function renderMining(report, container) {
         )}</div>`
       : "";
 
+  const agentsDownload =
+    rules.length > 0
+      ? `<button id="agents-dl-btn" style="${DL_BTN_STYLE} margin-bottom:14px;">⬇ AGENTS.md</button>`
+      : "";
+
   // The AI-proposed assets only render when the model ran; otherwise we lead with the evidence.
   const proposalsHtml = r.aiGenerated
     ? section(
@@ -127,7 +144,7 @@ export function renderMining(report, container) {
       section(
         "Proposed AGENTS.md Rules",
         "#10b981",
-        list(rules, ruleRow, "No rules proposed")
+        agentsDownload + list(rules, ruleRow, "No rules proposed")
       ) +
       section(
         "Tooling Gaps",
@@ -176,6 +193,21 @@ export function renderMining(report, container) {
         )
       )}
     </div>`;
+
+  // Wire the download buttons (present only when the model proposed skills/rules).
+  container.querySelectorAll(".skill-dl-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const skill = skills[Number(btn.dataset.skillIndex)];
+      if (skill)
+        downloadText(`${slugify(skill.name)}.md`, skillMarkdown(skill));
+    });
+  });
+  const agentsBtn = container.querySelector("#agents-dl-btn");
+  if (agentsBtn) {
+    agentsBtn.addEventListener("click", () =>
+      downloadText("AGENTS.md", agentsMarkdown(r))
+    );
+  }
 }
 
 export async function showMining(flavor) {
