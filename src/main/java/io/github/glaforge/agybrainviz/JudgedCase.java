@@ -17,6 +17,17 @@ package io.github.glaforge.agybrainviz;
 
 import io.micronaut.serde.annotation.Serdeable;
 
-/** One session's LLM-judge result: which session it is, and its rubric {@link JudgeScore}. */
+/**
+ * One session's ensembled LLM-judge result: the panel's average rubric scores (1-5, possibly
+ * fractional), how many panel verdicts contributed ({@code samples}), and one representative comment.
+ */
 @Serdeable
-public record JudgedCase(String sessionId, String title, JudgeScore score) {}
+public record JudgedCase(
+    String sessionId,
+    String title,
+    double faithfulness,
+    double actionability,
+    double clarity,
+    int samples,
+    String comment
+) {}

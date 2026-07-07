@@ -78,18 +78,18 @@ function rubricCard(label, value) {
 }
 
 function judgedRow(c) {
-  const s = c.score || {};
+  const panel = c.samples ? `${c.samples}-judge panel · ` : "";
   return `<div style="display:flex; gap:16px; align-items:baseline; margin-bottom:12px;">
-      <div style="flex:0 0 150px; font-size:0.82rem; color:var(--text-secondary); font-weight:600;">F ${
-        s.faithfulness
-      } · A ${s.actionability} · C ${s.clarity}</div>
+      <div style="flex:0 0 150px; font-size:0.82rem; color:var(--text-secondary); font-weight:600;">F ${round1(
+        c.faithfulness
+      )} · A ${round1(c.actionability)} · C ${round1(c.clarity)}</div>
       <div style="min-width:0;">
         <div style="font-size:0.88rem; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(
           c.sessionId || ""
         )}">${escapeHtml(c.title || c.sessionId || "session")}</div>
         <div class="stat-sub" style="margin-top:2px;">${escapeHtml(
-          s.comment || ""
-        )}</div>
+          panel
+        )}${escapeHtml(c.comment || "")}</div>
       </div>
     </div>`;
 }
