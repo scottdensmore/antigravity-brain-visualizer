@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "c82f6286bdce",
+  "strategy": "manual-commit",
+  "branch": "refactor/antigravity-paths",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/BrainController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionCollector.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c8/2f6286bdce/0/metadata.json",
+      "transcript": "/c8/2f6286bdce/0/full.jsonl",
+      "compact_transcript": "/c8/2f6286bdce/0/transcript.jsonl",
+      "content_hash": "/c8/2f6286bdce/0/content_hash.txt",
+      "prompt": "/c8/2f6286bdce/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 201333,
+    "cache_creation_tokens": 10458825,
+    "cache_read_tokens": 349137588,
+    "output_tokens": 892316,
+    "api_call_count": 786
+  }
+}
