@@ -144,23 +144,12 @@ final class FleetInsights {
         if ("RUN_COMMAND".equals(step.path("type").asText(""))) {
             return "Command execution failed";
         }
+        // Normalize volatile detail (paths, numbers, ids, quoted values) so near-identical failures
+        // — especially raw Codex/Claude tool errors — cluster instead of each getting its own bucket.
         String source = step.has("error")
             ? step.path("error").asText("")
             : step.path("content").asText("");
-        for (String line : source.split("\n")) {
-            String trimmed = line.trim();
-            if (
-                trimmed.isEmpty() ||
-                trimmed.startsWith("Created At:") ||
-                trimmed.startsWith("Completed At:")
-            ) {
-                continue;
-            }
-            String prefix = "Encountered error in step execution: ";
-            if (trimmed.startsWith(prefix)) trimmed = trimmed.substring(prefix.length()).trim();
-            return truncate(trimmed, 100);
-        }
-        return "Unknown error";
+        return ErrorNormalizer.normalize(source);
     }
 
     private static Long epochMillis(String iso) {

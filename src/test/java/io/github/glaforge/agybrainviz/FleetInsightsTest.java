@@ -45,6 +45,17 @@ class FleetInsightsTest {
         return step;
     }
 
+    /** A Codex/Claude-style failed tool output: the error text lives in {@code content}. */
+    private ObjectNode outputErrorStep(String created, String content) {
+        ObjectNode step = M.createObjectNode();
+        step.put("created_at", created);
+        step.put("type", "FUNCTION_OUTPUT");
+        step.put("source", "TOOL");
+        step.put("status", "ERROR");
+        step.put("content", content);
+        return step;
+    }
+
     private JsonNode summary(List<String> recommendations, List<String> issueErrors) {
         ObjectNode s = M.createObjectNode();
         var recs = s.putArray("recommendations");
@@ -112,6 +123,37 @@ class FleetInsightsTest {
         assertEquals(2, r.topTools().get(0).count());
         assertEquals(0, r.analyzedSessions());
         assertEquals(2, r.cleanSessions());
+    }
+
+    @Test
+    void groupsSimilarToolErrorsAfterNormalization() {
+        // Two runs of the same underlying failure differing only by a volatile path (as raw Codex /
+        // Claude tool errors do) must collapse into a single bucket, not two.
+        FleetInsights.Session a = new FleetInsights.Session(
+            List.of(
+                outputErrorStep(
+                    "2026-06-19T10:00:00Z",
+                    "Error: ENOENT: no such file or directory, open '/Users/alice/a.txt'"
+                )
+            ),
+            null
+        );
+        FleetInsights.Session b = new FleetInsights.Session(
+            List.of(
+                outputErrorStep(
+                    "2026-06-19T11:00:00Z",
+                    "Error: ENOENT: no such file or directory, open '/home/bob/b.txt'"
+                )
+            ),
+            null
+        );
+
+        InsightsReport r = FleetInsights.aggregate("codex", 2, List.of(a, b));
+
+        assertEquals(2, r.sessionsWithErrors());
+        assertEquals(1, r.topErrors().size());
+        assertEquals(2, r.topErrors().get(0).count());
+        assertTrue(r.topErrors().get(0).name().contains("'<v>'"));
     }
 
     @Test
