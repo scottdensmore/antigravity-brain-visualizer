@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "700cd97be798",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-07T20:39:02.3269Z",
+  "branch": "feat/insights-drilldown",
+  "checkpoints_count": 3,
+  "save_step_count": 3,
+  "files_touched": [
+    "e2e/insights.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/DrilldownResult.java",
+    "src/main/java/io/github/glaforge/agybrainviz/FleetInsights.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionRef.java",
+    "src/main/resources/public/modules/insights.js",
+    "src/test/java/io/github/glaforge/agybrainviz/FleetInsightsTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsControllerTest.java",
+    "src/test/js/insights.test.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "73f816833c71",
+  "token_usage": {
+    "input_tokens": 230996,
+    "cache_creation_tokens": 11012894,
+    "cache_read_tokens": 395142898,
+    "output_tokens": 973733,
+    "api_call_count": 877
+  },
+  "session_metrics": {
+    "turn_count": 41
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 140,
+      "agent_lines_removed": 50,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 419,
+      "agent_lines_removed": 14,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}

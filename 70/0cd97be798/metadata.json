@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "700cd97be798",
+  "strategy": "manual-commit",
+  "branch": "feat/insights-drilldown",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "e2e/insights.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/DrilldownResult.java",
+    "src/main/java/io/github/glaforge/agybrainviz/FleetInsights.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionRef.java",
+    "src/main/resources/public/modules/insights.js",
+    "src/test/java/io/github/glaforge/agybrainviz/FleetInsightsTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsControllerTest.java",
+    "src/test/js/insights.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/70/0cd97be798/0/metadata.json",
+      "transcript": "/70/0cd97be798/0/full.jsonl",
+      "compact_transcript": "/70/0cd97be798/0/transcript.jsonl",
+      "content_hash": "/70/0cd97be798/0/content_hash.txt",
+      "prompt": "/70/0cd97be798/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 230996,
+    "cache_creation_tokens": 11012894,
+    "cache_read_tokens": 395142898,
+    "output_tokens": 973733,
+    "api_call_count": 877
+  }
+}
