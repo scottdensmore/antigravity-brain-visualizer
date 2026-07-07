@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "e120a86f5b74",
+  "strategy": "manual-commit",
+  "branch": "feat/eval-history-csv",
+  "checkpoints_count": 3,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/e1/20a86f5b74/0/metadata.json",
+      "transcript": "/e1/20a86f5b74/0/full.jsonl",
+      "compact_transcript": "/e1/20a86f5b74/0/transcript.jsonl",
+      "content_hash": "/e1/20a86f5b74/0/content_hash.txt",
+      "prompt": "/e1/20a86f5b74/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1598,
+    "cache_creation_tokens": 17810,
+    "cache_read_tokens": 14045925,
+    "output_tokens": 12036,
+    "api_call_count": 24
+  }
+}
