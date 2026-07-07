@@ -40,4 +40,15 @@ public class InsightsController {
     public InsightsReport insights(@QueryValue Optional<String> flavor) throws IOException {
         return insightsService.forFlavor(flavor.orElse("antigravity-cli"));
     }
+
+    /** The sessions behind one tally item, e.g. {@code ?category=error&key=<error>}. */
+    @ExecuteOn(TaskExecutors.IO)
+    @Get(value = "/sessions", produces = "application/json")
+    public DrilldownResult sessions(
+        @QueryValue Optional<String> flavor,
+        @QueryValue String category,
+        @QueryValue String key
+    ) throws IOException {
+        return insightsService.drilldown(flavor.orElse("antigravity-cli"), category, key);
+    }
 }

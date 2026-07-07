@@ -21,4 +21,16 @@ test.describe("Fleet Insights", () => {
     await page.click("#insights-btn");
     await expect(page.locator("#transcript-container")).toContainText("Claude Code");
   });
+
+  test("drilling into a tally row reveals the sessions behind it", async ({ page }) => {
+    await page.goto("/");
+    await page.click("#insights-btn");
+
+    const firstToolRow = page
+      .locator('.drill-row[data-drill-category="tool"]')
+      .first();
+    await firstToolRow.locator(".drill-bar").click();
+    // The expanded list shows at least one contributing session.
+    await expect(firstToolRow.locator(".drill-session").first()).toBeVisible();
+  });
 });

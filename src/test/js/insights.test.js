@@ -62,6 +62,68 @@ describe("renderInsights", () => {
     expect(c.querySelector("script")).toBeNull();
     expect(c.innerHTML).toContain("&lt;script&gt;");
   });
+
+  it("tags each tally row with its drill-down category and key", () => {
+    const c = document.getElementById("transcript-container");
+    renderInsights(REPORT, c);
+    const toolRow = c.querySelector('.drill-row[data-drill-category="tool"]');
+    expect(toolRow).not.toBeNull();
+    expect(toolRow.dataset.drillKey).toBe("Bash");
+    expect(c.querySelector('.drill-row[data-drill-category="error"]').dataset.drillKey).toBe(
+      "NullPointerException at X"
+    );
+  });
+});
+
+describe("drill-down", () => {
+  it("expands a row into the sessions behind it and can open one", async () => {
+    const c = document.getElementById("transcript-container");
+    // A stand-in sidebar item the drill-down should click to open the session.
+    const conv = document.createElement("div");
+    conv.className = "conv-item";
+    conv.dataset.id = "sess-1";
+    const convClick = vi.fn();
+    conv.addEventListener("click", convClick);
+    document.body.appendChild(conv);
+
+    renderInsights(REPORT, c);
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            category: "error",
+            key: "NullPointerException at X",
+            totalMatches: 1,
+            sessions: [{ id: "sess-1", title: "Parser fix" }],
+          }),
+      })
+    );
+
+    c.querySelector('.drill-row[data-drill-category="error"] .drill-bar').click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/insights/sessions?flavor=codex&category=error&key=")
+    );
+    const sub = c.querySelector('.drill-row[data-drill-category="error"] .drill-sessions');
+    expect(sub.innerHTML).toContain("Parser fix");
+
+    sub.querySelector(".drill-session").click();
+    expect(convClick).toHaveBeenCalled();
+  });
+
+  it("shows an error in the row when the drill-down request fails", async () => {
+    const c = document.getElementById("transcript-container");
+    renderInsights(REPORT, c);
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }));
+
+    c.querySelector('.drill-row[data-drill-category="tool"] .drill-bar').click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const sub = c.querySelector('.drill-row[data-drill-category="tool"] .drill-sessions');
+    expect(sub.innerHTML).toContain("Failed to load sessions");
+  });
 });
 
 describe("showInsights", () => {

@@ -115,6 +115,30 @@ class InsightsControllerTest {
     }
 
     @Test
+    void drillsDownIntoATallyItem() throws IOException {
+        writeAntigravity(
+            "session-errors",
+            "{\"type\":\"USER_INPUT\",\"source\":\"USER_EXPLICIT\",\"content\":\"fix the parser\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n" +
+            "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T10:00:05Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}}]}\n" +
+            "{\"type\":\"ERROR_MESSAGE\",\"status\":\"ERROR\",\"error\":\"NullPointerException at X\",\"created_at\":\"2026-06-19T10:00:10Z\"}\n",
+            null
+        );
+
+        JsonNode r = get(
+            "/api/insights/sessions?flavor=antigravity-cli&category=error&key=" +
+            java.net.URLEncoder.encode(
+                "NullPointerException at X",
+                java.nio.charset.StandardCharsets.UTF_8
+            )
+        );
+
+        assertEquals("error", r.get("category").asText());
+        assertEquals(1, r.get("totalMatches").asInt());
+        assertEquals("session-errors", r.get("sessions").get(0).get("id").asText());
+        assertEquals("fix the parser", r.get("sessions").get(0).get("title").asText());
+    }
+
+    @Test
     void returnsEmptyReportForUnknownFlavor() throws IOException {
         JsonNode r = get("/api/insights?flavor=antigravity-ide");
         assertEquals(0, r.get("sessionCount").asInt());
