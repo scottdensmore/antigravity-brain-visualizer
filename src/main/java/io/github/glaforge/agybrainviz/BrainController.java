@@ -50,11 +50,6 @@ public class BrainController {
         return sessionSources.stream().filter(s -> s.handles(flavor)).findFirst();
     }
 
-    private Path getBrainPath(String flavor) {
-        if (flavor == null || flavor.isEmpty()) flavor = "antigravity-cli";
-        return Paths.get(System.getProperty("user.home"), ".gemini", flavor, "brain");
-    }
-
     @ExecuteOn(TaskExecutors.IO)
     @Get("/conversations")
     public List<Map<String, String>> listConversations(@QueryValue Optional<String> flavor) {
@@ -62,14 +57,14 @@ public class BrainController {
         if (source.isPresent()) {
             return source.get().listConversations();
         }
-        Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
+        Path brainPath = AntigravityPaths.brainDir(flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR));
         if (!Files.exists(brainPath)) return List.of();
 
         try (Stream<Path> paths = Files.list(brainPath)) {
             return paths
                 .filter(p -> {
                     if (!Files.isDirectory(p)) return false;
-                    Path transcriptPath = p.resolve(".system_generated/logs/transcript.jsonl");
+                    Path transcriptPath = AntigravityPaths.transcript(AntigravityPaths.logsDir(p));
                     if (!Files.exists(transcriptPath)) return false;
                     try {
                         return Files.size(transcriptPath) > 0;
@@ -82,14 +77,15 @@ public class BrainController {
                     Map<String, String> info = new HashMap<>();
                     info.put("id", id);
 
+                    Path logs = AntigravityPaths.logsDir(p);
                     String summary = "Conversation " + id.substring(0, 8);
-                    Path shortTitlePath = p.resolve(".system_generated/logs/short_title.txt");
+                    Path shortTitlePath = AntigravityPaths.shortTitle(logs);
                     if (Files.exists(shortTitlePath)) {
                         try {
                             summary = Files.readString(shortTitlePath).trim();
                         } catch (IOException e) {}
                     } else {
-                        Path transcriptPath = p.resolve(".system_generated/logs/transcript.jsonl");
+                        Path transcriptPath = AntigravityPaths.transcript(logs);
                         if (Files.exists(transcriptPath)) {
                             try (BufferedReader reader = Files.newBufferedReader(transcriptPath)) {
                                 ObjectMapper mapper = new ObjectMapper();
@@ -125,7 +121,7 @@ public class BrainController {
 
                     info.put("summary", summary);
                     try {
-                        Path transcriptPath = p.resolve(".system_generated/logs/transcript.jsonl");
+                        Path transcriptPath = AntigravityPaths.transcript(logs);
                         long modified = Files.getLastModifiedTime(transcriptPath).toMillis();
                         info.put("updatedAt", String.valueOf(modified));
                     } catch (IOException e) {
@@ -154,13 +150,10 @@ public class BrainController {
         if (source.isPresent()) {
             return source.get().transcriptJson(id);
         }
-        Path brainPath = getBrainPath(flavor.orElse("antigravity-cli"));
-        Path transcriptPath = brainPath
-            .resolve(id)
-            .resolve(".system_generated/logs/transcript_full.jsonl");
+        Path logs = AntigravityPaths.logsDir(flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR), id);
+        Path transcriptPath = AntigravityPaths.transcriptFull(logs);
         if (!Files.exists(transcriptPath)) {
-            transcriptPath =
-                brainPath.resolve(id).resolve(".system_generated/logs/transcript.jsonl");
+            transcriptPath = AntigravityPaths.transcript(logs);
         }
         if (!Files.exists(transcriptPath)) {
             return "[]";
@@ -181,7 +174,7 @@ public class BrainController {
     public HttpResponse<String> getFileContent(@QueryValue String path) {
         try {
             Path filePath = Paths.get(path).normalize();
-            Path geminiDir = Paths.get(System.getProperty("user.home"), ".gemini").normalize();
+            Path geminiDir = AntigravityPaths.geminiRoot().normalize();
             if (!filePath.startsWith(geminiDir)) {
                 return HttpResponse.unauthorized();
             }

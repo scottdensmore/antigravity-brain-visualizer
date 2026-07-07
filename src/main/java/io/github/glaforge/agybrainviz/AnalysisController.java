@@ -28,7 +28,6 @@ import jakarta.inject.Named;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +42,6 @@ import java.util.function.ToIntFunction;
 
 @Controller("/api/analysis")
 public class AnalysisController {
-
-    private Path getBrainPath(String flavor) {
-        if (flavor == null || flavor.isEmpty()) flavor = "antigravity-cli";
-        return Paths.get(System.getProperty("user.home"), ".gemini", flavor, "brain");
-    }
 
     private static final int MAX_TOKENS_PER_CHUNK = 100_000;
     private static final Map<String, ProgressState> progressMap = new ConcurrentHashMap<>();
@@ -121,13 +115,10 @@ public class AnalysisController {
             // front; for external sources they stay null.
             Path logsDir = external
                 ? null
-                : getBrainPath(flavor.orElse("antigravity-cli"))
-                    .resolve(id)
-                    .resolve(".system_generated")
-                    .resolve("logs");
-            Path transcriptPath = external ? null : logsDir.resolve("transcript.jsonl");
-            Path summaryJsonPath = external ? null : logsDir.resolve("summary.json");
-            Path shortTitlePath = external ? null : logsDir.resolve("short_title.txt");
+                : AntigravityPaths.logsDir(flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR), id);
+            Path transcriptPath = external ? null : AntigravityPaths.transcript(logsDir);
+            Path summaryJsonPath = external ? null : AntigravityPaths.summaryJson(logsDir);
+            Path shortTitlePath = external ? null : AntigravityPaths.shortTitle(logsDir);
 
             boolean exists = external
                 ? source.get().sessionExists(id)
