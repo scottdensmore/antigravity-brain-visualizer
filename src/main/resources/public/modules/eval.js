@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, formatTime } from "./utils.js";
 
 const FLAVOR_LABELS = {
   "antigravity-cli": "Antigravity CLI",
@@ -138,7 +138,63 @@ function worstRow(c) {
     </div>`;
 }
 
-export function renderEval(report, container) {
+function round1(n) {
+  return Math.round((n || 0) * 10) / 10;
+}
+
+// A signed delta badge vs the previous run's score (green up / red down / muted flat).
+function deltaBadge(delta) {
+  if (delta === null || delta === undefined) return "";
+  const color =
+    delta > 0
+      ? "#10b981"
+      : delta < 0
+      ? "var(--error)"
+      : "var(--text-secondary)";
+  const sign = delta > 0 ? "+" : "";
+  return `<span style="margin-left:8px; font-size:0.78rem; color:${color};">${sign}${escapeHtml(
+    String(round1(delta))
+  )}</span>`;
+}
+
+function historyRow(run, prev) {
+  const delta = prev ? run.avgScore - prev.avgScore : null;
+  const judged = run.judged
+    ? ` · judge F ${round1(run.avgFaithfulness)} / A ${round1(
+        run.avgActionability
+      )} / C ${round1(run.avgClarity)}`
+    : "";
+  return `<div style="display:flex; gap:16px; align-items:baseline; margin-bottom:10px;">
+      <div style="flex:0 0 70px; font-size:1rem; font-weight:700; color:${scoreColor(
+        run.avgScore || 0
+      )};">${escapeHtml(String(round1(run.avgScore)))}${deltaBadge(delta)}</div>
+      <div style="min-width:0;">
+        <div style="font-size:0.85rem; color:var(--text-primary);">${escapeHtml(
+          run.modelLabel || "—"
+        )}</div>
+        <div class="stat-sub">${escapeHtml(formatTime(run.savedAt))} · ${
+    run.evaluatedSessions || 0
+  } evaluated${escapeHtml(judged)}</div>
+      </div>
+    </div>`;
+}
+
+function historySection(history) {
+  if (!Array.isArray(history) || history.length === 0) {
+    return section(
+      "Run history",
+      "var(--text-secondary)",
+      `<div class="stat-sub">No saved runs yet — save a run to start tracking quality over time.</div>`
+    );
+  }
+  // history is newest-first; compare each run to the next (older) one.
+  const rows = history
+    .map((run, i) => historyRow(run, history[i + 1]))
+    .join("");
+  return section("Run history", "var(--text-secondary)", rows);
+}
+
+export function renderEval(report, container, history = []) {
   if (!container) return;
   const r = report || {};
   const label = FLAVOR_LABELS[r.flavor] || r.flavor || "Sessions";
@@ -160,14 +216,24 @@ export function renderEval(report, container) {
           worst.map(worstRow).join("")
         );
 
+  const saveBtn =
+    evaluated > 0
+      ? `<button id="save-run-btn" class="btn" style="padding:6px 12px; font-size:0.82rem; background:rgba(30,41,59,0.5); border:1px solid var(--border-color); color:var(--text-primary); cursor:pointer; border-radius:8px;">💾 Save run</button>`
+      : "";
+
   container.innerHTML = `
     <div class="eval-view" style="padding:8px 4px 40px;">
-      <h2 style="margin:0 0 4px; font-size:1.4rem; color:var(--text-primary);">Analysis Eval</h2>
-      <div class="stat-sub" style="margin-bottom:20px;">${escapeHtml(
-        label
-      )} · ${r.sessionCount || 0} sessions · scored by <strong>${escapeHtml(
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <h2 style="margin:0 0 4px; font-size:1.4rem; color:var(--text-primary);">Analysis Eval</h2>
+          <div class="stat-sub" style="margin-bottom:20px;">${escapeHtml(
+            label
+          )} · ${r.sessionCount || 0} sessions · scored by <strong>${escapeHtml(
     r.modelLabel || "—"
   )}</strong></div>
+        </div>
+        ${saveBtn}
+      </div>
 
       <div class="stats-grid">
         <div class="stat-card">
@@ -185,12 +251,19 @@ export function renderEval(report, container) {
       </div>
       ${bodyHtml}
       ${judgeHtmlFor(r, evaluated)}
+      ${historySection(history)}
     </div>`;
 
   // The "Run LLM judge" button re-fetches this same source with the judge enabled.
   const judgeBtn = container.querySelector("#run-judge-btn");
   if (judgeBtn) {
     judgeBtn.addEventListener("click", () => showEval(r.flavor, true));
+  }
+
+  // "Save run" persists this snapshot, then refreshes the history in place (no re-eval).
+  const saveRunBtn = container.querySelector("#save-run-btn");
+  if (saveRunBtn) {
+    saveRunBtn.addEventListener("click", () => saveRun(r, container));
   }
 }
 
@@ -205,12 +278,46 @@ export async function showEval(flavor, judge = false) {
     const url = `/api/eval?flavor=${encodeURIComponent(flavor)}${
       judge ? "&judge=true" : ""
     }`;
-    const res = await fetch(url);
+    const [res, history] = await Promise.all([
+      fetch(url),
+      fetchHistory(flavor),
+    ]);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const report = await res.json();
-    renderEval(report, container);
+    renderEval(report, container, history);
   } catch (e) {
     container.innerHTML =
       '<div class="loading-state" style="text-align:center; color:red;">Failed to load the eval.</div>';
   }
+}
+
+async function fetchHistory(flavor) {
+  try {
+    const res = await fetch(
+      `/api/eval/runs?flavor=${encodeURIComponent(flavor)}`
+    );
+    return res.ok ? await res.json() : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// Persist the current report as a run, then refresh just the history (no re-eval / no re-judge).
+async function saveRun(report, container) {
+  const btn = container.querySelector("#save-run-btn");
+  if (btn) {
+    btn.textContent = "Saving…";
+    btn.disabled = true;
+  }
+  try {
+    await fetch("/api/eval/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(report),
+    });
+  } catch (e) {
+    // Non-fatal: fall through and re-render with whatever history we can fetch.
+  }
+  const history = await fetchHistory(report.flavor);
+  renderEval(report, container, history);
 }

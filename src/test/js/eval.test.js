@@ -110,6 +110,46 @@ describe("renderEval", () => {
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("judge=true"));
   });
 
+  it("renders run history with a delta vs the previous run", () => {
+    const c = document.getElementById("transcript-container");
+    const history = [
+      { savedAt: "2026-07-02T10:00:00Z", flavor: "antigravity-cli", modelLabel: "gemini · v2", evaluatedSessions: 8, avgScore: 75, judged: false },
+      { savedAt: "2026-07-01T10:00:00Z", flavor: "antigravity-cli", modelLabel: "gemini · v1", evaluatedSessions: 8, avgScore: 70, judged: false },
+    ];
+    renderEval(REPORT, c, history);
+    const html = c.innerHTML;
+    expect(html).toContain("Run history");
+    expect(html).toContain("gemini · v2");
+    expect(html).toContain("+5"); // 75 - 70
+  });
+
+  it("shows an empty-history note and a Save button when nothing is saved", () => {
+    const c = document.getElementById("transcript-container");
+    renderEval(REPORT, c, []);
+    expect(c.innerHTML).toContain("No saved runs yet");
+    expect(c.querySelector("#save-run-btn")).not.toBeNull();
+  });
+
+  it("clicking Save run POSTs the report then refreshes history", async () => {
+    const c = document.getElementById("transcript-container");
+    renderEval(REPORT, c, []);
+    const calls = [];
+    global.fetch = vi.fn((url, opts) => {
+      calls.push({ url, opts });
+      const isPost = opts && opts.method === "POST";
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(isPost ? { savedAt: "x" } : []),
+      });
+    });
+    c.querySelector("#save-run-btn").click();
+    await new Promise((r) => setTimeout(r, 0));
+    const post = calls.find((c) => c.opts && c.opts.method === "POST");
+    expect(post).toBeTruthy();
+    expect(post.url).toBe("/api/eval/runs");
+    expect(JSON.parse(post.opts.body).flavor).toBe("antigravity-cli");
+  });
+
   it("escapes dynamic values so markup can't be injected", () => {
     const c = document.getElementById("transcript-container");
     renderEval(
@@ -131,6 +171,19 @@ describe("showEval", () => {
       expect.stringContaining("/api/eval?flavor=antigravity-cli")
     );
     expect(document.getElementById("transcript-container").innerHTML).toContain("Analysis Eval");
+  });
+
+  it("also fetches the run history for the flavor", async () => {
+    global.fetch = vi.fn((url) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(url.includes("/runs") ? [] : REPORT),
+      })
+    );
+    await showEval("antigravity-cli");
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/eval/runs?flavor=antigravity-cli")
+    );
   });
 
   it("shows an error message on a non-ok response", async () => {

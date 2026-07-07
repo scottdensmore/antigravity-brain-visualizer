@@ -24,4 +24,16 @@ test.describe("Analysis Eval", () => {
     await page.click("#eval-btn");
     await expect(page.locator("#transcript-container")).toContainText("Claude Code");
   });
+
+  test("saving a run records it in the run history", async ({ page }) => {
+    await page.goto("/");
+    await page.click("#eval-btn");
+
+    const tc = page.locator("#transcript-container");
+    await expect(tc).toContainText("Run history");
+    await page.click("#save-run-btn");
+    // After saving, the history shows a run row (its lowercase "evaluated" is unique to history).
+    await expect(tc).toContainText("evaluated");
+    await expect(tc).not.toContainText("No saved runs yet");
+  });
 });
