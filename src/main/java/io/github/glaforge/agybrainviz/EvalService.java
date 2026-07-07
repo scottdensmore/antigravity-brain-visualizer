@@ -46,9 +46,20 @@ public class EvalService {
     private static final int WORST_CASES = 10;
     /** Cap the (LLM) judged sample so the opt-in judge stays responsive on large histories. */
     static final int JUDGE_MAX_SESSIONS = 12;
-    private static final int JUDGE_CONCURRENCY = 6;
+    private static final int JUDGE_CONCURRENCY = 8;
     private static final int MAX_DIGEST_CHARS = 6000;
     private static final int MAX_ANALYSIS_CHARS = 6000;
+
+    /**
+     * The judge is a panel: each session is rated once per lens and the verdicts are averaged. Since
+     * the model runs at temperature 0, distinct lenses (not naive re-sampling) are what yield genuine
+     * diversity, so a single harsh or lenient framing can't dominate the score.
+     */
+    static final List<String> JUDGE_LENSES = List.of(
+        "a strict, skeptical reviewer who demands explicit evidence for every claim",
+        "a fair, balanced reviewer weighing the analysis's strengths and weaknesses",
+        "a pragmatic engineer judging whether the analysis would actually help a teammate"
+    );
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -134,41 +145,30 @@ public class EvalService {
             Math.min(JUDGE_MAX_SESSIONS, judgeables.size())
         );
 
+        // Submit every (session, lens) task up front for maximum parallelism under the semaphore,
+        // then gather each session's panel and ensemble it into one case.
         Semaphore rateLimit = new Semaphore(JUDGE_CONCURRENCY);
-        List<Future<JudgedCase>> futures = new ArrayList<>();
+        List<List<Future<JudgeScore>>> panels = new ArrayList<>();
         for (Judgeable j : sample) {
-            futures.add(
-                executor.submit(() -> {
-                    try {
-                        rateLimit.acquire();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return null;
-                    }
-                    try {
-                        JudgeScore raw = judgeService.judge(
-                            buildDigest(j.steps()),
-                            cap(toJson(j.analysis()), MAX_ANALYSIS_CHARS)
-                        );
-                        return new JudgedCase(j.id(), j.title(), clamp(raw));
-                    } catch (Exception e) {
-                        System.err.println("Judge failed for " + j.id() + ": " + e.getMessage());
-                        return null;
-                    } finally {
-                        rateLimit.release();
-                    }
-                })
-            );
+            List<Future<JudgeScore>> panel = new ArrayList<>();
+            for (String lens : JUDGE_LENSES) {
+                panel.add(executor.submit(() -> judgeWithLens(j, lens, rateLimit)));
+            }
+            panels.add(panel);
         }
 
         List<JudgedCase> cases = new ArrayList<>();
-        for (Future<JudgedCase> f : futures) {
-            try {
-                JudgedCase c = f.get();
-                if (c != null) cases.add(c);
-            } catch (Exception e) {
-                // A single judge failure must not sink the whole rubric; skip it.
+        for (int i = 0; i < sample.size(); i++) {
+            List<JudgeScore> verdicts = new ArrayList<>();
+            for (Future<JudgeScore> f : panels.get(i)) {
+                try {
+                    JudgeScore verdict = f.get();
+                    if (verdict != null) verdicts.add(verdict);
+                } catch (Exception e) {
+                    // A single lens failing must not sink the session's case; skip it.
+                }
             }
+            if (!verdicts.isEmpty()) cases.add(ensemble(sample.get(i), verdicts));
         }
 
         if (cases.isEmpty()) {
@@ -181,10 +181,53 @@ public class EvalService {
             true,
             "",
             cases.size(),
-            round1(cases.stream().mapToInt(c -> c.score().faithfulness()).average().orElse(0.0)),
-            round1(cases.stream().mapToInt(c -> c.score().actionability()).average().orElse(0.0)),
-            round1(cases.stream().mapToInt(c -> c.score().clarity()).average().orElse(0.0)),
+            round1(cases.stream().mapToDouble(JudgedCase::faithfulness).average().orElse(0.0)),
+            round1(cases.stream().mapToDouble(JudgedCase::actionability).average().orElse(0.0)),
+            round1(cases.stream().mapToDouble(JudgedCase::clarity).average().orElse(0.0)),
             cases
+        );
+    }
+
+    /** One panelist's clamped verdict for a session, or null if the model call failed. */
+    private JudgeScore judgeWithLens(Judgeable j, String lens, Semaphore rateLimit) {
+        try {
+            rateLimit.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+        try {
+            return clamp(
+                judgeService.judge(
+                    buildDigest(j.steps()),
+                    cap(toJson(j.analysis()), MAX_ANALYSIS_CHARS),
+                    lens
+                )
+            );
+        } catch (Exception e) {
+            System.err.println("Judge lens failed for " + j.id() + ": " + e.getMessage());
+            return null;
+        } finally {
+            rateLimit.release();
+        }
+    }
+
+    /** Averages a session's panel verdicts (per dimension) into one case. */
+    private static JudgedCase ensemble(Judgeable j, List<JudgeScore> verdicts) {
+        String comment = verdicts
+            .stream()
+            .map(JudgeScore::comment)
+            .filter(c -> c != null && !c.isBlank())
+            .findFirst()
+            .orElse("");
+        return new JudgedCase(
+            j.id(),
+            j.title(),
+            round1(verdicts.stream().mapToInt(JudgeScore::faithfulness).average().orElse(0.0)),
+            round1(verdicts.stream().mapToInt(JudgeScore::actionability).average().orElse(0.0)),
+            round1(verdicts.stream().mapToInt(JudgeScore::clarity).average().orElse(0.0)),
+            verdicts.size(),
+            comment
         );
     }
 

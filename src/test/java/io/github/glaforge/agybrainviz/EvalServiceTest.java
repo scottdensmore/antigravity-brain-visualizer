@@ -100,7 +100,7 @@ class EvalServiceTest {
         "\"issues\":[{\"error\":\"Build failed\",\"circumvention\":\"Used JDK 25\"}]}";
     private static final String POOR_SUMMARY = "{\"summary\":\"\"}";
 
-    private static final AnalysisJudgeService FORBIDDEN_JUDGE = (digest, analysis) -> {
+    private static final AnalysisJudgeService FORBIDDEN_JUDGE = (digest, analysis, lens) -> {
         throw new AssertionError("judge must not be called");
     };
 
@@ -163,8 +163,9 @@ class EvalServiceTest {
         FakeSource fake = new FakeSource();
         fake.add("s-good", "[]", GOOD_SUMMARY);
         fake.add("s-poor", "[]", POOR_SUMMARY);
-        // The model returns out-of-range values that must be clamped into [1, 5].
-        AnalysisJudgeService judge = (digest, analysis) -> new JudgeScore(9, 0, 3, "looks fine");
+        // The model returns out-of-range values that must be clamped into [1, 5] before averaging.
+        AnalysisJudgeService judge = (digest, analysis, lens) ->
+            new JudgeScore(9, 0, 3, "looks fine");
 
         EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
 
@@ -174,7 +175,47 @@ class EvalServiceTest {
         assertEquals(5.0, r.judge().avgFaithfulness()); // 9 -> 5
         assertEquals(1.0, r.judge().avgActionability()); // 0 -> 1
         assertEquals(3.0, r.judge().avgClarity());
-        assertEquals(5, r.judge().cases().get(0).score().faithfulness());
+        assertEquals(5.0, r.judge().cases().get(0).faithfulness());
+        // Each case is an ensemble of the whole lens panel.
+        assertEquals(EvalService.JUDGE_LENSES.size(), r.judge().cases().get(0).samples());
+    }
+
+    @Test
+    void judgePanelAveragesDiverseLensVerdicts() throws IOException {
+        FakeSource fake = new FakeSource();
+        fake.add("s1", "[]", GOOD_SUMMARY);
+        // Each lens returns a different faithfulness (strict 3 / balanced 4 / pragmatic 5); the panel
+        // average is 4.0, so no single framing dominates. Actionability/clarity are constant.
+        AnalysisJudgeService judge = (digest, analysis, lens) -> {
+            int faithfulness = lens.contains("strict") ? 3 : lens.contains("pragmatic") ? 5 : 4;
+            return new JudgeScore(faithfulness, 2, 5, "c");
+        };
+
+        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+
+        JudgedCase c = r.judge().cases().get(0);
+        assertEquals(4.0, c.faithfulness());
+        assertEquals(2.0, c.actionability());
+        assertEquals(5.0, c.clarity());
+        assertEquals(3, c.samples());
+    }
+
+    @Test
+    void judgeEnsemblesSurvivingLensesWhenSomeFail() throws IOException {
+        FakeSource fake = new FakeSource();
+        fake.add("s1", "[]", GOOD_SUMMARY);
+        // The strict panelist errors; the other two still return verdicts, so the case survives.
+        AnalysisJudgeService judge = (digest, analysis, lens) -> {
+            if (lens.contains("strict")) throw new RuntimeException("boom");
+            return new JudgeScore(4, 4, 4, "c");
+        };
+
+        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+
+        assertTrue(r.judge().ran());
+        JudgedCase c = r.judge().cases().get(0);
+        assertEquals(2, c.samples()); // only the two surviving lenses contributed
+        assertEquals(4.0, c.faithfulness());
     }
 
     @Test
@@ -194,7 +235,7 @@ class EvalServiceTest {
     void judgeDegradesGracefullyWhenModelFails() throws IOException {
         FakeSource fake = new FakeSource();
         fake.add("s-good", "[]", GOOD_SUMMARY);
-        AnalysisJudgeService judge = (digest, analysis) -> {
+        AnalysisJudgeService judge = (digest, analysis, lens) -> {
             throw new RuntimeException("model timeout");
         };
 
@@ -213,7 +254,7 @@ class EvalServiceTest {
         for (int i = 0; i < analyzed; i++) {
             fake.add("s" + i, "[]", GOOD_SUMMARY);
         }
-        AnalysisJudgeService judge = (digest, analysis) -> new JudgeScore(4, 4, 4, "ok");
+        AnalysisJudgeService judge = (digest, analysis, lens) -> new JudgeScore(4, 4, 4, "ok");
 
         EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
 

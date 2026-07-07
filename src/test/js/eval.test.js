@@ -37,7 +37,11 @@ const JUDGED = {
       {
         sessionId: "s1",
         title: "Parser fix",
-        score: { faithfulness: 5, actionability: 3, clarity: 4, comment: "Accurate and specific." },
+        faithfulness: 4.7,
+        actionability: 3,
+        clarity: 4,
+        samples: 3,
+        comment: "Accurate and specific.",
       },
     ],
   },
@@ -94,6 +98,9 @@ describe("renderEval", () => {
     expect(html).toContain("2 judged");
     expect(html).toContain("Parser fix");
     expect(html).toContain("Accurate and specific.");
+    // Per-case shows the panel size and the ensembled (fractional) faithfulness.
+    expect(html).toContain("3-judge panel");
+    expect(html).toContain("F 4.7");
     // The button is gone once the judge has run.
     expect(c.querySelector("#run-judge-btn")).toBeNull();
   });
