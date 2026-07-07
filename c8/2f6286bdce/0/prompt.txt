@@ -342,3 +342,55 @@ Yes lets do 1 then we can come back and do 2 and 3
 ---
 
 Yep lets do 2
+
+---
+
+<task-notification>
+<task-id>a7a44dcdc11b9b095</task-id>
+<tool-use-id>toolu_01XvScX2ZdKXg3otUHK3eTHX</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/8619ea54-7ffc-44fb-96ff-4c199b70945e/tasks/a7a44dcdc11b9b095.output</output-file>
+<status>completed</status>
+<summary>Agent "Code review eval run persistence" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've reviewed all the code and supporting types. Here are my findings against the seven focus areas.
+
+## Verdict: No MUST-FIX. Two SHOULD-FIX, a few NITPICKs.
+
+### Concurrency / correctness (focus 1)
+The read-modify-write in `save()` is fully inside `synchronized (lock)`, and `list()` also reads under the same lock — correct for a single-JVM tool. `historyFile()` re-resolves `user.home` each call, but every call site (`save`, `list`, `readLines`) resolves it the same way, so within one operation it's consistent. The only cross-consistency assumption is that `user.home` doesn't change mid-operation; in tests it's swapped between operations (guarded by `@ResourceLock("user.home")`), never mid-lock. **Correct.** (The lock is per-instance, and `EvalRunStore` is `@Singleton`, so all requests share one lock — good.)
+
+### MAX_RUNS trim (focus 2) — correct, no off-by-one
+`EvalRunStore.java:44` — after appending, `if (lines.size() &gt; MAX_RUNS)` then `subList(lines.size() - MAX_RUNS, lines.size())` keeps exactly the last `MAX_RUNS` lines. At size `MAX_RUNS+1` → keeps `MAX_RUNS`. The test `capsHistoryToMaxKeepingNewest` confirms it. Trim is chronological-tail (newest), reverse-on-read yields newest-first — consistent. **Correct.**
+
+### Reverse vs trim (focus 3) — correct
+File is chronological (append). `list()` filters then `Collections.reverse` → newest-first. Trim drops the oldest (head), which is exactly the runs that would sort last after reversal. Verified by tests. **Correct.**
+
+### POST persisting a client `EvalReport` (focus 4) — SHOULD-FIX (validation), no traversal risk
+- No path-traversal: `flavor` is never used in a path; the path is a fixed constant. Server stamps `savedAt` via `Instant.now()`. **Safe from injection/traversal.**
+- **SHOULD-FIX** — `EvalController.java:57` `saveRun(@Body EvalReport report)` trusts the client body wholesale. A caller can POST arbitrary `flavor`/`modelLabel`/`avgScore`, polluting the history that later renders in the UI. This is a local single-user tool so impact is low, but there's no `@Nullable`/null guard: if a client POSTs `{}` (or omits fields), `report.flavor()`/`modelLabel()` are `null`. `snapshotOf` already null-guards `checkPassRates` and `judge`, and the store persists `null` flavor fine, but `list(flavor)` filtering uses `flavor.equals(run.flavor())` — a stored `null` flavor simply never matches any filter (silently unlistable). Consider rejecting a fully-null/empty body with a 400, or at least defaulting `flavor`. One-liner: in `saveRun`, `if (report == null || report.flavor() == null) return HttpResponse.badRequest(...)` — or default the flavor in `snapshotOf`.
+
+### XSS in history rendering (focus 5) — correct
+`eval.js` — `modelLabel` → `escapeHtml` (line ~168), `savedAt` → `formatTime` then `escapeHtml` (line ~172), all numbers pass through `round1`→`String`→`escapeHtml` or are numeric. `deltaBadge` escapes its string. `scoreColor` returns only fixed literals into a `color:` — not attacker-controllable. **No XSS.** Note `formatTime(run.savedAt)` runs `new Date(...)` on a server-stamped ISO instant, so no injection surface even before the escape.
+
+### Null-safety (focus 6) — mostly handled, one JS gap
+- Java: `report.judge()` null → handled (`judge != null &amp;&amp; judge.ran()`); `checkPassRates()` null → handled (`== null ? List.of()`). **Good.**
+- **SHOULD-FIX (minor)** — `eval.js` `saveRun(report, ...)` calls `fetchHistory(report.flavor)`. If a save is somehow triggered with `report` undefined it throws, but that path is guarded by the button only existing when `evaluated &gt; 0`, so low risk. More relevant: `renderEval`'s `history` default is `[]` and `historySection` guards with `Array.isArray` — solid. No change strictly required.
+
+### Graceful degradation in saveRun (focus 7) — correct
+`eval.js` `saveRun` — the POST `fetch` is wrapped in try/catch that only comments "non-fatal"; it then unconditionally calls `fetchHistory` + `renderEval`. `fetchHistory` itself try/catches and returns `[]`. So a POST failure still refreshes history. The `showEval` `Promise.all` pairs a guarded `fetchHistory` (never rejects) with the eval `fetch`, so history failure can't break the eval render. **Correct.** One caveat below.
+
+### NITPICKs
+- **`eval.js` `showEval` (line ~281)** — `Promise.all([fetch(url), fetchHistory(flavor)])`. `fetchHistory` never rejects (internal try/catch), but the bare `fetch(url)` can reject (network drop); that's caught by the outer try/catch and shows the error state — fine. No change needed, just noting the asymmetry is intentional.
+- **`EvalRunStore.java:82`** — `catch (Exception e)` with an empty body silently swallows malformed lines. Matches the "graceful degradation" convention and is tested implicitly, but a `// ignored` is the only signal; consider a debug log. Cosmetic.
+- **`EvalRunStore.java`** — `static final ObjectMapper MAPPER = new ObjectMapper()` is a plain Jackson mapper, not the Micronaut Serde mapper. It works because `EvalRunSnapshot` is a plain record with matching field names, but it bypasses any Serde config. Consistent only if the rest of the codebase also uses raw Jackson in tests (it does — `EvalControllerTest` uses `new ObjectMapper()`). Fine, just flagging the double-serialization stack.
+- **Test gap** — no test asserts the *server-stamped* `savedAt` overrides a client-supplied one (a client could POST `savedAt:"evil"`; server ignores it via `snapshotOf(report, Instant.now().toString())`, which is correct). Worth a one-line assertion that two saves get distinct/parseable `savedAt` values, given savedAt is described as the run's identity.
+
+Files reviewed: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/EvalRunStore.java`, `EvalRunSnapshot.java`, `EvalController.java`, `EvalReport.java`, `JudgeSummary.java`, and `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/modules/eval.js` + `utils.js`.
+
+Bottom line: the core concurrency, trim, reversal, escaping, and graceful-degradation logic are all correct and well-tested. The only thing I'd genuinely act on before merge is adding minimal validation/defaulting for the client-supplied `EvalReport` body in `saveRun` (SHOULD-FIX), so a malformed/null POST can't persist an unlistable `null`-flavor snapshot.</result>
+<usage><subagent_tokens>36705</subagent_tokens><tool_uses>5</tool_uses><duration_ms>63483</duration_ms></usage>
+</task-notification>
+
+---
+
+Yep do 3
