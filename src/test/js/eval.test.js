@@ -128,6 +128,33 @@ describe("renderEval", () => {
     expect(html).toContain("Run history");
     expect(html).toContain("gemini · v2");
     expect(html).toContain("+5"); // 75 - 70
+    // A CSV export is offered once there is history.
+    expect(c.querySelector("#history-csv-btn")).not.toBeNull();
+  });
+
+  it("has no CSV button when there is no history", () => {
+    const c = document.getElementById("transcript-container");
+    renderEval(REPORT, c, []);
+    expect(c.querySelector("#history-csv-btn")).toBeNull();
+  });
+
+  it("clicking CSV downloads the history as a .csv file", () => {
+    const c = document.getElementById("transcript-container");
+    const history = [
+      { savedAt: "t", flavor: "antigravity-cli", modelLabel: "gemini", avgScore: 75 },
+    ];
+    renderEval(REPORT, c, history);
+    global.URL.createObjectURL = vi.fn(() => "blob:x");
+    global.URL.revokeObjectURL = vi.fn();
+    let name = null;
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () {
+      name = this.download;
+    });
+
+    c.querySelector("#history-csv-btn").click();
+
+    expect(name).toBe("eval-history-antigravity-cli.csv");
+    expect(global.URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
   });
 
   it("shows an empty-history note and a Save button when nothing is saved", () => {

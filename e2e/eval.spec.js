@@ -35,5 +35,7 @@ test.describe("Analysis Eval", () => {
     // After saving, the history shows a run row (its lowercase "evaluated" is unique to history).
     await expect(tc).toContainText("evaluated");
     await expect(tc).not.toContainText("No saved runs yet");
+    // A CSV export of the history is now offered.
+    await expect(tc.locator("#history-csv-btn")).toBeVisible();
   });
 });

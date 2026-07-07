@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import { escapeHtml, formatTime } from "./utils.js";
+import { downloadText } from "./mine-export.js";
+import { historyCsv } from "./eval-export.js";
 
 const FLAVOR_LABELS = {
   "antigravity-cli": "Antigravity CLI",
@@ -191,7 +193,8 @@ function historySection(history) {
   const rows = history
     .map((run, i) => historyRow(run, history[i + 1]))
     .join("");
-  return section("Run history", "var(--text-secondary)", rows);
+  const csvBtn = `<button id="history-csv-btn" style="padding:4px 10px; font-size:0.78rem; background:rgba(30,41,59,0.6); border:1px solid var(--border-color); color:var(--text-primary); cursor:pointer; border-radius:6px; margin-bottom:12px;">⬇ CSV</button>`;
+  return section("Run history", "var(--text-secondary)", csvBtn + rows);
 }
 
 export function renderEval(report, container, history = []) {
@@ -264,6 +267,18 @@ export function renderEval(report, container, history = []) {
   const saveRunBtn = container.querySelector("#save-run-btn");
   if (saveRunBtn) {
     saveRunBtn.addEventListener("click", () => saveRun(r, container));
+  }
+
+  // "CSV" downloads the saved run history as a spreadsheet-friendly file.
+  const csvBtn = container.querySelector("#history-csv-btn");
+  if (csvBtn) {
+    csvBtn.addEventListener("click", () =>
+      downloadText(
+        `eval-history-${r.flavor || "sessions"}.csv`,
+        historyCsv(history),
+        "text/csv;charset=utf-8"
+      )
+    );
   }
 }
 

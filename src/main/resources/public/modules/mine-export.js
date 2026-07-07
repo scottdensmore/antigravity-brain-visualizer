@@ -76,9 +76,13 @@ export function agentsMarkdown(report) {
   return lines.join("\n");
 }
 
-/** Triggers a browser download of `text` as `filename` (markdown). */
-export function downloadText(filename, text) {
-  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+/** Triggers a browser download of `text` as `filename` (markdown by default). */
+export function downloadText(
+  filename,
+  text,
+  mime = "text/markdown;charset=utf-8"
+) {
+  const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
