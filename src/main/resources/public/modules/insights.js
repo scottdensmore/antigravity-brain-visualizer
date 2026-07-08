@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { escapeHtml } from "./utils.js";
+import { drillRow, wireDrilldown } from "./drilldown.js";
 
 const FLAVOR_LABELS = {
   "antigravity-cli": "Antigravity CLI",
@@ -49,10 +50,7 @@ function barList(items, color, emptyText, category) {
   return items
     .map((it) => {
       const width = Math.max((it.count / max) * 100, 2);
-      return `<div class="drill-row" data-drill-category="${escapeHtml(
-        category
-      )}" data-drill-key="${escapeHtml(it.name)}">
-          <div class="drill-bar" style="display:flex; align-items:center; gap:16px; margin-bottom:4px; cursor:pointer;" title="Show the sessions behind this">
+      const inner = `<div style="display:flex; align-items:center; gap:16px; margin-bottom:4px;">
             <div style="flex:0 0 280px; font-size:0.82rem; color:var(--text-primary); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(
               it.name
             )}</div>
@@ -62,75 +60,10 @@ function barList(items, color, emptyText, category) {
             <div style="flex:0 0 36px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">${
               it.count
             }</div>
-          </div>
-          <div class="drill-sessions" style="display:none;"></div>
-        </div>`;
+          </div>`;
+      return drillRow(category, it.name, inner);
     })
     .join("");
-}
-
-function renderDrillSessions(result) {
-  const sessions = (result && result.sessions) || [];
-  if (sessions.length === 0) {
-    return `<div class="stat-sub" style="padding:4px 0 10px 24px;">No sessions.</div>`;
-  }
-  const total = result.totalMatches || sessions.length;
-  const more =
-    total > sessions.length ? ` (showing ${sessions.length} of ${total})` : "";
-  const rows = sessions
-    .map(
-      (s) =>
-        `<div class="drill-session" data-id="${escapeHtml(
-          s.id
-        )}" style="padding:3px 0 3px 24px; font-size:0.82rem; color:var(--accent-purple); cursor:pointer;" title="${escapeHtml(
-          s.id
-        )}">↳ ${escapeHtml(s.title || s.id)}</div>`
-    )
-    .join("");
-  return `<div style="border-left:2px solid rgba(148,163,184,0.2); margin:2px 0 12px 8px;">${rows}
-      <div class="stat-sub" style="padding:2px 0 4px 24px;">${escapeHtml(
-        `${total} session${total === 1 ? "" : "s"}${more}`
-      )}</div>
-    </div>`;
-}
-
-// Opens a session by clicking its sidebar item (reusing the app's own selection), else via the hash.
-// Matches by dataset rather than a built selector, so any id (even one with quotes) is safe.
-function openSession(id) {
-  const item = Array.from(document.querySelectorAll(".conv-item")).find(
-    (el) => el.dataset.id === id
-  );
-  if (item) item.click();
-  else window.location.hash = id;
-}
-
-async function toggleDrill(row, flavor) {
-  const sub = row.querySelector(".drill-sessions");
-  if (sub.dataset.loaded === "1") {
-    sub.style.display = sub.style.display === "none" ? "block" : "none";
-    return;
-  }
-  const category = row.dataset.drillCategory;
-  const key = row.dataset.drillKey;
-  sub.style.display = "block";
-  sub.innerHTML = `<div class="stat-sub" style="padding:4px 0 8px 24px;">Loading sessions…</div>`;
-  try {
-    const res = await fetch(
-      `/api/insights/sessions?flavor=${encodeURIComponent(
-        flavor
-      )}&category=${encodeURIComponent(category)}&key=${encodeURIComponent(
-        key
-      )}`
-    );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    sub.innerHTML = renderDrillSessions(await res.json());
-    sub.dataset.loaded = "1";
-    sub.querySelectorAll(".drill-session").forEach((el) => {
-      el.addEventListener("click", () => openSession(el.dataset.id));
-    });
-  } catch (e) {
-    sub.innerHTML = `<div class="stat-sub" style="padding:4px 0 8px 24px; color:red;">Failed to load sessions.</div>`;
-  }
 }
 
 function section(title, color, bodyHtml) {
@@ -214,11 +147,7 @@ export function renderInsights(report, container) {
     </div>`;
 
   // Each tally row expands to the sessions behind it (drill-down).
-  container.querySelectorAll(".drill-row").forEach((row) => {
-    row
-      .querySelector(".drill-bar")
-      .addEventListener("click", () => toggleDrill(row, r.flavor));
-  });
+  wireDrilldown(container, r.flavor);
 }
 
 export async function showInsights(flavor) {
