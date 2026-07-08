@@ -91,34 +91,66 @@ JDK on your `PATH`, or prefix Gradle commands with `mise exec -- ` (e.g. `mise e
 Running an older JDK fails at configuration time with *"Dependency requires at least JVM runtime
 version 25"*. (Node.js is only needed for the frontend/e2e tests — see [Development & Tests](#development--tests).)
 
+### Configuration — the `.env` file
+
+The easiest way to configure the app is to copy the checked-in sample and edit it:
+
+```bash
+cp .env.example .env    # then put your API key / provider in .env
+```
+
+The app reads `.env` from the directory you launch it from (the process's working directory), so it
+works the same for `./gradlew run`, the fat jar, and the native executable. A few rules:
+
+* **Real environment variables always win over `.env`** — export a variable to override a value for
+  a single run.
+* `.env` is **gitignored**, so your API key never gets committed. Only `.env.example` is tracked.
+* Pass `-Ddotenv.enabled=false` to ignore the file entirely, or `-Ddotenv.path=<path>` to load it
+  from somewhere else. (The test and e2e runs disable it, so a local `.env` can never change what
+  the tests see.)
+
+Prefer not to use a file? Just `export` the same variables — every option below works either way.
+
 The transcript analysis can be powered by either the remote **Google Gemini** API (default) or a
 **local model served by [Ollama](https://ollama.com/)** (e.g. Gemma) — no API key or network
 required.
 
 ### Option A — Gemini (default)
 
-To run with the hosted Gemini model, provide your API key:
+Put your API key in `.env`:
+
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your-api-key-here
+```
+
+…then start the app:
 
 ```bash
-export GEMINI_API_KEY="your-api-key-here"
 ./gradlew run
 ```
 
+(Equivalently: `export GEMINI_API_KEY="your-api-key-here" && ./gradlew run`.)
+
 ### Option B — Local model via Ollama
 
-Pull a model and make sure Ollama is running (`ollama serve`), then start the app with
-`AI_PROVIDER=ollama`:
+Pull a model and make sure Ollama is running (`ollama serve`), then select the provider in `.env`:
+
+```dotenv
+AI_PROVIDER=ollama
+OLLAMA_MODEL=gemma4          # optional; defaults to gemma4
+```
 
 ```bash
-ollama pull gemma4            # or any Gemma tag you prefer
-export AI_PROVIDER=ollama
-export OLLAMA_MODEL=gemma4    # optional; defaults to gemma4
+ollama pull gemma4           # or any Gemma tag you prefer
 ./gradlew run
 ```
 
 No `GEMINI_API_KEY` is needed in this mode.
 
 #### AI configuration reference
+
+Every variable below can live in `.env` or be exported as an environment variable.
 
 | Variable          | Applies to | Default                  | Description                                  |
 | ----------------- | ---------- | ------------------------ | -------------------------------------------- |
@@ -132,11 +164,16 @@ Once the server starts, open your web browser and navigate to [http://localhost:
 
 ### Customizing the Port
 
-If you need to run the application on a different port, you can override it using the `MICRONAUT_SERVER_PORT` environment variable:
+Set `MICRONAUT_SERVER_PORT` — in `.env`:
+
+```dotenv
+MICRONAUT_SERVER_PORT=9090
+```
+
+…or as an environment variable:
 
 ```bash
 export MICRONAUT_SERVER_PORT=9090
-export GEMINI_API_KEY="your-api-key-here"
 ./gradlew run
 ```
 
@@ -153,10 +190,10 @@ Because this project is built with Micronaut, you can compile it into a highly-o
 ./gradlew nativeCompile
 ```
 
-This generates a native executable in the `build/native/nativeCompile/` directory. You can run it directly:
+This generates a native executable in the `build/native/nativeCompile/` directory. Run it directly —
+it picks up a `.env` from the directory you launch it from (or use environment variables):
 
 ```bash
-export GEMINI_API_KEY="your-api-key-here"
 ./build/native/nativeCompile/agy-brain-viz
 ```
 

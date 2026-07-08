@@ -123,14 +123,19 @@ public class AiConfig {
         return "Error: GEMINI_API_KEY environment variable is not set. Cannot use LangChain4j analysis.";
     }
 
+    /**
+     * A real environment variable, else the {@code .env} file, else empty. A variable that is *set but
+     * blank* wins too (it deliberately blanks the value), matching the precedence in {@code Application}.
+     */
     private static String env(String key) {
         String value = System.getenv(key);
+        if (value == null) value = DotEnv.get(key);
         return value == null ? "" : value;
     }
 
     private static String envOr(String key, String fallback) {
-        String value = System.getenv(key);
-        return (value == null || value.isBlank()) ? fallback : value;
+        String value = env(key);
+        return value.isBlank() ? fallback : value;
     }
 
     private static String blankTo(String value, String fallback) {

@@ -51,6 +51,11 @@ gradle-app.setting
 .classpath
 .factorypath
 
+# Local configuration / secrets. Never commit these — `.env.example` is the checked-in sample.
+.env
+.env.*
+!.env.example
+
 # Frameworks
 .micronaut/
 target/

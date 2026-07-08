@@ -100,6 +100,12 @@ tasks.withType(AbstractTestTask).configureEach {
     failOnNoDiscoveredTests = false
 }
 
+// Tests must be hermetic: a developer's local .env must never change what the tests see (several
+// controller tests assert the "no AI key configured" degradation path).
+tasks.withType(Test).configureEach {
+    systemProperty 'dotenv.enabled', 'false'
+}
+
 spotless {
     java {
         target 'src/main/java/**/*.java', 'src/test/java/**/*.java'
