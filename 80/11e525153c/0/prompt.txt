@@ -490,3 +490,41 @@ Every behavior change ships with a test (Java unit, controller integration, JS u
 ---
 
 Ok lets keep going
+
+---
+
+<task-notification>
+<task-id>a960ad52e96329ba4</task-id>
+<tool-use-id>toolu_01EDQYzttRqPq2Esy2zsvRSd</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/8619ea54-7ffc-44fb-96ff-4c199b70945e/tasks/a960ad52e96329ba4.output</output-file>
+<status>completed</status>
+<summary>Agent "Code review mine drill-down" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All tests pass (Java FleetInsightsTest with JDK 25, plus JS drilldown/mine suites). My inspection is complete. Here's the review.
+
+## Review: `feat/mine-drilldown`
+
+Verified against the full diff, both `PatternMiner`/`FleetInsights` source, the drill endpoint, and by running the JS + Java test suites (all green).
+
+### MUST-FIX
+None.
+
+### SHOULD-FIX
+None material. The five focus areas all check out:
+
+1. **Refactor correctness (insights.js)** — Behavior preserved. The old `.drill-bar` carried `display:flex; align-items:center; gap:16px; margin-bottom:4px`; that layout now lives on the inner `&lt;div&gt;` passed as `innerHtml`, and `.drill-bar` is a generic clickable wrapper. Confirmed *no* CSS or selector anywhere references `.drill-bar/.drill-row/.drill-sessions` outside the three JS modules (`grep` came back empty — all styling is inline), so the wrapper change is invisible. Tests pass.
+
+2. **"workflow" keying** — Exact match, no correctness problem. `FleetInsights.matches` calls the *same* `PatternMiner.sequencesIn(session.steps())` the miner reported from (`PatternMiner.java:68`), joined identically by `" → "`. The `MIN_SEQUENCE_SESSIONS &gt;= 2` filter (`PatternMiner.java:133`) only decides which sequences the report *shows*; the drill only fires on keys that are already shown. Because the report counts by session breadth (a `Set` per session), a shown sequence necessarily appears in ≥2 sessions, and the drill returns exactly those sessions. No superset/undercount mismatch. This is benign and actually the desired parity.
+
+3. **fixRow keying as "issue"** — Keys match. `FixPair.error` originates from `clean(issue.path("error"))` in `PatternMiner.mine` (`PatternMiner.java:80`), and `FleetInsights.hasIssue` compares against `clean(issue.path("error"))` (`FleetInsights.java:191`). Both `clean()` implementations are equivalent (`strip()` + truncate to 200; `PatternMiner.java:187`, `FleetInsights.java:249`). Same drill flavor/session set via `SessionCollector.collect(flavor)`. Match confirmed. (`recommendation` is likewise `clean(rec)` on both sides.)
+
+4. **XSS** — No unescaped path. `drillRow` escapes both `category` and `key` into double-quoted attributes; `escapeHtml` escapes `"`/`&lt;`/`&gt;`/`&amp;`/`'`, blocking attribute breakout (drilldown.test.js proves the `"&gt;&lt;img onerror&gt;` payload is inert and round-trips via dataset). Display text in every inner-HTML (`seq.name`, `pair.error`, `fix`, `rec.name`) is separately `escapeHtml`'d in mine.js. The mine.test.js `&lt;script&gt;` fixture confirms escaping.
+
+5. **Shared state / leak** — Clean. `toggleDrill`/`openSession`/`renderDrillSessions` are pure module functions with no module-level mutable state; per-row state lives on `sub.dataset.loaded`/`display` in the DOM. Moving them verbatim into `drilldown.js` introduces no cross-view leak.
+
+### NITPICK
+- `drilldown.js:73` — `toggleDrill` sets `sub.style.display = "block"` before the async fetch; on failure the empty-but-shown error box stays expanded (no `dataset.loaded`), so a retry re-fetches. This is identical to the pre-refactor insights behavior (moved verbatim) and is arguably correct-for-retry, so no change needed — just noting it's intentional.
+
+Nothing material to fix. The change is behavior-preserving for Insights, correctly keyed for Mine, and adequately tested.</result>
+<usage><subagent_tokens>46545</subagent_tokens><tool_uses>18</tool_uses><duration_ms>114955</duration_ms></usage>
+</task-notification>
