@@ -642,3 +642,73 @@ Is the README updated with clear docs on how to run this
 ---
 
 We should use a .env file to setup the environment variables for the app. We should create a sample one for those checking it out
+
+---
+
+<task-notification>
+<task-id>a589c66acd4f2010c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/8619ea54-7ffc-44fb-96ff-4c199b70945e/tasks/a589c66acd4f2010c.output</output-file>
+<status>completed</status>
+<summary>Agent "Code review dotenv config" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Repo untouched. Everything below was verified empirically against the **shipped classes** (existing fat jar already contains `DotEnv`), not read-and-reasoned.
+
+## MUST-FIX
+
+**1. `DotEnv.java:107-118` — a quoted value followed by an inline comment keeps its quotes.**
+
+```
+GEMINI_API_KEY="sk-real-secret" # my key   -&gt;  «"sk-real-secret"»   (literal quotes!)
+GEMINI_API_KEY='sk-real-secret' # my key   -&gt;  «'sk-real-secret'»
+```
+
+Verified by reflecting into the shipped `DotEnv.parse`. `cleanValue` checks `first=='"' &amp;&amp; last=='"'`; with a trailing comment the last char is `y`, so it falls into the unquoted branch, chops at `" #"`, and returns `"sk-real-secret"` with the quotes intact. This is precisely the line the docs tell users to write — `.env.example:13-14` ("Quote a value to keep spaces or a literal `#`") and README:105. The user gets a corrupted API key and a confusing auth error. No test covers it (`stripsQuotesAndKeepsQuotedSpecialCharacters` only tests a `#` *inside* the quotes).
+
+Fix: in `cleanValue`, if the value starts with a quote, scan for the matching closing quote and return the inner content, discarding the remainder; only apply ` #` stripping to unquoted values. Add a `KEY="v" # c` test case.
+
+## SHOULD-FIX
+
+**2. `AiConfig.java:129` — set-but-empty real env var falls through to `.env`, contradicting the documented precedence and `Application`'s own rule.**
+
+Verified with `GEMINI_API_KEY=` exported and a `.env` supplying a value:
+
+```
+Application -&gt; micronaut.server.port sysprop = null              (empty real env BLOCKED .env)
+AiConfig    -&gt; geminiApiKey() = Optional[from-dot-env-file]      (empty real env did NOT block .env)
+```
+
+Same `.env`, same env vars, two different precedence rules: `Application.java:47` uses `System.getenv(key) != null`; `AiConfig.java:129` uses `isBlank()`. README:105 ("**Real environment variables always win over `.env`**") and `.env.example:9` are false for the blank case. This also breaks the pre-existing `GEMINI_API_KEY= ./gradlew run` idiom for forcing the degraded path.
+
+Fix (one word): `if (value == null) value = DotEnv.get(key);`. This preserves the old blank→fallback behavior of `envOr` (it re-checks `isBlank()` at :135) and aligns both call sites with the docs.
+
+**3. `Application.java:44-53` has no test**, despite the project's "every behavior change ships a test" convention. It's untestable as written because `DotEnv.values()` is empty in tests. Fix: extract `static void applyDotEnvFrameworkSettings(Map&lt;String,String&gt; values)` and test the `MICRONAUT_` filter, the `_`→`.` mapping, and the two precedence guards directly.
+
+## NITPICK
+
+- `DotEnv.java:55-67` — `values()` returns `parse()`'s mutable `LinkedHashMap` on one branch and an immutable `Map.of()` on the other. `cached = Collections.unmodifiableMap(local);`
+- `DotEnv.java:96` — `export\tKEY=v` yields key `«export\tKEY»`. Use `^export\s+`.
+- `DotEnv.java:94` — a UTF-8 BOM survives `strip()` (U+FEFF isn't `Character.isWhitespace`), so the first key silently becomes `«\uFEFFAI_PROVIDER»` and is ignored. Verified. Strip a leading `\uFEFF`.
+- `DotEnv.java:76` — `Paths.get(override)` throws unchecked `InvalidPathException`, outside the `IOException` catch at :81 → startup crash, against the graceful-degradation convention. Wrap `defaultPath()` too.
+- `DotEnv.java:51` — only the literal `"false"` disables; `-Ddotenv.enabled=0`/`no` silently leave it on.
+- `build.gradle:105` — `tasks.withType(Test)` does **not** cover `:nativeTest`; I confirmed via `gradlew :help --task nativeTest` that it's a `NativeRunTask`, not a `Test`. It isn't wired into CI today, and `DotEnvTest.isDisabledForTests…` would fail loudly rather than silently, so this is latent. If it's ever enabled: `runtimeArgs.add('-Ddotenv.enabled=false')`.
+- `README.md:103` / `DotEnv.java:29` say to drop a `.env` "next to" the native executable — it's read from the **CWD**, not the binary's directory. README:193-194 states it correctly.
+- `MICRONAUT_SERVER_PORT=` (blank) in `.env` crashes startup (`Error resolving property value [micronaut.server.port]`). But I confirmed `export MICRONAUT_SERVER_PORT=` crashes *identically* on the pre-change path, so this is parity with existing framework behavior, **not a regression**. Optional guard: `|| entry.getValue().isBlank()` at `Application.java:47`.
+
+## Checked and correct — no action
+
+**Security (your Q1): clean, no leak path.** `git check-ignore -v` confirms ordering works — `.env`→`.gitignore:55`, `.env.local`→`:56`, `sub/.env`→`:55`, and `.env.example`→`:57` (the `!` re-include). Only `.env.example` is tracked. It contains just `AI_PROVIDER=gemini` and `GEMINI_API_KEY=your-api-key-here` — a secret-shaped regex scan (`AIza…`, `sk-…`, 32+ char tokens) hits only the `# ---` comment dividers. **No `.env` in any of the 7 built jars** (`unzip -l` on each: 0 entries); it isn't a classpath resource (`src/main/resources` has none), so the fat jar and native image are safe — confirmed it's a CWD file read at runtime. No hand-written `Dockerfile`, so no `COPY . .` context leak.
+
+**The double-checked locking is correct.** `volatile` is sufficient: the volatile write of the reference at `:62` is a release that publishes the fully-built `LinkedHashMap`; the volatile read at `:56` is the matching acquire. `Map.of()` is trivially immutable. `local` correctly avoids repeated volatile reads.
+
+**`parse` edge cases all behave.** Verified against the shipped class: `=novalue`→skipped, `no-equals`→skipped, `KEY=`→`«»`, `TOKEN=abc=def==`→`«abc=def==»`, `PASS=abc#def`→preserved (no space), `PASS=abc #def`→`«abc»`, `KEY=""`/`KEY=''`→`«»`. `load` on a directory / missing file → `Map.of()` via `isRegularFile`; unreadable file and malformed UTF-8 both surface as `IOException` → `Map.of()`.
+
+**Your Q4 mapping is correct — and I was wrong to suspect it.** I expected the naive `_`→`.` to break kebab-case Micronaut properties. It doesn't: with only `-Dmicronaut.server.max.request.size=12345` set, Micronaut resolves `micronaut.server.max-request-size` → `Optional[12345]`. The reverse is *not* true (a kebab system property does not resolve the dotted name), so dots are the strictly better choice here. No injection concern: the `MICRONAUT_` prefix plus lowercase+`_`→`.` provably always yields a `micronaut.*` property, so `java.*` / `javax.net.ssl.*` are unreachable. It *can* set `micronaut.config.files`, but that's equally reachable via the real env var — no escalation. Called before `Micronaut.run` on every path that reaches it; `-h`/`-v` exit first and need no config.
+
+**Hermeticity (Q5) is complete.** All 7 `@MicronautTest` classes run in the Gradle test JVM → covered by `build.gradle:105`. e2e covered by `playwright.config.js`. `nativeTest` exists but is never invoked (CI only runs `nativeCompile`).
+
+**Cache staleness (Q6) is a non-issue.** First touch is either `Application.applyDotEnvFrameworkSettings()` (after JVM `-D` parsing) or the first `AiConfig` construction; in tests Gradle sets the property at JVM launch. Nothing mutates `dotenv.enabled`/`dotenv.path` mid-run. `DotEnvTest.isDisabledForTestsSoALocalEnvFileCannotLeakIn`'s `assertFalse(DotEnv.enabled())` is a well-placed canary — it turns any future hermeticity loss into a loud failure rather than silent test-behavior drift.
+
+Net: one real value-corruption bug (#1), one documented-precedence contradiction (#2), one test-coverage gap (#3). The security posture is sound.</result>
+<usage><subagent_tokens>87515</subagent_tokens><tool_uses>27</tool_uses><duration_ms>1642644</duration_ms></usage>
+</task-notification>
