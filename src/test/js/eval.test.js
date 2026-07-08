@@ -4,6 +4,7 @@ import {
   showEval,
   renderComparison,
   scoreSparkline,
+  sparkline,
 } from "../../main/resources/public/modules/eval.js";
 
 const REPORT = {
@@ -275,6 +276,48 @@ describe("renderEval", () => {
     );
     expect(c.querySelector("script")).toBeNull();
     expect(c.innerHTML).toContain("&lt;script&gt;");
+  });
+});
+
+describe("sparkline", () => {
+  it("draws a polyline with one point per value", () => {
+    const svg = sparkline([0.2, 0.5, 0.8], 1);
+    const points = svg.match(/points="([^"]+)"/)[1].trim().split(/\s+/);
+    expect(points).toHaveLength(3);
+    expect(svg).not.toContain("<circle"); // no marker by default
+  });
+
+  it("is empty below two values and clamps to the domain (no NaN)", () => {
+    expect(sparkline([], 1)).toBe("");
+    expect(sparkline([0.5], 1)).toBe("");
+    expect(sparkline([2, -1], 1)).not.toContain("NaN");
+  });
+
+  it("adds a marker dot when requested", () => {
+    expect(sparkline([1, 2], 5, { marker: true })).toContain("<circle");
+  });
+});
+
+describe("per-check pass-rate trend", () => {
+  it("renders a sparkline on each check row once there are two saved runs", () => {
+    const c = document.getElementById("transcript-container");
+    const report = {
+      flavor: "codex",
+      sessionCount: 10,
+      evaluatedSessions: 8,
+      avgScore: 75,
+      checkPassRates: [{ name: "schema-complete", count: 8 }],
+      worstCases: [],
+      judge: { ran: false, note: "", cases: [] },
+    };
+    const history = [
+      { savedAt: "t2", flavor: "codex", evaluatedSessions: 8, avgScore: 80, checkPassRates: [{ name: "schema-complete", count: 8 }] },
+      { savedAt: "t1", flavor: "codex", evaluatedSessions: 8, avgScore: 70, checkPassRates: [{ name: "schema-complete", count: 4 }] },
+    ];
+    renderEval(report, c, history);
+    // The pass-rate section's check row carries an inline (non-marker) sparkline.
+    const inlineSparks = c.querySelectorAll('svg[style*="inline-block"]');
+    expect(inlineSparks.length).toBeGreaterThan(0);
   });
 });
 
