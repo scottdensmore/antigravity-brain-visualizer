@@ -253,6 +253,30 @@ function cmpRow(label, av, bv) {
     </tr>`;
 }
 
+// A tiny inline SVG sparkline of avg score over the saved runs (oldest → newest). All coordinates
+// derive from numeric scores, so nothing here is attacker-controllable. Empty until there are 2 runs.
+export function scoreSparkline(history) {
+  const runs = Array.isArray(history) ? [...history].reverse() : [];
+  if (runs.length < 2) return "";
+  const w = 240;
+  const h = 40;
+  const pad = 4;
+  const x = (i) => pad + (i * (w - 2 * pad)) / (runs.length - 1);
+  const y = (v) => {
+    const clamped = Math.max(0, Math.min(100, v || 0));
+    return h - pad - (clamped / 100) * (h - 2 * pad);
+  };
+  const pts = runs
+    .map((r, i) => `${x(i).toFixed(1)},${y(r.avgScore).toFixed(1)}`)
+    .join(" ");
+  const lastX = x(runs.length - 1).toFixed(1);
+  const lastY = y(runs[runs.length - 1].avgScore).toFixed(1);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block; margin-bottom:12px;" aria-label="Average score trend">
+      <polyline points="${pts}" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      <circle cx="${lastX}" cy="${lastY}" r="3" fill="var(--accent-purple)" />
+    </svg>`;
+}
+
 function historySection(history) {
   if (!Array.isArray(history) || history.length === 0) {
     return section(
@@ -271,7 +295,7 @@ function historySection(history) {
   return section(
     "Run history",
     "var(--text-secondary)",
-    csvBtn + hint + rows + compareBox
+    csvBtn + scoreSparkline(history) + hint + rows + compareBox
   );
 }
 

@@ -3,6 +3,7 @@ import {
   renderEval,
   showEval,
   renderComparison,
+  scoreSparkline,
 } from "../../main/resources/public/modules/eval.js";
 
 const REPORT = {
@@ -134,6 +135,8 @@ describe("renderEval", () => {
     expect(html).toContain("+5"); // 75 - 70
     // A CSV export is offered once there is history.
     expect(c.querySelector("#history-csv-btn")).not.toBeNull();
+    // The trend sparkline renders once there are two runs.
+    expect(c.querySelector("svg polyline")).not.toBeNull();
   });
 
   it("has no CSV button when there is no history", () => {
@@ -244,6 +247,32 @@ describe("renderEval", () => {
     );
     expect(c.querySelector("script")).toBeNull();
     expect(c.innerHTML).toContain("&lt;script&gt;");
+  });
+});
+
+describe("scoreSparkline", () => {
+  it("draws a polyline with one point per run once there are at least two", () => {
+    const history = [
+      { savedAt: "t3", avgScore: 80 },
+      { savedAt: "t2", avgScore: 60 },
+      { savedAt: "t1", avgScore: 70 },
+    ];
+    const svg = scoreSparkline(history);
+    expect(svg).toContain("<polyline");
+    // 3 runs => 3 "x,y" point pairs.
+    const points = svg.match(/points="([^"]+)"/)[1].trim().split(/\s+/);
+    expect(points).toHaveLength(3);
+    expect(svg).toContain("<circle"); // latest-value marker
+  });
+
+  it("is empty with fewer than two runs", () => {
+    expect(scoreSparkline([])).toBe("");
+    expect(scoreSparkline([{ avgScore: 50 }])).toBe("");
+  });
+
+  it("clamps scores into the chart height (no NaN coordinates)", () => {
+    const svg = scoreSparkline([{ avgScore: 250 }, { avgScore: -5 }]);
+    expect(svg).not.toContain("NaN");
   });
 });
 
