@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderEval, showEval } from "../../main/resources/public/modules/eval.js";
+import {
+  renderEval,
+  showEval,
+  renderComparison,
+} from "../../main/resources/public/modules/eval.js";
 
 const REPORT = {
   flavor: "antigravity-cli",
@@ -138,6 +142,54 @@ describe("renderEval", () => {
     expect(c.querySelector("#history-csv-btn")).toBeNull();
   });
 
+  it("compares two ticked runs (A older, B newer) with deltas", () => {
+    const c = document.getElementById("transcript-container");
+    const history = [
+      // newest first
+      { savedAt: "2026-07-02T10:00:00Z", flavor: "codex", modelLabel: "gemini · v2", evaluatedSessions: 8, avgScore: 80, judged: false, checkPassRates: [{ name: "schema-complete", count: 8 }] },
+      { savedAt: "2026-07-01T10:00:00Z", flavor: "codex", modelLabel: "gemini · v1", evaluatedSessions: 8, avgScore: 70, judged: false, checkPassRates: [{ name: "schema-complete", count: 6 }] },
+    ];
+    renderEval(REPORT, c, history);
+    const boxes = c.querySelectorAll(".cmp-check");
+    expect(boxes).toHaveLength(2);
+
+    boxes[0].checked = true;
+    boxes[0].dispatchEvent(new Event("change"));
+    // Only one ticked → no comparison yet.
+    expect(c.querySelector("#run-compare").innerHTML).toBe("");
+
+    boxes[1].checked = true;
+    boxes[1].dispatchEvent(new Event("change"));
+    const cmp = c.querySelector("#run-compare").innerHTML;
+    // A = older (v1), B = newer (v2); score went 70 -> 80 => +10.
+    expect(cmp).toContain("gemini · v1");
+    expect(cmp).toContain("gemini · v2");
+    expect(cmp).toContain("Avg score");
+    expect(cmp).toContain("+10");
+    // Per-check row present with its +2 delta (6 -> 8).
+    expect(cmp).toContain("Has title, summary &amp; flow");
+    expect(cmp).toContain("+2");
+  });
+
+  it("clears the comparison when not exactly two runs are ticked", () => {
+    const c = document.getElementById("transcript-container");
+    const history = [
+      { savedAt: "t2", flavor: "codex", modelLabel: "b", avgScore: 80 },
+      { savedAt: "t1", flavor: "codex", modelLabel: "a", avgScore: 70 },
+    ];
+    renderEval(REPORT, c, history);
+    const boxes = c.querySelectorAll(".cmp-check");
+    boxes[0].checked = true;
+    boxes[0].dispatchEvent(new Event("change"));
+    boxes[1].checked = true;
+    boxes[1].dispatchEvent(new Event("change"));
+    expect(c.querySelector("#run-compare").innerHTML).not.toBe("");
+    // Untick one → comparison clears.
+    boxes[0].checked = false;
+    boxes[0].dispatchEvent(new Event("change"));
+    expect(c.querySelector("#run-compare").innerHTML).toBe("");
+  });
+
   it("clicking CSV downloads the history as a .csv file", () => {
     const c = document.getElementById("transcript-container");
     const history = [
@@ -192,6 +244,33 @@ describe("renderEval", () => {
     );
     expect(c.querySelector("script")).toBeNull();
     expect(c.innerHTML).toContain("&lt;script&gt;");
+  });
+});
+
+describe("renderComparison", () => {
+  it("includes rubric rows only when both runs were judged", () => {
+    const older = {
+      savedAt: "t1", modelLabel: "a", avgScore: 70, evaluatedSessions: 8,
+      judged: true, avgFaithfulness: 4, avgActionability: 3, avgClarity: 4,
+    };
+    const newer = {
+      savedAt: "t2", modelLabel: "b", avgScore: 80, evaluatedSessions: 8,
+      judged: true, avgFaithfulness: 4.5, avgActionability: 3, avgClarity: 3,
+    };
+    const html = renderComparison(older, newer);
+    expect(html).toContain("Faithfulness");
+    expect(html).toContain("+0.5"); // 4 -> 4.5
+    expect(html).toContain("Clarity");
+    expect(html).toContain("-1"); // 4 -> 3
+
+    // If either run isn't judged, no rubric rows.
+    expect(renderComparison(older, { ...newer, judged: false })).not.toContain(
+      "Faithfulness"
+    );
+  });
+
+  it("returns empty when a run is missing", () => {
+    expect(renderComparison(null, { avgScore: 1 })).toBe("");
   });
 });
 

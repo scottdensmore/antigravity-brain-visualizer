@@ -159,14 +159,15 @@ function deltaBadge(delta) {
   )}</span>`;
 }
 
-function historyRow(run, prev) {
+function historyRow(run, prev, index) {
   const delta = prev ? run.avgScore - prev.avgScore : null;
   const judged = run.judged
     ? ` · judge F ${round1(run.avgFaithfulness)} / A ${round1(
         run.avgActionability
       )} / C ${round1(run.avgClarity)}`
     : "";
-  return `<div style="display:flex; gap:16px; align-items:baseline; margin-bottom:10px;">
+  return `<div style="display:flex; gap:12px; align-items:baseline; margin-bottom:10px;">
+      <input type="checkbox" class="cmp-check" data-run-index="${index}" title="Select two runs to compare" style="margin-top:4px; cursor:pointer;" />
       <div style="flex:0 0 70px; font-size:1rem; font-weight:700; color:${scoreColor(
         run.avgScore || 0
       )};">${escapeHtml(String(round1(run.avgScore)))}${deltaBadge(delta)}</div>
@@ -181,6 +182,77 @@ function historyRow(run, prev) {
     </div>`;
 }
 
+// A before→after comparison of two saved runs (A = older, B = newer): score, per-check pass
+// counts, and rubric, each with the B−A delta. Pure/exported for testing.
+export function renderComparison(a, b) {
+  if (!a || !b) return "";
+  const rows = [
+    cmpRow("Avg score", a.avgScore, b.avgScore),
+    cmpRow("Evaluated", a.evaluatedSessions, b.evaluatedSessions),
+  ];
+  for (const name of checkUnion(a, b)) {
+    rows.push(
+      cmpRow(CHECK_LABELS[name] || name, passCount(a, name), passCount(b, name))
+    );
+  }
+  if (a.judged && b.judged) {
+    rows.push(cmpRow("Faithfulness", a.avgFaithfulness, b.avgFaithfulness));
+    rows.push(cmpRow("Actionability", a.avgActionability, b.avgActionability));
+    rows.push(cmpRow("Clarity", a.avgClarity, b.avgClarity));
+  }
+  const head = (label, run) =>
+    `<div style="font-size:0.8rem; color:var(--text-primary);">${escapeHtml(
+      label
+    )}: <strong>${escapeHtml(run.modelLabel || "—")}</strong> · ${escapeHtml(
+      formatTime(run.savedAt)
+    )}</div>`;
+  return `<div style="margin-top:16px; padding:14px 16px; background:rgba(30,41,59,0.4); border:1px solid var(--border-color); border-radius:10px;">
+      <div style="margin-bottom:10px;">${head("A", a)}${head("B", b)}</div>
+      <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+        <thead><tr style="color:var(--text-secondary); text-align:right;">
+          <th style="text-align:left;">Metric</th><th>A</th><th>B</th><th>Δ (B−A)</th>
+        </tr></thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    </div>`;
+}
+
+function checkUnion(a, b) {
+  const names = [];
+  const seen = new Set();
+  for (const run of [a, b]) {
+    for (const c of run.checkPassRates || []) {
+      if (c && c.name && !seen.has(c.name)) {
+        seen.add(c.name);
+        names.push(c.name);
+      }
+    }
+  }
+  return names;
+}
+
+function passCount(run, name) {
+  const found = (run.checkPassRates || []).find((c) => c.name === name);
+  return found ? found.count : 0;
+}
+
+function cmpRow(label, av, bv) {
+  const a1 = round1(av);
+  const b1 = round1(bv);
+  const d = round1(b1 - a1);
+  const color =
+    d > 0 ? "#10b981" : d < 0 ? "var(--error)" : "var(--text-secondary)";
+  const sign = d > 0 ? "+" : "";
+  return `<tr style="text-align:right;">
+      <td style="text-align:left; color:var(--text-primary); padding:2px 0;">${escapeHtml(
+        label
+      )}</td>
+      <td style="color:var(--text-secondary);">${a1}</td>
+      <td style="color:var(--text-primary);">${b1}</td>
+      <td style="color:${color}; font-weight:600;">${sign}${d}</td>
+    </tr>`;
+}
+
 function historySection(history) {
   if (!Array.isArray(history) || history.length === 0) {
     return section(
@@ -191,10 +263,16 @@ function historySection(history) {
   }
   // history is newest-first; compare each run to the next (older) one.
   const rows = history
-    .map((run, i) => historyRow(run, history[i + 1]))
+    .map((run, i) => historyRow(run, history[i + 1], i))
     .join("");
   const csvBtn = `<button id="history-csv-btn" style="padding:4px 10px; font-size:0.78rem; background:rgba(30,41,59,0.6); border:1px solid var(--border-color); color:var(--text-primary); cursor:pointer; border-radius:6px; margin-bottom:12px;">⬇ CSV</button>`;
-  return section("Run history", "var(--text-secondary)", csvBtn + rows);
+  const hint = `<div class="stat-sub" style="margin-bottom:10px;">Tick two runs to compare them.</div>`;
+  const compareBox = `<div id="run-compare"></div>`;
+  return section(
+    "Run history",
+    "var(--text-secondary)",
+    csvBtn + hint + rows + compareBox
+  );
 }
 
 export function renderEval(report, container, history = []) {
@@ -280,6 +358,21 @@ export function renderEval(report, container, history = []) {
       )
     );
   }
+
+  // Ticking two run checkboxes renders an A(older)↔B(newer) diff below the history.
+  const compareBox = container.querySelector("#run-compare");
+  const checks = Array.from(container.querySelectorAll(".cmp-check"));
+  const updateCompare = () => {
+    const picked = checks
+      .filter((c) => c.checked)
+      .map((c) => Number(c.dataset.runIndex))
+      .sort((x, y) => y - x); // descending index => [0] is older, [1] is newer
+    compareBox.innerHTML =
+      picked.length === 2
+        ? renderComparison(history[picked[0]], history[picked[1]])
+        : "";
+  };
+  checks.forEach((c) => c.addEventListener("change", updateCompare));
 }
 
 export async function showEval(flavor, judge = false) {

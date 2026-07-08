@@ -38,4 +38,19 @@ test.describe("Analysis Eval", () => {
     // A CSV export of the history is now offered.
     await expect(tc.locator("#history-csv-btn")).toBeVisible();
   });
+
+  test("ticking two saved runs shows an A/B comparison", async ({ page }) => {
+    await page.goto("/");
+    await page.click("#eval-btn");
+
+    // Save two runs so there are two rows to compare.
+    await page.click("#save-run-btn");
+    await expect(page.locator("#history-csv-btn")).toBeVisible();
+    await page.click("#save-run-btn");
+
+    const boxes = page.locator(".cmp-check");
+    await boxes.nth(1).check();
+    await boxes.nth(0).check();
+    await expect(page.locator("#run-compare")).toContainText("Avg score");
+  });
 });
