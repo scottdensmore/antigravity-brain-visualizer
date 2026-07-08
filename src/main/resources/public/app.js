@@ -21,6 +21,7 @@ import { initUI } from "./modules/ui.js";
 import { showInsights } from "./modules/insights.js";
 import { showMining } from "./modules/mine.js";
 import { showEval } from "./modules/eval.js";
+import { showOptimize } from "./modules/optimize.js";
 
 let allConversations = [];
 let sortDescending = true;
@@ -156,6 +157,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (evalBtn) {
     evalBtn.addEventListener("click", () => {
       showEval(document.getElementById("flavor-select").value);
+    });
+  }
+
+  const optimizeBtn = document.getElementById("optimize-btn");
+  if (optimizeBtn) {
+    optimizeBtn.addEventListener("click", () => {
+      showOptimize(document.getElementById("flavor-select").value);
     });
   }
 
