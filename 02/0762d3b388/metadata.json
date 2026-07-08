@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "020762d3b388",
+  "strategy": "manual-commit",
+  "branch": "feat/eval-ab-compare",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "e2e/eval.spec.js",
+    "src/main/resources/public/modules/eval.js",
+    "src/test/js/eval.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/02/0762d3b388/0/metadata.json",
+      "transcript": "/02/0762d3b388/0/full.jsonl",
+      "compact_transcript": "/02/0762d3b388/0/transcript.jsonl",
+      "content_hash": "/02/0762d3b388/0/content_hash.txt",
+      "prompt": "/02/0762d3b388/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 245918,
+    "cache_creation_tokens": 11675344,
+    "cache_read_tokens": 447836663,
+    "output_tokens": 1035208,
+    "api_call_count": 963
+  }
+}

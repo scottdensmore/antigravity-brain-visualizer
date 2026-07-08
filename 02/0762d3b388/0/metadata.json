@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "020762d3b388",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-08T01:00:19.713555Z",
+  "branch": "feat/eval-ab-compare",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "e2e/eval.spec.js",
+    "src/main/resources/public/modules/eval.js",
+    "src/test/js/eval.test.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "8945a845bb16",
+  "token_usage": {
+    "input_tokens": 245918,
+    "cache_creation_tokens": 11675344,
+    "cache_read_tokens": 447836663,
+    "output_tokens": 1035208,
+    "api_call_count": 963
+  },
+  "session_metrics": {
+    "turn_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-08T01:00:19.281806Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 187,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 187,
+    "total_lines_changed": 192,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
