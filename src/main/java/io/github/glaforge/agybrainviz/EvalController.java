@@ -17,6 +17,7 @@ package io.github.glaforge.agybrainviz;
 
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
@@ -61,5 +62,12 @@ public class EvalController {
     @Get(value = "/runs", produces = "application/json")
     public List<EvalRunSnapshot> listRuns(@QueryValue Optional<String> flavor) throws IOException {
         return runStore.list(flavor.orElse("antigravity-cli"));
+    }
+
+    /** Deletes the saved run identified by its {@code savedAt} timestamp. */
+    @ExecuteOn(TaskExecutors.IO)
+    @Delete(value = "/runs", produces = "application/json")
+    public DeleteResult deleteRun(@QueryValue String savedAt) throws IOException {
+        return new DeleteResult(runStore.delete(savedAt));
     }
 }

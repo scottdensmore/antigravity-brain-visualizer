@@ -193,6 +193,34 @@ describe("renderEval", () => {
     expect(c.querySelector("#run-compare").innerHTML).toBe("");
   });
 
+  it("clicking a run's × deletes it then refreshes the history", async () => {
+    const c = document.getElementById("transcript-container");
+    const history = [
+      { savedAt: "2026-07-02T10:00:00Z", flavor: "antigravity-cli", modelLabel: "b", avgScore: 80 },
+      { savedAt: "2026-07-01T10:00:00Z", flavor: "antigravity-cli", modelLabel: "a", avgScore: 70 },
+    ];
+    renderEval(REPORT, c, history);
+    const calls = [];
+    global.fetch = vi.fn((url, opts) => {
+      calls.push({ url, opts });
+      const isDelete = opts && opts.method === "DELETE";
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(isDelete ? { deleted: 1 } : []), // history refetch returns []
+      });
+    });
+
+    c.querySelector(".run-del-btn").click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const del = calls.find((x) => x.opts && x.opts.method === "DELETE");
+    expect(del).toBeTruthy();
+    expect(del.url).toContain("savedAt=2026-07-02T10%3A00%3A00Z");
+    // History refetched and re-rendered (now empty).
+    expect(c.innerHTML).toContain("No saved runs yet");
+  });
+
   it("clicking CSV downloads the history as a .csv file", () => {
     const c = document.getElementById("transcript-container");
     const history = [

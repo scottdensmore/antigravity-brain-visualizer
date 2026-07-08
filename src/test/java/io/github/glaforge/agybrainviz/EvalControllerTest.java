@@ -148,6 +148,26 @@ class EvalControllerTest {
         assertTrue(history.isArray());
         assertTrue(history.size() >= 1);
         assertEquals("antigravity-cli", history.get(0).get("flavor").asText());
+
+        // Delete the run we just saved and confirm it is gone.
+        String savedAt = saved.get("savedAt").asText();
+        JsonNode del = MAPPER.readTree(
+            client
+                .toBlocking()
+                .retrieve(
+                    HttpRequest.DELETE(
+                        "/api/eval/runs?savedAt=" +
+                        java.net.URLEncoder.encode(savedAt, java.nio.charset.StandardCharsets.UTF_8)
+                    )
+                )
+        );
+        assertEquals(1, del.get("deleted").asInt());
+        JsonNode after = get("/api/eval/runs?flavor=antigravity-cli");
+        assertFalse(
+            StreamSupport
+                .stream(after.spliterator(), false)
+                .anyMatch(n -> savedAt.equals(n.get("savedAt").asText()))
+        );
     }
 
     @Test

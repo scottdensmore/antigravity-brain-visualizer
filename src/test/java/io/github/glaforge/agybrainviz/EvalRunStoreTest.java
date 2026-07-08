@@ -127,6 +127,22 @@ class EvalRunStoreTest {
     }
 
     @Test
+    void deletesBySavedAtAndLeavesOthers() throws IOException {
+        EvalRunSnapshot a = store.save(report("codex", 70.0, JudgeSummary.notRun("n")));
+        EvalRunSnapshot b = store.save(report("codex", 80.0, JudgeSummary.notRun("n")));
+
+        assertEquals(1, store.delete(a.savedAt()));
+        List<EvalRunSnapshot> remaining = store.list("codex");
+        assertEquals(1, remaining.size());
+        assertEquals(b.savedAt(), remaining.get(0).savedAt());
+
+        // Deleting an unknown id removes nothing.
+        assertEquals(0, store.delete("2000-01-01T00:00:00Z"));
+        assertEquals(0, store.delete(null));
+        assertEquals(1, store.list("codex").size());
+    }
+
+    @Test
     void stampsAParseableServerSideSavedAt() throws IOException {
         // The client cannot dictate identity: savedAt is server-stamped and a valid instant.
         EvalRunSnapshot saved = store.save(report("codex", 50.0, JudgeSummary.notRun("n")));

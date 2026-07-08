@@ -53,4 +53,19 @@ test.describe("Analysis Eval", () => {
     await boxes.nth(0).check();
     await expect(page.locator("#run-compare")).toContainText("Avg score");
   });
+
+  test("deleting a saved run removes it from the history", async ({ page }) => {
+    await page.goto("/");
+    await page.click("#eval-btn");
+    await page.click("#save-run-btn");
+
+    // Target the newest run specifically (robust to any other saved runs in the shared home).
+    const first = page.locator(".run-del-btn").first();
+    await expect(first).toBeVisible();
+    const savedAt = await first.getAttribute("data-saved-at");
+    await first.click();
+    await expect(
+      page.locator(`.run-del-btn[data-saved-at="${savedAt}"]`)
+    ).toHaveCount(0);
+  });
 });
