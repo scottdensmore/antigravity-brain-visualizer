@@ -536,3 +536,41 @@ Ok lets do those 1 by 1
 ---
 
 Ok lets do that next candidates
+
+---
+
+<task-notification>
+<task-id>afd69edd49716f43b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/8619ea54-7ffc-44fb-96ff-4c199b70945e/tasks/afd69edd49716f43b.output</output-file>
+<status>completed</status>
+<summary>Agent "Code review eval run delete" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The controller endpoint is fully consistent with `save`/`list` (`@ExecuteOn(IO)`, `/runs`, JSON). Everything checks out. I have enough to complete the review.
+
+## Review: `feat/eval-run-delete` staged diff
+
+I reviewed the full staged diff plus surrounding context in `EvalRunStore.java`, `EvalController.java`, `eval.js`, and `utils.js`. Going through your five focus areas:
+
+**1. Concurrency / read-modify-write** — Correct and consistent. `delete` (EvalRunStore.java:83-103) holds the same `synchronized(lock)` as `save`/`list`, and does a full-file `Files.write(file, kept)` exactly mirroring `save` (line 58). Since the entire read-modify-write is inside the lock, there is no TOCTOU — no other `save`/`list`/`delete` can interleave. Single-writer, whole-file rewrite, single-user local tool: no partial-write risk beyond what `save` already accepts (neither uses atomic temp-file-and-rename, but they're symmetric, so this diff introduces nothing new).
+
+**2. savedAt identity collision** — Benign for this product. Acceptable, don't fix. `savedAt` = `Instant.now().toString()` only collides on sub-tick programmatic saves; a human clicking Save cannot produce two in the same instant. Delete-removes-both is the correct fallback anyway (you'd never want an undeletable orphan). The test `stampsAParseableServerSideSavedAt` already asserts the server-stamp contract. Not worth a code change; at most a one-line comment, and even that is optional.
+
+**3. Endpoint safety** — Clean. `savedAt` is used purely as a string-equality match against parsed `.savedAt()` values (matchesSavedAt, line 109) — never touches a filesystem path, never interpolated into a query, so no traversal/injection surface. Missing-param → `@QueryValue String savedAt` (non-Optional) 400s, which is the right behavior: a delete with no target is a client bug, not a graceful-degradation case. Consistent with the app's convention (list/eval use `Optional` because they have sensible defaults; delete has none).
+
+**4. Malformed-line preservation** — Confirmed safe, no data loss. `matchesSavedAt` returns `false` on any parse exception (line 110-112), so a corrupt line is never counted as removed and always lands in `kept`. It also can't block deletion of good lines. This is strictly better than a naive rewrite.
+
+**5. Frontend** — Solid. `data-saved-at` is escaped via `escapeHtml`, which escapes `"`→`&amp;quot;` (utils.js:33), so the double-quoted attribute can't break out even if a value were adversarial (and it's a server ISO instant anyway). `deleteRun` (eval.js:459-475) guards empty `savedAt`, wraps the DELETE in try/catch (non-fatal), and always refetches + re-renders — a faithful mirror of `saveRun`. Deleting the last run refetches an empty history and re-renders the empty state (the JS test asserts `"No saved runs yet"`), so that path is exercised and correct.
+
+**Test coverage** — Every behavior change ships a test as claimed: EvalRunStoreTest (delete-by-savedAt, unknown→0, null→0, others preserved), EvalControllerTest (DELETE round-trip with URL-encoded param + absence verification), eval.test.js (× click issues DELETE, asserts encoded URL, confirms empty-state re-render), and the e2e spec targets the newest row by `data-saved-at` for robustness.
+
+### Verdict
+
+**No MUST-FIX. No SHOULD-FIX.**
+
+**NITPICK (optional, no change needed):**
+- EvalRunStore.java:83 — the same-tick collision (focus area 2) is genuinely benign for human use; if you want zero ambiguity you could note it in the `delete` Javadoc ("removes all runs sharing this savedAt"), but the existing method comment "run(s)" and "how many were removed" already signals multiplicity. Not worth blocking on.
+
+The diff is consistent with the established `save`/`list` patterns, correctly locked, injection-free, degrades gracefully, and is fully tested. Ship it.</result>
+<usage><subagent_tokens>35232</subagent_tokens><tool_uses>8</tool_uses><duration_ms>58403</duration_ms></usage>
+</task-notification>
