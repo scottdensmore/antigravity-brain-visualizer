@@ -111,6 +111,22 @@ describe("renderEval", () => {
     expect(html).toContain("F 4.7");
     // The panel spread (min–max of the lenses' overall scores) is shown.
     expect(html).toContain("panel 3.3–4.7");
+    // And the aggregate agreement indicator (avg spread = 4.7 − 3.3 = 1.4).
+    expect(html).toContain("Panel agreement");
+    expect(html).toContain("±1.4");
+  });
+
+  it("omits the agreement indicator when no case has a multi-lens panel", () => {
+    const c = document.getElementById("transcript-container");
+    const single = {
+      ...JUDGED,
+      judge: {
+        ...JUDGED.judge,
+        cases: [{ ...JUDGED.judge.cases[0], samples: 1, panelMin: 4, panelMax: 4 }],
+      },
+    };
+    renderEval(single, c);
+    expect(c.innerHTML).not.toContain("Panel agreement");
     // The button is gone once the judge has run.
     expect(c.querySelector("#run-judge-btn")).toBeNull();
   });

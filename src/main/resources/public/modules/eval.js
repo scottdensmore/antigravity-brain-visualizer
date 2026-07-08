@@ -41,6 +41,22 @@ function scoreColor(score) {
   return "var(--error)";
 }
 
+// Lower panel spread = more agreement (green); a wide spread means the lenses disagreed (red).
+function spreadColor(spread) {
+  if (spread < 0.5) return "#10b981";
+  if (spread < 1.5) return "#f59e0b";
+  return "var(--error)";
+}
+
+// Average per-session panel spread (panelMax − panelMin) over the multi-lens judged cases, or null.
+function avgPanelSpread(cases) {
+  const spreads = (cases || [])
+    .filter((c) => c.samples > 1)
+    .map((c) => Math.max(0, (c.panelMax || 0) - (c.panelMin || 0)));
+  if (spreads.length === 0) return null;
+  return round1(spreads.reduce((a, b) => a + b, 0) / spreads.length);
+}
+
 function section(title, color, bodyHtml) {
   return `<div style="margin-top:28px;">
       <div style="font-size:0.75rem; font-weight:700; color:${color}; margin-bottom:16px; letter-spacing:0.05em; text-transform:uppercase;">${escapeHtml(
@@ -116,10 +132,17 @@ function judgeHtmlFor(report, evaluated) {
         ${rubricCard("CLARITY", j.avgClarity)}
       </div>`;
     const rows = (j.cases || []).map(judgedRow).join("");
+    const spread = avgPanelSpread(j.cases);
+    const agreement =
+      spread === null
+        ? ""
+        : `<div class="stat-sub" style="margin-top:10px;">Panel agreement: <strong style="color:${spreadColor(
+            spread
+          )};">±${spread}</strong> average spread (0 = the lenses agreed).</div>`;
     return section(
       `LLM judge · rubric 1–5 · ${j.judgedSessions || 0} judged`,
       "var(--accent-purple)",
-      cards + `<div style="margin-top:20px;">${rows}</div>`
+      cards + agreement + `<div style="margin-top:20px;">${rows}</div>`
     );
   }
   if (evaluated > 0) {
