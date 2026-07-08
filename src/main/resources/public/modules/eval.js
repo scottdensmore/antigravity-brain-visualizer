@@ -179,6 +179,9 @@ function historyRow(run, prev, index) {
     run.evaluatedSessions || 0
   } evaluated${escapeHtml(judged)}</div>
       </div>
+      <button class="run-del-btn" data-saved-at="${escapeHtml(
+        run.savedAt || ""
+      )}" title="Delete this run" style="margin-left:auto; background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:1rem; line-height:1; padding:2px 6px;">×</button>
     </div>`;
 }
 
@@ -383,6 +386,13 @@ export function renderEval(report, container, history = []) {
     );
   }
 
+  // Each run's "×" deletes that snapshot, then refreshes the history in place.
+  container.querySelectorAll(".run-del-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      deleteRun(btn.dataset.savedAt, r, container)
+    );
+  });
+
   // Ticking two run checkboxes renders an A(older)↔B(newer) diff below the history.
   const compareBox = container.querySelector("#run-compare");
   const checks = Array.from(container.querySelectorAll(".cmp-check"));
@@ -446,6 +456,20 @@ async function saveRun(report, container) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(report),
+    });
+  } catch (e) {
+    // Non-fatal: fall through and re-render with whatever history we can fetch.
+  }
+  const history = await fetchHistory(report.flavor);
+  renderEval(report, container, history);
+}
+
+// Delete one saved run, then refresh the history in place.
+async function deleteRun(savedAt, report, container) {
+  if (!savedAt) return;
+  try {
+    await fetch(`/api/eval/runs?savedAt=${encodeURIComponent(savedAt)}`, {
+      method: "DELETE",
     });
   } catch (e) {
     // Non-fatal: fall through and re-render with whatever history we can fetch.

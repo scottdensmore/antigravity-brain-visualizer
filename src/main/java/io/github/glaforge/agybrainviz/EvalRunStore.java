@@ -79,6 +79,39 @@ public class EvalRunStore {
         return runs;
     }
 
+    /** Removes the saved run(s) with the given {@code savedAt} id; returns how many were removed. */
+    public int delete(String savedAt) throws IOException {
+        if (savedAt == null || savedAt.isBlank()) return 0;
+        synchronized (lock) {
+            List<String> lines = readLines();
+            List<String> kept = new ArrayList<>();
+            int removed = 0;
+            for (String line : lines) {
+                if (matchesSavedAt(line, savedAt)) {
+                    removed++;
+                } else {
+                    kept.add(line);
+                }
+            }
+            if (removed > 0) {
+                Path file = historyFile();
+                Files.createDirectories(file.getParent());
+                Files.write(file, kept);
+            }
+            return removed;
+        }
+    }
+
+    // A malformed line can't match (and is preserved), so a bad line never blocks deletion.
+    private static boolean matchesSavedAt(String line, String savedAt) {
+        if (line == null || line.isBlank()) return false;
+        try {
+            return savedAt.equals(MAPPER.readValue(line, EvalRunSnapshot.class).savedAt());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private List<String> readLines() throws IOException {
         Path file = historyFile();
         return Files.exists(file) ? Files.readAllLines(file) : List.of();
