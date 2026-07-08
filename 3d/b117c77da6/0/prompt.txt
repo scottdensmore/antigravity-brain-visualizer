@@ -578,3 +578,63 @@ The diff is consistent with the established `save`/`list` patterns, correctly lo
 ---
 
 Ok lets lets do those one by one
+
+---
+
+<task-notification>
+<task-id>a06adeb4a0a9c69ac</task-id>
+<tool-use-id>toolu_01Min1FzhKgq9iWMFxk2tWyX</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/8619ea54-7ffc-44fb-96ff-4c199b70945e/tasks/a06adeb4a0a9c69ac.output</output-file>
+<status>completed</status>
+<summary>Agent "Code review the prompt lab" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have everything I need. Let me review the XSS surface in `variantColumn` once more: `c.name` (check name) is escaped via `escapeHtml(CHECK_LABELS[c.name] || c.name)`. `c.count` and `r.scored` are numeric. `title` (hardcoded "Prompt A/B") is escaped. `round1(r.avgScore)` is escaped. `verdict` is escaped. `label` (flavor) is escaped. All dynamic strings are escaped. The check names originate server-side from `EvalScorer.checkNames()` (fixed set) anyway.
+
+The review is complete. Here are my findings.
+
+---
+
+## Review: `feat/prompt-lab` — eval-driven prompt A/B lab
+
+**Verdict: nothing material to fix.** The diff is clean, well-tested, and follows existing project patterns exactly. Details against each focus area below.
+
+### MUST-FIX
+None.
+
+### SHOULD-FIX
+None.
+
+### NITPICK
+None material. (One optional nicety, not worth changing: `runVariant`'s catch uses `System.err.println` — consistent with the existing codebase's `EvalService` style, so leave it.)
+
+---
+
+### Confirmation per focus area
+
+**1. Concurrency — no new deadlock/starvation risk.** `application.yml` has no executor override (`src/main/resources/application.yml` only sets `micronaut:`), so `@Named(TaskExecutors.IO)` resolves to Micronaut's default **unbounded cached thread pool**, not a bounded one. `@ExecuteOn(IO)` `compare()` submitting 2N tasks back to the same pool and blocking on `f.get()` is the identical pattern already shipped in `EvalService` (`EvalService.java:150-165`, `Semaphore` + `submit` + `f.get()`). With an unbounded pool the classic pool-starvation deadlock cannot occur. The `Semaphore(6)` cannot self-deadlock: each task acquires exactly one permit and releases it in a `finally` (`OptimizeService.java:123/137`), and never blocks on another task while holding it. `collect(futuresA)` before `collect(futuresB)` is fine — all 2N tasks are submitted at lines 101-105 *before* either `collect` runs (lines 110-111), so B's tasks execute concurrently while A's futures are gathered; ordering only affects the order of blocking `get()` calls, not throughput or correctness.
+
+**2. `valueToTree` field names — verified, no mismatch.** `AnalysisResponse` record components (`shortTitle`, `flow`, `recommendations`, `issues`, `summary`) and `Issue.circumvention` (`Issue.java:26`) are exactly the paths `EvalScorer` reads (`EvalScorer.java:56-91`). Critically, this is not a new/untested serialization path: the existing production cache is written via plain-Jackson `mapper.writeValueAsString(responseObj)` on an `AnalysisResponse` (`AnalysisController.java:294`), and `EvalService` already scores JsonNodes with those same camelCase field names (`EvalService.java:93-96`). `MAPPER.valueToTree(response)` produces the identical tree. Plain Jackson (2.12+, bundled with `micronaut-serde-jackson`) serializes records by component accessor regardless of the Micronaut `@Serdeable`/`@ReflectiveAccess` annotations. No always-pass/always-fail hazard.
+
+**3. Eval-as-fitness fairness — sound, correctly bounded.** Both variants receive the *same* `transcriptText(session.steps())` (built once per session at `OptimizeService.java:102`, passed to both A and B tasks), so the comparison is apples-to-apples. It is a bounded approximation of the real pipeline's transcript (≤12000 chars, reformatted to TOOL_CALL/ERROR/USER/AGENT lines) — that's an acceptable, intentional trade-off and doesn't bias one variant. Note the eval's own signals (`error-coverage`, `not-degenerate`) score against the *real* `session.steps()`, not the bounded text, keeping the fitness function honest.
+
+**4. Injection/safety — clean.** The client-supplied instructions flow only into `analyzeWithInstruction(instruction, transcript)` as an LLM `{{instruction}}` template var (`VariantAnalyzerService.java`). Nothing touches the filesystem or is used as a path. `flavor` is defaulted to `"antigravity-cli"` in the controller (`OptimizeController.java:54`) and again clamped by `SessionCollector`. Prompt-injection is inherent and acceptable for a local tool where the user writes their own prompts.
+
+**5. XSS in optimize.js — every dynamic value escaped.** `verdict`, `label`, `title`, `round1(avgScore)`, and check names (`CHECK_LABELS[c.name] || c.name`) all pass through `escapeHtml`. The only un-escaped interpolations are `c.count` and `r.scored`, which are integers from Java records (`NameCount.count`, `VariantResult.scored`) — non-injectable. Textarea seeding uses `escapeHtml` on write, and reads back `.value` (unescaped, correct). The test explicitly asserts `a.value === "Analyze &lt;it&gt;"` and `querySelector("script") === null` (`optimize.test.js:52-53`).
+
+**6. Graceful degradation — all paths covered, no divide-by-zero.** Not-configured → `OptimizeReport.unavailable` (guarded at `OptimizeService.java:79`); no-sessions → unavailable (line 93); per-analysis failure → task returns `null`, skipped in `collect` (line 146), variant scores 0 via `VariantResult.empty()`. `aggregate` guards `results.isEmpty()` before the `.average()` (line 155), so no divide-by-zero. Each is covered by a test (`degradesWhenAiNotConfigured`, `reportsWhenThereAreNoSessions`, `degradesGracefullyWhenAnAnalysisFails`).
+
+**7. Cost bounding — reasonable.** `n = max(1, min(MAX_SAMPLE=5, sampleSize))` (line 84), 2 calls each ⇒ ≤10 LLM calls per run, `Semaphore(6)` caps in-flight concurrency. Frontend also caps the input at `maxSample`. Bounded and cheap.
+
+**Test coverage matches the stated convention** (every behavior change ships a test): `OptimizeServiceTest` (winner visible, cap, not-configured, no-sessions, per-analysis-failure), `OptimizeControllerTest` (GET default, POST degrade), `optimize.test.js` (results/winner/note, lab render+escape, POST body, showOptimize), and the e2e smoke. `AiConfig("gemini","k",null,null,null)` vs empty-key matches the real `isConfigured()` contract used elsewhere.
+
+Files reviewed (all absolute): `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/{OptimizeService,OptimizeController,VariantAnalyzerService,OptimizeReport,OptimizeRequest,VariantResult}.java`, `.../src/main/resources/public/modules/optimize.js`, `.../public/app.js`, `.../public/index.html`, and the three test files plus supporting `EvalScorer.java`, `AnalysisResponse.java`, `Issue.java`, `EvalService.java`, `AnalysisController.java`.</result>
+<usage><subagent_tokens>58497</subagent_tokens><tool_uses>34</tool_uses><duration_ms>147900</duration_ms></usage>
+</task-notification>
+
+---
+
+Awesome nice work
+
+---
+
+Is the README updated with clear docs on how to run this
