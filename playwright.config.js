@@ -10,8 +10,11 @@ const E2E_HOME = path.join(projectRoot, "build", "e2e-home");
 // lets the cached-analysis path run without contacting the real LLM (the cache lookup is gated
 // behind the key check). `find` (not a top-level glob) locates the jar even when the project
 // version embeds a slash — e.g. a PR's GITHUB_REF_NAME of "1/merge" nests the jar in a subdir.
+// `-Ddotenv.enabled=false` keeps the run hermetic: the jar boots in the project root, so a
+// developer's local .env would otherwise be picked up and change the app's AI configuration.
 const serverCommand =
   `sh -c 'java -Duser.home="${E2E_HOME}" -Dmicronaut.server.port=${PORT} ` +
+  `-Ddotenv.enabled=false ` +
   `-jar "$(find build/libs -name "*-all.jar" | head -1)"'`;
 
 export default defineConfig({
