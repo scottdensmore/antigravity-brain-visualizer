@@ -27,7 +27,10 @@ Additionally, it leverages Google's Gemini LLMs to automatically generate compre
 *   **Session Loading**: Parses local `.gemini/brain` directories to list past and active agent sessions.
 *   **Multiple Sources**: In addition to Antigravity transcripts, the dropdown can render **OpenAI Codex** CLI sessions (`~/.codex/sessions`) and **Claude Code** sessions (`~/.claude/projects`). Each tool's own session files are adapted into the same timeline view, including AI summarization (cached in a tool-owned `.agybrainviz` directory next to each source's sessions).
     > **Note:** Inline file preview is available for Antigravity transcripts, which embed explicit file references. Codex and Claude Code sessions reference files through shell/tool calls rather than the structured `file://` links Antigravity emits, so clickable file previews are not generated for them.
-*   **Fleet Insights**: A **📊 Insights** button opens a cross-session dashboard for the selected source — session/outcome counts, busiest tools, the most common errors, average tool calls and duration, and a rolled-up backlog of the recommendations and issues surfaced by the per-session AI analyses.
+*   **Fleet Insights**: A **📊 Insights** button opens a cross-session dashboard for the selected source — session/outcome counts, busiest tools, the most common errors, average tool calls and duration, and a rolled-up backlog of the recommendations and issues surfaced by the per-session AI analyses. Every tally row is **drill-down**: click it to see (and open) the sessions behind it.
+*   **Skill / AGENTS.md Miner**: A **🛠️ Mine** button turns the corpus into reusable assets — it mines recurring tool-call workflows and failure→fix patterns across sessions and (when AI is configured) proposes concrete **skills**, **AGENTS.md rules**, and tooling gaps, each downloadable as a drop-in `SKILL.md` / `AGENTS.md` file.
+*   **Analysis Eval**: A **🧪 Eval** button scores the quality of the AI analyses with six deterministic checks (schema completeness, actionability, conciseness, non-degeneracy, error coverage), plus an opt-in **LLM-as-judge panel** (strict/balanced/pragmatic lenses, averaged, with the panel's spread shown). Runs are **savable** into a history you can delete, **A/B compare**, chart (score + per-check sparklines), and export to **CSV**.
+*   **Prompt Lab**: A **🔬 Prompt Lab** button closes the loop — edit two analysis prompt variants, and it re-analyzes a small sample of sessions with each and scores them with the deterministic eval (the eval is the fitness function), showing which prompt wins.
 *   **Search & Filtering**: Includes a text search input to find sessions, and a dropdown to filter sessions by source/agent type (Antigravity CLI, IDE, Agent, OpenAI Codex, or Claude Code).
 *   **Sorting & Refreshing**: Provides toggle controls to sort sessions chronologically and a refresh button to load new sessions.
 *   **Session Metadata**: Hovering over a session displays an overview popover containing metadata such as step counts and session IDs.
@@ -48,7 +51,7 @@ Additionally, it leverages Google's Gemini LLMs to automatically generate compre
 *   **In-Transcript Search**: A find-in-page text search utility to navigate through text matches within the active transcript.
 
 **AI Summarization**
-*   **Backend Integration**: The Micronaut backend integrates with Google Gemini via LangChain4j.
+*   **Backend Integration**: The Micronaut backend integrates with an LLM via LangChain4j — either the hosted **Google Gemini** API or a **local Ollama** model (see [Running the Application](#running-the-application-from-sources)).
 *   **Session Summaries**: Analyzes raw JSONL transcripts via LLM to generate a high-level overview of the agent's actions and outcomes.
 *   **Summary Panel**: The generated summary is injected into a collapsible panel at the top of the transcript view.
 
@@ -73,6 +76,20 @@ The easiest way to install and use the Agent Brain Visualizer is to download the
 Alternatively, you can clone this repository and run or build it locally from source.
 
 ## Running the Application (from Sources)
+
+### Prerequisites
+
+Building from source requires **Java 25** — the Micronaut 5 Gradle plugins and the project's source
+level both need it. The repo pins the JDK with [`mise`](https://mise.jdx.dev/) (see `mise.toml`):
+
+```bash
+mise install    # provisions temurin-25 once
+```
+
+With `mise` active, `./gradlew …` automatically uses Java 25. If you don't use `mise`, put a Java 25
+JDK on your `PATH`, or prefix Gradle commands with `mise exec -- ` (e.g. `mise exec -- ./gradlew run`).
+Running an older JDK fails at configuration time with *"Dependency requires at least JVM runtime
+version 25"*. (Node.js is only needed for the frontend/e2e tests — see [Development & Tests](#development--tests).)
 
 The transcript analysis can be powered by either the remote **Google Gemini** API (default) or a
 **local model served by [Ollama](https://ollama.com/)** (e.g. Gemma) — no API key or network
@@ -144,6 +161,20 @@ export GEMINI_API_KEY="your-api-key-here"
 ```
 
 *(Note: Start-up times will be practically instantaneous compared to the standard JVM version).*
+
+## Development & Tests
+
+Three suites cover the app; CI runs all of them on every pull request:
+
+```bash
+mise exec -- ./gradlew build   # backend JUnit + Spotless (format check)
+npm install                    # once, for the frontend/e2e tests
+npm test                       # frontend unit tests (Vitest)
+npm run e2e                    # end-to-end (Playwright) against a booted jar with seeded fixtures
+```
+
+Code is auto-formatted by Spotless (prettier-java + prettier for JS); run `mise exec -- ./gradlew
+spotlessApply` before committing.
 
 ## License
 This project is licensed under the Apache 2.0 License. See the [LICENSE](../LICENSE) file for details.
