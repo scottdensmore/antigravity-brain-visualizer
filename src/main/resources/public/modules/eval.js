@@ -84,6 +84,14 @@ function rubricCard(label, value) {
 
 function judgedRow(c) {
   const panel = c.samples ? `${c.samples}-judge panel · ` : "";
+  // Show the panel's overall-score spread when the lenses disagreed (amber past a point of a point).
+  const hasSpread = c.samples > 1 && c.panelMax > c.panelMin;
+  const spreadVal = round1((c.panelMax || 0) - (c.panelMin || 0));
+  const spreadHtml = hasSpread
+    ? `<span style="color:${
+        spreadVal >= 1 ? "#f59e0b" : "var(--text-secondary)"
+      };">panel ${round1(c.panelMin)}–${round1(c.panelMax)}</span> · `
+    : "";
   return `<div style="display:flex; gap:16px; align-items:baseline; margin-bottom:12px;">
       <div style="flex:0 0 150px; font-size:0.82rem; color:var(--text-secondary); font-weight:600;">F ${round1(
         c.faithfulness
@@ -94,7 +102,7 @@ function judgedRow(c) {
         )}">${escapeHtml(c.title || c.sessionId || "session")}</div>
         <div class="stat-sub" style="margin-top:2px;">${escapeHtml(
           panel
-        )}${escapeHtml(c.comment || "")}</div>
+        )}${spreadHtml}${escapeHtml(c.comment || "")}</div>
       </div>
     </div>`;
 }

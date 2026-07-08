@@ -198,6 +198,9 @@ class EvalServiceTest {
         assertEquals(2.0, c.actionability());
         assertEquals(5.0, c.clarity());
         assertEquals(3, c.samples());
+        // Per-lens overalls: (3+2+5)/3=3.3, (4+2+5)/3=3.7, (5+2+5)/3=4.0 => panel spread 3.3–4.0.
+        assertEquals(3.3, c.panelMin());
+        assertEquals(4.0, c.panelMax());
     }
 
     @Test
