@@ -47,6 +47,8 @@ const JUDGED = {
         actionability: 3,
         clarity: 4,
         samples: 3,
+        panelMin: 3.3,
+        panelMax: 4.7,
         comment: "Accurate and specific.",
       },
     ],
@@ -107,6 +109,8 @@ describe("renderEval", () => {
     // Per-case shows the panel size and the ensembled (fractional) faithfulness.
     expect(html).toContain("3-judge panel");
     expect(html).toContain("F 4.7");
+    // The panel spread (min–max of the lenses' overall scores) is shown.
+    expect(html).toContain("panel 3.3–4.7");
     // The button is gone once the judge has run.
     expect(c.querySelector("#run-judge-btn")).toBeNull();
   });

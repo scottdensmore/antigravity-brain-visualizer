@@ -19,7 +19,9 @@ import io.micronaut.serde.annotation.Serdeable;
 
 /**
  * One session's ensembled LLM-judge result: the panel's average rubric scores (1-5, possibly
- * fractional), how many panel verdicts contributed ({@code samples}), and one representative comment.
+ * fractional), how many panel verdicts contributed ({@code samples}), the panel's overall-score
+ * spread ({@code panelMin}/{@code panelMax}, so disagreement is visible), and one representative
+ * comment.
  */
 @Serdeable
 public record JudgedCase(
@@ -29,5 +31,7 @@ public record JudgedCase(
     double actionability,
     double clarity,
     int samples,
+    double panelMin,
+    double panelMax,
     String comment
 ) {}

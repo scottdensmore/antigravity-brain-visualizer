@@ -212,7 +212,7 @@ public class EvalService {
         }
     }
 
-    /** Averages a session's panel verdicts (per dimension) into one case. */
+    /** Averages a session's panel verdicts (per dimension) into one case, keeping the panel spread. */
     private static JudgedCase ensemble(Judgeable j, List<JudgeScore> verdicts) {
         String comment = verdicts
             .stream()
@@ -220,6 +220,14 @@ public class EvalService {
             .filter(c -> c != null && !c.isBlank())
             .findFirst()
             .orElse("");
+        // Each panelist's overall opinion (mean of its three dimensions); the min/max shows how much
+        // the lenses disagreed for this session.
+        double[] overalls = verdicts
+            .stream()
+            .mapToDouble(v -> (v.faithfulness() + v.actionability() + v.clarity()) / 3.0)
+            .toArray();
+        double panelMin = round1(java.util.Arrays.stream(overalls).min().orElse(0.0));
+        double panelMax = round1(java.util.Arrays.stream(overalls).max().orElse(0.0));
         return new JudgedCase(
             j.id(),
             j.title(),
@@ -227,6 +235,8 @@ public class EvalService {
             round1(verdicts.stream().mapToInt(JudgeScore::actionability).average().orElse(0.0)),
             round1(verdicts.stream().mapToInt(JudgeScore::clarity).average().orElse(0.0)),
             verdicts.size(),
+            panelMin,
+            panelMax,
             comment
         );
     }
