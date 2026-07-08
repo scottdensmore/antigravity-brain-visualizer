@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "4b0123071fe7",
+  "strategy": "manual-commit",
+  "branch": "feat/judge-panel-spread",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "src/main/java/io/github/glaforge/agybrainviz/EvalService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/JudgedCase.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalServiceTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4b/0123071fe7/0/metadata.json",
+      "transcript": "/4b/0123071fe7/0/full.jsonl",
+      "compact_transcript": "/4b/0123071fe7/0/transcript.jsonl",
+      "content_hash": "/4b/0123071fe7/0/content_hash.txt",
+      "prompt": "/4b/0123071fe7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 259284,
+    "cache_creation_tokens": 11775428,
+    "cache_read_tokens": 511449019,
+    "output_tokens": 1105774,
+    "api_call_count": 1052
+  }
+}

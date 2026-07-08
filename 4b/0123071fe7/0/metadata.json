@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "4b0123071fe7",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-08T02:17:01.711934Z",
+  "branch": "feat/judge-panel-spread",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/main/java/io/github/glaforge/agybrainviz/EvalService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/JudgedCase.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalServiceTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "75653c92082d",
+  "token_usage": {
+    "input_tokens": 259284,
+    "cache_creation_tokens": 11775428,
+    "cache_read_tokens": 511449019,
+    "output_tokens": 1105774,
+    "api_call_count": 1052
+  },
+  "session_metrics": {
+    "turn_count": 46
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-08T02:17:01.244957Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 30,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 30,
+    "total_lines_changed": 33,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
