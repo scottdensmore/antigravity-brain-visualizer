@@ -449,9 +449,15 @@ export function renderEval(report, container, history = []) {
   checks.forEach((c) => c.addEventListener("change", updateCompare));
 }
 
+// Guards overlapping async renders (reload / save / delete): each op takes a generation, and only
+// the latest-started one is allowed to write to the DOM — so a slow earlier op can't clobber a
+// newer render with stale data.
+let renderGeneration = 0;
+
 export async function showEval(flavor, judge = false) {
   const container = document.getElementById("transcript-container");
   if (!container) return;
+  const gen = ++renderGeneration;
   const loading = judge
     ? "Running the LLM judge…"
     : "Scoring analysis quality…";
@@ -464,12 +470,16 @@ export async function showEval(flavor, judge = false) {
       fetch(url),
       fetchHistory(flavor),
     ]);
+    if (gen !== renderGeneration) return; // superseded by a newer action
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const report = await res.json();
+    if (gen !== renderGeneration) return;
     renderEval(report, container, history);
   } catch (e) {
-    container.innerHTML =
-      '<div class="loading-state" style="text-align:center; color:red;">Failed to load the eval.</div>';
+    if (gen === renderGeneration) {
+      container.innerHTML =
+        '<div class="loading-state" style="text-align:center; color:red;">Failed to load the eval.</div>';
+    }
   }
 }
 
@@ -486,6 +496,7 @@ async function fetchHistory(flavor) {
 
 // Persist the current report as a run, then refresh just the history (no re-eval / no re-judge).
 async function saveRun(report, container) {
+  const gen = ++renderGeneration;
   const btn = container.querySelector("#save-run-btn");
   if (btn) {
     btn.textContent = "Saving…";
@@ -501,12 +512,14 @@ async function saveRun(report, container) {
     // Non-fatal: fall through and re-render with whatever history we can fetch.
   }
   const history = await fetchHistory(report.flavor);
+  if (gen !== renderGeneration) return; // a newer action superseded this render
   renderEval(report, container, history);
 }
 
 // Delete one saved run, then refresh the history in place.
 async function deleteRun(savedAt, report, container) {
   if (!savedAt) return;
+  const gen = ++renderGeneration;
   try {
     await fetch(`/api/eval/runs?savedAt=${encodeURIComponent(savedAt)}`, {
       method: "DELETE",
@@ -515,5 +528,6 @@ async function deleteRun(savedAt, report, container) {
     // Non-fatal: fall through and re-render with whatever history we can fetch.
   }
   const history = await fetchHistory(report.flavor);
+  if (gen !== renderGeneration) return;
   renderEval(report, container, history);
 }

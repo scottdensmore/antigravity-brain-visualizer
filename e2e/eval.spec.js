@@ -58,8 +58,8 @@ test.describe("Analysis Eval", () => {
     await page.goto("/");
     await page.click("#eval-btn");
     await page.click("#save-run-btn");
-    // Let the save fully settle, then re-open the eval view for a clean render (no in-flight save
-    // overlapping the delete's own re-render).
+    // Re-open the eval view so the row read below happens on a settled render (not mid-save-refresh,
+    // which would let us read a stale savedAt off a row that's about to be replaced).
     await expect(page.locator("#history-csv-btn")).toBeVisible();
     await page.click("#eval-btn");
 

@@ -403,6 +403,28 @@ describe("showEval", () => {
     );
   });
 
+  it("a superseded (slower, earlier) load does not clobber a newer one", async () => {
+    // The first-started flavor resolves LAST; generation gating must discard its stale render.
+    global.fetch = vi.fn((url) => {
+      const slow = url.includes("slow");
+      const isRuns = url.includes("/runs");
+      const body = isRuns ? [] : { flavor: slow ? "slow" : "fast" };
+      return new Promise((resolve) =>
+        setTimeout(
+          () => resolve({ ok: true, json: () => Promise.resolve(body) }),
+          slow ? 50 : 5
+        )
+      );
+    });
+    const slowP = showEval("slow"); // generation N
+    const fastP = showEval("fast"); // generation N+1, resolves first
+    await Promise.all([slowP, fastP]);
+    await new Promise((r) => setTimeout(r, 70)); // let the slow one resolve and be discarded
+    const html = document.getElementById("transcript-container").innerHTML;
+    expect(html).toContain("fast");
+    expect(html).not.toContain("slow");
+  });
+
   it("shows an error message on a non-ok response", async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }));
     await showEval("codex");
