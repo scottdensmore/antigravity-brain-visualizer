@@ -33,11 +33,34 @@ function csvCell(value) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// The distinct check names across all runs, in first-seen order, for stable per-check columns.
+function checkNamesOf(runs) {
+  const names = [];
+  const seen = new Set();
+  for (const run of runs) {
+    for (const c of run.checkPassRates || []) {
+      if (c && c.name && !seen.has(c.name)) {
+        seen.add(c.name);
+        names.push(c.name);
+      }
+    }
+  }
+  return names;
+}
+
 /** A CSV document (header row + one row per saved run) for a run-history list. */
 export function historyCsv(history) {
   const runs = Array.isArray(history) ? history : [];
-  const rows = runs.map((run) =>
-    COLUMNS.map((col) => csvCell(run[col])).join(",")
-  );
-  return [COLUMNS.join(","), ...rows].join("\n") + "\n";
+  const checks = checkNamesOf(runs);
+  const headers = [...COLUMNS, ...checks.map((n) => `check:${n}`)];
+  const rows = runs.map((run) => {
+    const byName = {};
+    for (const c of run.checkPassRates || []) byName[c.name] = c.count;
+    const cells = [
+      ...COLUMNS.map((col) => csvCell(run[col])),
+      ...checks.map((n) => csvCell(n in byName ? byName[n] : "")),
+    ];
+    return cells.join(",");
+  });
+  return [headers.join(","), ...rows].join("\n") + "\n";
 }

@@ -14,6 +14,10 @@ const RUNS = [
     avgFaithfulness: 4.5,
     avgActionability: 3,
     avgClarity: 4,
+    checkPassRates: [
+      { name: "schema-complete", count: 8 },
+      { name: "not-degenerate", count: 6 },
+    ],
   },
   {
     savedAt: "2026-07-01T10:00:00Z",
@@ -27,6 +31,7 @@ const RUNS = [
     avgFaithfulness: 0,
     avgActionability: 0,
     avgClarity: 0,
+    checkPassRates: [{ name: "schema-complete", count: 7 }],
   },
 ];
 
@@ -36,10 +41,20 @@ describe("historyCsv", () => {
     const lines = csv.trimEnd().split("\n");
     expect(lines).toHaveLength(3); // header + 2 runs
     expect(lines[0]).toBe(
-      "savedAt,flavor,modelLabel,sessionCount,evaluatedSessions,avgScore,judged,judgedSessions,avgFaithfulness,avgActionability,avgClarity"
+      "savedAt,flavor,modelLabel,sessionCount,evaluatedSessions,avgScore,judged,judgedSessions,avgFaithfulness,avgActionability,avgClarity,check:schema-complete,check:not-degenerate"
     );
     expect(lines[1]).toContain("2026-07-02T10:00:00Z,antigravity-cli,gemini · v2,20,8,75,true,3,4.5,3,4");
     expect(lines[2]).toContain(",70,false,0,0,0,0");
+  });
+
+  it("adds a column per check with each run's pass count (blank when absent)", () => {
+    const csv = historyCsv(RUNS);
+    const lines = csv.trimEnd().split("\n");
+    // Union of check names across runs, in first-seen order.
+    expect(lines[0].endsWith("check:schema-complete,check:not-degenerate")).toBe(true);
+    // Run 1 passed both; run 2 only has schema-complete, so its not-degenerate cell is blank.
+    expect(lines[1].endsWith(",8,6")).toBe(true);
+    expect(lines[2].endsWith(",7,")).toBe(true);
   });
 
   it("quotes and escapes fields containing commas or quotes", () => {
