@@ -58,6 +58,10 @@ test.describe("Analysis Eval", () => {
     await page.goto("/");
     await page.click("#eval-btn");
     await page.click("#save-run-btn");
+    // Let the save fully settle, then re-open the eval view for a clean render (no in-flight save
+    // overlapping the delete's own re-render).
+    await expect(page.locator("#history-csv-btn")).toBeVisible();
+    await page.click("#eval-btn");
 
     // Target the newest run specifically (robust to any other saved runs in the shared home).
     const first = page.locator(".run-del-btn").first();

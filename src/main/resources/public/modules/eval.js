@@ -50,9 +50,11 @@ function section(title, color, bodyHtml) {
     </div>`;
 }
 
-function passRateRow(item, evaluated) {
+function passRateRow(item, evaluated, history) {
   const label = CHECK_LABELS[item.name] || item.name;
   const pct = evaluated > 0 ? Math.round((item.count / evaluated) * 100) : 0;
+  // A trend of this check's pass rate across saved runs (blank until there are two).
+  const trend = sparkline(checkRates(history, item.name), 1, { w: 84, h: 18 });
   return `<div style="display:flex; align-items:center; gap:16px; margin-bottom:10px;">
       <div style="flex:0 0 260px; font-size:0.82rem; color:var(--text-primary); text-align:right;" title="${escapeHtml(
         item.name
@@ -65,6 +67,7 @@ function passRateRow(item, evaluated) {
       <div style="flex:0 0 70px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">${
         item.count
       }/${evaluated} · ${pct}%</div>
+      <div style="flex:0 0 84px;" title="Pass-rate trend across saved runs">${trend}</div>
     </div>`;
 }
 
@@ -258,26 +261,55 @@ function cmpRow(label, av, bv) {
 
 // A tiny inline SVG sparkline of avg score over the saved runs (oldest → newest). All coordinates
 // derive from numeric scores, so nothing here is attacker-controllable. Empty until there are 2 runs.
+// A reusable inline SVG sparkline for a numeric series (clamped to [0, max]). All coordinates derive
+// from the numbers, so there is nothing to escape. Empty until there are two points.
+export function sparkline(values, max, opts = {}) {
+  const { w = 80, h = 20, marker = false, strokeWidth = 1.5 } = opts;
+  const vals = Array.isArray(values) ? values : [];
+  if (vals.length < 2) return "";
+  const pad = marker ? 4 : 2;
+  const domain = max > 0 ? max : 1;
+  const x = (i) => pad + (i * (w - 2 * pad)) / (vals.length - 1);
+  const y = (v) => {
+    const c = Math.max(0, Math.min(domain, v || 0));
+    return h - pad - (c / domain) * (h - 2 * pad);
+  };
+  const pts = vals
+    .map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`)
+    .join(" ");
+  const dot = marker
+    ? `<circle cx="${x(vals.length - 1).toFixed(1)}" cy="${y(
+        vals[vals.length - 1]
+      ).toFixed(1)}" r="3" fill="var(--accent-purple)" />`
+    : "";
+  const style = marker
+    ? "display:block; margin-bottom:12px;"
+    : "display:inline-block; vertical-align:middle;";
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="${style}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--accent-purple)" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-linecap="round" />${dot}</svg>`;
+}
+
+// The per-run pass rate (0–1) of one check across the saved history, oldest → newest.
+function checkRates(history, name) {
+  const runs = Array.isArray(history) ? [...history].reverse() : [];
+  return runs.map((run) => {
+    const found = (run.checkPassRates || []).find((c) => c.name === name);
+    const evald = run.evaluatedSessions || 0;
+    return evald > 0 && found ? found.count / evald : 0;
+  });
+}
+
 export function scoreSparkline(history) {
   const runs = Array.isArray(history) ? [...history].reverse() : [];
-  if (runs.length < 2) return "";
-  const w = 240;
-  const h = 40;
-  const pad = 4;
-  const x = (i) => pad + (i * (w - 2 * pad)) / (runs.length - 1);
-  const y = (v) => {
-    const clamped = Math.max(0, Math.min(100, v || 0));
-    return h - pad - (clamped / 100) * (h - 2 * pad);
-  };
-  const pts = runs
-    .map((r, i) => `${x(i).toFixed(1)},${y(r.avgScore).toFixed(1)}`)
-    .join(" ");
-  const lastX = x(runs.length - 1).toFixed(1);
-  const lastY = y(runs[runs.length - 1].avgScore).toFixed(1);
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block; margin-bottom:12px;" aria-label="Average score trend">
-      <polyline points="${pts}" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-      <circle cx="${lastX}" cy="${lastY}" r="3" fill="var(--accent-purple)" />
-    </svg>`;
+  return sparkline(
+    runs.map((r) => r.avgScore),
+    100,
+    {
+      w: 240,
+      h: 40,
+      marker: true,
+      strokeWidth: 2,
+    }
+  );
 }
 
 function historySection(history) {
@@ -316,7 +348,7 @@ export function renderEval(report, container, history = []) {
       : section(
           "Check pass-rates",
           "var(--accent-purple)",
-          passRates.map((it) => passRateRow(it, evaluated)).join("")
+          passRates.map((it) => passRateRow(it, evaluated, history)).join("")
         ) +
         section(
           "Lowest-scoring analyses",
