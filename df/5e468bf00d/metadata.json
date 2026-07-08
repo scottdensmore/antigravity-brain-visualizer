@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "df5e468bf00d",
+  "strategy": "manual-commit",
+  "branch": "feat/judge-avg-spread",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/df/5e468bf00d/0/metadata.json",
+      "transcript": "/df/5e468bf00d/0/full.jsonl",
+      "compact_transcript": "/df/5e468bf00d/0/transcript.jsonl",
+      "content_hash": "/df/5e468bf00d/0/content_hash.txt",
+      "prompt": "/df/5e468bf00d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 259850,
+    "cache_creation_tokens": 11806203,
+    "cache_read_tokens": 531091839,
+    "output_tokens": 1132454,
+    "api_call_count": 1077
+  }
+}

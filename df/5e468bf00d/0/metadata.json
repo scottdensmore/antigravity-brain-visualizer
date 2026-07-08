@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "df5e468bf00d",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-08T02:40:42.358435Z",
+  "branch": "feat/judge-avg-spread",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "396411672ff3",
+  "token_usage": {
+    "input_tokens": 259850,
+    "cache_creation_tokens": 11806203,
+    "cache_read_tokens": 531091839,
+    "output_tokens": 1132454,
+    "api_call_count": 1077
+  },
+  "session_metrics": {
+    "turn_count": 47
+  }
+}
