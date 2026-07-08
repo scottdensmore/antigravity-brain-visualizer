@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "8011e525153c",
+  "strategy": "manual-commit",
+  "branch": "feat/mine-drilldown",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "e2e/mine.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/FleetInsights.java",
+    "src/main/java/io/github/glaforge/agybrainviz/PatternMiner.java",
+    "src/main/resources/public/modules/drilldown.js",
+    "src/main/resources/public/modules/insights.js",
+    "src/main/resources/public/modules/mine.js",
+    "src/test/java/io/github/glaforge/agybrainviz/FleetInsightsTest.java",
+    "src/test/js/drilldown.test.js",
+    "src/test/js/mine.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/80/11e525153c/0/metadata.json",
+      "transcript": "/80/11e525153c/0/full.jsonl",
+      "compact_transcript": "/80/11e525153c/0/transcript.jsonl",
+      "content_hash": "/80/11e525153c/0/content_hash.txt",
+      "prompt": "/80/11e525153c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 241486,
+    "cache_creation_tokens": 11646270,
+    "cache_read_tokens": 429648716,
+    "output_tokens": 1013349,
+    "api_call_count": 935
+  }
+}

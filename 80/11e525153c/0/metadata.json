@@ -1,0 +1,68 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "8011e525153c",
+  "session_id": "8619ea54-7ffc-44fb-96ff-4c199b70945e",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-08T00:47:25.086415Z",
+  "branch": "feat/mine-drilldown",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "e2e/mine.spec.js",
+    "src/main/java/io/github/glaforge/agybrainviz/FleetInsights.java",
+    "src/main/java/io/github/glaforge/agybrainviz/PatternMiner.java",
+    "src/main/resources/public/modules/drilldown.js",
+    "src/main/resources/public/modules/insights.js",
+    "src/main/resources/public/modules/mine.js",
+    "src/test/java/io/github/glaforge/agybrainviz/FleetInsightsTest.java",
+    "src/test/js/drilldown.test.js",
+    "src/test/js/mine.test.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "1e327e767e74",
+  "token_usage": {
+    "input_tokens": 241486,
+    "cache_creation_tokens": 11646270,
+    "cache_read_tokens": 429648716,
+    "output_tokens": 1013349,
+    "api_call_count": 935
+  },
+  "session_metrics": {
+    "turn_count": 43
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-08T00:47:24.660842Z",
+    "agent_lines": 286,
+    "agent_removed": 86,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 286,
+    "total_lines_changed": 372,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 286,
+      "agent_lines_removed": 86,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}
