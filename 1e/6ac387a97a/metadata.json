@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "1e6ac387a97a",
+  "strategy": "manual-commit",
+  "branch": "feat/dotenv-config",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".env.example",
+    ".gitignore",
+    "README.md",
+    "build.gradle",
+    "playwright.config.js",
+    "src/main/java/io/github/glaforge/agybrainviz/AiConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/Application.java",
+    "src/main/java/io/github/glaforge/agybrainviz/DotEnv.java",
+    "src/test/java/io/github/glaforge/agybrainviz/DotEnvTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1e/6ac387a97a/0/metadata.json",
+      "transcript": "/1e/6ac387a97a/0/full.jsonl",
+      "compact_transcript": "/1e/6ac387a97a/0/transcript.jsonl",
+      "content_hash": "/1e/6ac387a97a/0/content_hash.txt",
+      "prompt": "/1e/6ac387a97a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 284479,
+    "cache_creation_tokens": 13607042,
+    "cache_read_tokens": 610901870,
+    "output_tokens": 1222640,
+    "api_call_count": 1170
+  }
+}
