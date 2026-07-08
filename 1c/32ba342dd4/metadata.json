@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "1c32ba342dd4",
+  "strategy": "manual-commit",
+  "branch": "feat/eval-csv-check-columns",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/main/resources/public/modules/eval-export.js",
+    "src/test/js/eval-export.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1c/32ba342dd4/0/metadata.json",
+      "transcript": "/1c/32ba342dd4/0/full.jsonl",
+      "compact_transcript": "/1c/32ba342dd4/0/transcript.jsonl",
+      "content_hash": "/1c/32ba342dd4/0/content_hash.txt",
+      "prompt": "/1c/32ba342dd4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 241637,
+    "cache_creation_tokens": 11654536,
+    "cache_read_tokens": 436710328,
+    "output_tokens": 1020661,
+    "api_call_count": 946
+  }
+}
