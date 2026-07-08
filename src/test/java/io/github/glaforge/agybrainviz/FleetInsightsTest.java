@@ -210,6 +210,33 @@ class FleetInsightsTest {
     }
 
     @Test
+    void drillsDownIntoAWorkflowSequence() {
+        // Session A runs Read → Edit → Bash; session B only runs Read.
+        FleetInsights.Session a = new FleetInsights.Session(
+            "sess-a",
+            List.of(
+                toolStep("2026-06-19T10:00:00Z", "Read"),
+                toolStep("2026-06-19T10:00:01Z", "Edit"),
+                toolStep("2026-06-19T10:00:02Z", "Bash")
+            ),
+            null
+        );
+        FleetInsights.Session b = new FleetInsights.Session(
+            "sess-b",
+            List.of(toolStep("2026-06-19T11:00:00Z", "Read")),
+            null
+        );
+
+        List<SessionRef> refs = FleetInsights.sessionsFor(
+            "workflow",
+            "Read → Edit → Bash",
+            List.of(a, b)
+        );
+        assertEquals(1, refs.size());
+        assertEquals("sess-a", refs.get(0).id());
+    }
+
+    @Test
     void drilldownTitlePrefersTheAnalysisShortTitle() {
         ObjectNode summaryWithTitle = M.createObjectNode();
         summaryWithTitle.put("shortTitle", "Parser fix");

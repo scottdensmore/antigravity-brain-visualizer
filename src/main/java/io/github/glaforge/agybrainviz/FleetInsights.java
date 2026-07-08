@@ -151,6 +151,7 @@ final class FleetInsights {
             case "error" -> hasError(session, key);
             case "recommendation" -> hasRecommendation(session, key);
             case "issue" -> hasIssue(session, key);
+            case "workflow" -> PatternMiner.sequencesIn(session.steps()).contains(key);
             default -> false;
         };
     }

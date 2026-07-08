@@ -20,6 +20,7 @@ import {
   agentsMarkdown,
   downloadText,
 } from "./mine-export.js";
+import { drillRow, wireDrilldown } from "./drilldown.js";
 
 const DL_BTN_STYLE =
   "padding:4px 10px; font-size:0.72rem; background:rgba(30,41,59,0.6); border:1px solid var(--border-color); color:var(--text-primary); cursor:pointer; border-radius:6px; white-space:nowrap;";
@@ -79,10 +80,10 @@ function ruleRow(rule) {
     </div>`;
 }
 
-// A failure→fix pair from the structural evidence.
+// A failure→fix pair from the structural evidence (drills into the sessions that hit the error).
 function fixRow(pair) {
   const fix = pair.fix && pair.fix.trim() ? pair.fix : "(no fix recorded)";
-  return `<div style="display:flex; gap:12px; margin-bottom:10px; align-items:baseline;">
+  const inner = `<div style="display:flex; gap:12px; margin-bottom:2px; align-items:baseline;">
       <div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
         pair.count || 1
       }</div>
@@ -93,10 +94,12 @@ function fixRow(pair) {
         <div class="stat-sub" style="margin-top:2px;">→ ${escapeHtml(fix)}</div>
       </div>
     </div>`;
+  return drillRow("issue", pair.error || "", inner);
 }
 
+// A recurring workflow (tool-sequence n-gram); drills into the sessions that ran it.
 function sequenceRow(seq) {
-  return `<div style="display:flex; gap:12px; margin-bottom:8px; align-items:baseline;">
+  const inner = `<div style="display:flex; gap:12px; margin-bottom:2px; align-items:baseline;">
       <div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
         seq.count || 1
       }</div>
@@ -104,6 +107,7 @@ function sequenceRow(seq) {
         seq.name || ""
       )}</div>
     </div>`;
+  return drillRow("workflow", seq.name || "", inner);
 }
 
 function list(items, render, emptyText) {
@@ -184,11 +188,15 @@ export function renderMining(report, container) {
         list(
           recs,
           (rec) =>
-            `<div style="display:flex; gap:12px; margin-bottom:6px;"><div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
-              rec.count || 1
-            }</div><div style="font-size:0.88rem; color:var(--text-primary);">${escapeHtml(
-              rec.name || ""
-            )}</div></div>`,
+            drillRow(
+              "recommendation",
+              rec.name || "",
+              `<div style="display:flex; gap:12px; margin-bottom:2px;"><div style="flex:0 0 40px; font-size:0.85rem; color:var(--text-secondary); font-weight:600;">×${
+                rec.count || 1
+              }</div><div style="font-size:0.88rem; color:var(--text-primary);">${escapeHtml(
+                rec.name || ""
+              )}</div></div>`
+            ),
           "No recommendations yet — generate AI analysis on more sessions"
         )
       )}
@@ -208,6 +216,9 @@ export function renderMining(report, container) {
       downloadText("AGENTS.md", agentsMarkdown(r))
     );
   }
+
+  // Evidence rows (workflows / failures / recommendations) drill into their sessions.
+  wireDrilldown(container, r.flavor);
 }
 
 export async function showMining(flavor) {

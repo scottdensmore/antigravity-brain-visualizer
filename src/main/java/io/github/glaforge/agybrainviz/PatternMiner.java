@@ -102,8 +102,11 @@ final class PatternMiner {
         );
     }
 
-    /** The set of distinct consecutive tool-call 2- and 3-grams in one session's step order. */
-    private static Set<String> sequencesIn(List<JsonNode> steps) {
+    /**
+     * The set of distinct consecutive tool-call 2- and 3-grams in one session's step order. Shared
+     * with {@link FleetInsights} so a workflow drill-down keys on exactly what the miner reported.
+     */
+    static Set<String> sequencesIn(List<JsonNode> steps) {
         List<String> tools = new ArrayList<>();
         for (JsonNode step : steps) {
             JsonNode toolCalls = step.path("tool_calls");

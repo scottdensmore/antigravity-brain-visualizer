@@ -89,6 +89,20 @@ describe("renderMining", () => {
     expect(html).toContain("No failures recorded");
   });
 
+  it("makes the evidence rows drillable by their category", () => {
+    const c = document.getElementById("transcript-container");
+    renderMining(REPORT, c);
+    expect(
+      c.querySelector('.drill-row[data-drill-category="workflow"]').dataset.drillKey
+    ).toBe("Read → Edit → Bash");
+    expect(
+      c.querySelector('.drill-row[data-drill-category="issue"]').dataset.drillKey
+    ).toBe("Build fails on JDK 21");
+    expect(
+      c.querySelector('.drill-row[data-drill-category="recommendation"]').dataset.drillKey
+    ).toBe("Pin the JDK with mise");
+  });
+
   it("offers download buttons only when the model proposed skills/rules", () => {
     const c = document.getElementById("transcript-container");
     renderMining(REPORT, c);

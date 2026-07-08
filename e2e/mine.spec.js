@@ -20,4 +20,15 @@ test.describe("Skill / AGENTS.md miner", () => {
     await page.click("#mine-btn");
     await expect(page.locator("#transcript-container")).toContainText("Claude Code");
   });
+
+  test("drilling a recommendation reveals the sessions behind it", async ({ page }) => {
+    await page.goto("/");
+    await page.click("#mine-btn");
+
+    const recRow = page
+      .locator('.drill-row[data-drill-category="recommendation"]')
+      .first();
+    await recRow.locator(".drill-bar").click();
+    await expect(recRow.locator(".drill-session").first()).toBeVisible();
+  });
 });
