@@ -19,33 +19,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
-/** Tests the file-backed eval run history store over a temporary {@code user.home}. */
-@ResourceLock("user.home")
-class EvalRunStoreTest {
+/** Tests the Postgres-backed eval run history against a real database. */
+class EvalRunRepositoryTest extends PostgresTest {
 
-    private final EvalRunStore store = new EvalRunStore();
-    private String originalHome;
-    private Path tempHome;
+    private EvalRunRepository store;
 
     @BeforeEach
-    void setUp() throws IOException {
-        originalHome = System.getProperty("user.home");
-        tempHome = Files.createTempDirectory("agy-runs-test-home");
-        System.setProperty("user.home", tempHome.toString());
-    }
-
-    @AfterEach
-    void tearDown() {
-        if (originalHome != null) System.setProperty("user.home", originalHome);
+    void setUp() throws SQLException {
+        store = new EvalRunRepository(dataSource());
+        truncate("eval_runs");
     }
 
     private EvalReport report(String flavor, double avgScore, JudgeSummary judge) {
@@ -63,7 +50,7 @@ class EvalRunStoreTest {
     }
 
     @Test
-    void savesAndListsNewestFirst() throws IOException {
+    void savesAndListsNewestFirst() {
         store.save(report("codex", 70.0, JudgeSummary.notRun("n")));
         store.save(report("codex", 80.0, JudgeSummary.notRun("n")));
 
@@ -76,7 +63,7 @@ class EvalRunStoreTest {
     }
 
     @Test
-    void filtersByFlavor() throws IOException {
+    void filtersByFlavor() {
         store.save(report("codex", 70.0, JudgeSummary.notRun("n")));
         store.save(report("claude-code", 90.0, JudgeSummary.notRun("n")));
 
@@ -87,7 +74,17 @@ class EvalRunStoreTest {
     }
 
     @Test
-    void capturesJudgeAveragesWhenJudged() throws IOException {
+    void roundTripsTheCheckPassRateTally() {
+        store.save(report("codex", 70.0, JudgeSummary.notRun("n")));
+
+        List<NameCount> rates = store.list("codex").get(0).checkPassRates();
+        assertEquals(1, rates.size());
+        assertEquals("schema-complete", rates.get(0).name());
+        assertEquals(4, rates.get(0).count());
+    }
+
+    @Test
+    void capturesJudgeAveragesWhenJudged() {
         store.save(report("codex", 75.0, new JudgeSummary(true, "", 3, 4.5, 4.0, 3.5, List.of())));
 
         EvalRunSnapshot run = store.list("codex").get(0);
@@ -98,25 +95,25 @@ class EvalRunStoreTest {
     }
 
     @Test
-    void capsHistoryToMaxKeepingNewest() throws IOException {
-        int n = EvalRunStore.MAX_RUNS + 10;
+    void capsHistoryToMaxKeepingNewest() {
+        int n = EvalRunRepository.MAX_RUNS + 10;
         for (int i = 0; i < n; i++) {
             store.save(report("codex", i, JudgeSummary.notRun("n")));
         }
 
         List<EvalRunSnapshot> runs = store.list("codex");
-        assertEquals(EvalRunStore.MAX_RUNS, runs.size());
+        assertEquals(EvalRunRepository.MAX_RUNS, runs.size());
         // The most recent save (avgScore = n-1) is retained and listed first.
         assertEquals((double) (n - 1), runs.get(0).avgScore());
     }
 
     @Test
-    void listIsEmptyWhenNothingSaved() throws IOException {
+    void listIsEmptyWhenNothingSaved() {
         assertTrue(store.list("codex").isEmpty());
     }
 
     @Test
-    void defaultsBlankFlavorAndModelSoTheSnapshotStaysListable() throws IOException {
+    void defaultsBlankFlavorAndModelSoTheSnapshotStaysListable() {
         // A malformed report (no flavor/model) must still round-trip to a listable snapshot.
         EvalRunSnapshot saved = store.save(
             new EvalReport(null, 0, 0, 0, 0.0, null, null, null, null)
@@ -127,7 +124,7 @@ class EvalRunStoreTest {
     }
 
     @Test
-    void deletesBySavedAtAndLeavesOthers() throws IOException {
+    void deletesBySavedAtAndLeavesOthers() {
         EvalRunSnapshot a = store.save(report("codex", 70.0, JudgeSummary.notRun("n")));
         EvalRunSnapshot b = store.save(report("codex", 80.0, JudgeSummary.notRun("n")));
 
@@ -143,10 +140,38 @@ class EvalRunStoreTest {
     }
 
     @Test
-    void stampsAParseableServerSideSavedAt() throws IOException {
+    void stampsAParseableServerSideSavedAt() {
         // The client cannot dictate identity: savedAt is server-stamped and a valid instant.
         EvalRunSnapshot saved = store.save(report("codex", 50.0, JudgeSummary.notRun("n")));
         assertFalse(saved.savedAt() == null || saved.savedAt().isBlank());
         java.time.Instant.parse(saved.savedAt()); // throws if not a valid ISO-8601 instant
+    }
+
+    @Test
+    void twoRunsSharingAnInstantBothPersistAndBothDelete() {
+        // Instant.now() repeats under a tight loop, so savedAt is a timestamp rather than a unique
+        // key: a collision must not collapse two runs into one row (nor throw), and deleting by the
+        // shared instant removes both — the behaviour of the file-backed store this replaces.
+        String shared = "2026-07-09T12:00:00Z";
+        store.save(report("codex", 70.0, JudgeSummary.notRun("n")), shared);
+        store.save(report("codex", 80.0, JudgeSummary.notRun("n")), shared);
+        store.save(report("codex", 90.0, JudgeSummary.notRun("n")), "2026-07-09T12:00:01Z");
+
+        assertEquals(3, store.list("codex").size());
+        assertEquals(2, store.delete(shared));
+
+        List<EvalRunSnapshot> remaining = store.list("codex");
+        assertEquals(1, remaining.size());
+        assertEquals(90.0, remaining.get(0).avgScore());
+    }
+
+    @Test
+    void ordersRunsSharingAnInstantByInsertionSoTheNewestStillLeads() {
+        String shared = "2026-07-09T12:00:00Z";
+        store.save(report("codex", 70.0, JudgeSummary.notRun("n")), shared);
+        store.save(report("codex", 80.0, JudgeSummary.notRun("n")), shared);
+
+        // The tie is broken by the surrogate key, so the later save still lists first.
+        assertEquals(80.0, store.list("codex").get(0).avgScore());
     }
 }

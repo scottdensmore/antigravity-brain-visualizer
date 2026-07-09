@@ -33,10 +33,10 @@ import java.util.Optional;
 public class EvalController {
 
     private final EvalService evalService;
-    private final EvalRunStore runStore;
+    private final EvalRunRepository runStore;
 
     @Inject
-    public EvalController(EvalService evalService, EvalRunStore runStore) {
+    public EvalController(EvalService evalService, EvalRunRepository runStore) {
         this.evalService = evalService;
         this.runStore = runStore;
     }
@@ -53,21 +53,21 @@ public class EvalController {
     /** Saves a snapshot of a completed eval run so it can be compared against later runs. */
     @ExecuteOn(TaskExecutors.IO)
     @Post(value = "/runs", produces = "application/json")
-    public EvalRunSnapshot saveRun(@Body EvalReport report) throws IOException {
+    public EvalRunSnapshot saveRun(@Body EvalReport report) {
         return runStore.save(report);
     }
 
     /** The saved run history for a flavor, newest first. */
     @ExecuteOn(TaskExecutors.IO)
     @Get(value = "/runs", produces = "application/json")
-    public List<EvalRunSnapshot> listRuns(@QueryValue Optional<String> flavor) throws IOException {
+    public List<EvalRunSnapshot> listRuns(@QueryValue Optional<String> flavor) {
         return runStore.list(flavor.orElse("antigravity-cli"));
     }
 
     /** Deletes the saved run identified by its {@code savedAt} timestamp. */
     @ExecuteOn(TaskExecutors.IO)
     @Delete(value = "/runs", produces = "application/json")
-    public DeleteResult deleteRun(@QueryValue String savedAt) throws IOException {
+    public DeleteResult deleteRun(@QueryValue String savedAt) {
         return new DeleteResult(runStore.delete(savedAt));
     }
 }

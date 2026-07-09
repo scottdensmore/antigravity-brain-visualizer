@@ -32,10 +32,14 @@ CREATE TABLE IF NOT EXISTS summaries (
     PRIMARY KEY (source, session_id)
 );
 
--- Saved eval runs. `saved_at` is an ISO-8601 instant, so it is both the delete
--- key and a lexicographic stand-in for chronological order.
+-- Saved eval runs. `saved_at` is an ISO-8601 instant, so it doubles as the
+-- delete key and a lexicographic stand-in for chronological order. It is NOT
+-- unique: two runs saved in the same instant are two rows, and deleting by
+-- `saved_at` removes both — the behaviour of the file-backed store it replaces.
+-- Hence the surrogate key, which also breaks ordering ties.
 CREATE TABLE IF NOT EXISTS eval_runs (
-    saved_at           text             PRIMARY KEY,
+    run_id             bigserial        PRIMARY KEY,
+    saved_at           text             NOT NULL,
     flavor             text             NOT NULL,
     model_label        text             NOT NULL,
     session_count      int              NOT NULL,
@@ -50,4 +54,7 @@ CREATE TABLE IF NOT EXISTS eval_runs (
 );
 
 CREATE INDEX IF NOT EXISTS eval_runs_flavor_saved
-    ON eval_runs (flavor, saved_at DESC);
+    ON eval_runs (flavor, saved_at DESC, run_id DESC);
+
+CREATE INDEX IF NOT EXISTS eval_runs_saved_at
+    ON eval_runs (saved_at);
