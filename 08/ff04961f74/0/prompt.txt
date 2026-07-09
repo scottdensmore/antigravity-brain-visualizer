@@ -1,0 +1,9 @@
+The app today uses local files from the agent sessions. It would be great to store these in persistent storage. That way we could work with multiple tragectories across multiple computers. What is a good plan to do this?
+
+---
+
+Can you propose the plan again (I thikn the file already exists for the plan)
+
+---
+
+we should use docker for the postgress locally. Just map a volume

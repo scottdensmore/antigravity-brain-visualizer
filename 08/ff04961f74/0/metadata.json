@@ -1,0 +1,70 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "08ff04961f74",
+  "session_id": "99320939-d56d-4c7e-b3e4-213a40305e7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-09T22:41:04.007858Z",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".env.example",
+    "build.gradle",
+    "docker-compose.yml",
+    "src/main/java/io/github/glaforge/agybrainviz/Application.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SchemaBootstrap.java",
+    "src/main/java/io/github/glaforge/agybrainviz/StorageConfig.java",
+    "src/main/resources/META-INF/native-image/io.github.glaforge/agybrainviz/reachability-metadata.json",
+    "src/main/resources/application.yml",
+    "src/main/resources/db/schema.sql",
+    "src/test/java/io/github/glaforge/agybrainviz/ApplicationTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/StorageConfigTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "4c324debd595",
+  "token_usage": {
+    "input_tokens": 34119,
+    "cache_creation_tokens": 478036,
+    "cache_read_tokens": 12536756,
+    "output_tokens": 65388,
+    "api_call_count": 83
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-09T22:41:03.953156Z",
+    "agent_lines": 490,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 490,
+    "total_lines_changed": 491,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 490,
+      "agent_lines_removed": 1,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}
