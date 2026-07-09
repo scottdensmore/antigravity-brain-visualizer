@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "b1b7ef5075e6",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/main/java/io/github/glaforge/agybrainviz/EvalController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalRunRepository.java",
+    "src/main/java/io/github/glaforge/agybrainviz/StoreUnavailableException.java",
+    "src/main/java/io/github/glaforge/agybrainviz/StoreUnavailableHandler.java",
+    "src/main/resources/db/schema.sql",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalRunRepositoryTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/PostgresTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b1/b7ef5075e6/0/metadata.json",
+      "transcript": "/b1/b7ef5075e6/0/full.jsonl",
+      "compact_transcript": "/b1/b7ef5075e6/0/transcript.jsonl",
+      "content_hash": "/b1/b7ef5075e6/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12003,
+    "cache_creation_tokens": 45468,
+    "cache_read_tokens": 6658717,
+    "output_tokens": 24447,
+    "api_call_count": 28
+  }
+}

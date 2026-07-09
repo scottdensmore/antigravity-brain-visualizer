@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "b1b7ef5075e6",
+  "session_id": "99320939-d56d-4c7e-b3e4-213a40305e7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-09T22:48:36.016469Z",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/main/resources/db/schema.sql",
+    "src/main/java/io/github/glaforge/agybrainviz/StoreUnavailableException.java",
+    "src/main/java/io/github/glaforge/agybrainviz/StoreUnavailableHandler.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalRunRepository.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalController.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalRunRepositoryTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/PostgresTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "4c324debd595",
+  "checkpoint_transcript_start": 396,
+  "transcript_lines_at_start": 396,
+  "token_usage": {
+    "input_tokens": 12003,
+    "cache_creation_tokens": 45468,
+    "cache_read_tokens": 6658717,
+    "output_tokens": 24447,
+    "api_call_count": 28
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-09T22:48:35.977225Z",
+    "agent_lines": 567,
+    "agent_removed": 9,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 567,
+    "total_lines_changed": 871,
+    "agent_percentage": 66.13088404133181,
+    "metric_version": 2
+  }
+}
