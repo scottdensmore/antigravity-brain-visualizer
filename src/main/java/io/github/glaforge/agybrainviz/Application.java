@@ -32,7 +32,37 @@ public class Application {
             }
         }
         applyDotEnvFrameworkSettings();
+        applyDatasourceSettings(DotEnv.values());
         Micronaut.run(Application.class, args);
+    }
+
+    /**
+     * Maps the store's connection settings onto Micronaut's {@code datasources.default} properties.
+     * Unlike {@code MICRONAUT_*}, these names don't correspond to a framework property, so a real
+     * {@code DATABASE_URL} environment variable has to be bridged explicitly too — not just the
+     * {@code .env} entries. Precedence stays the same: real environment variable, then {@code .env},
+     * and an explicit {@code -D} flag beats both. Values left unset fall through to the defaults in
+     * {@code application.yml}, which match {@code docker-compose.yml}.
+     */
+    static void applyDatasourceSettings(Map<String, String> dotEnvValues) {
+        applyDatasourceSetting("DATABASE_URL", "datasources.default.url", dotEnvValues);
+        applyDatasourceSetting("POSTGRES_USER", "datasources.default.username", dotEnvValues);
+        applyDatasourceSetting("POSTGRES_PASSWORD", "datasources.default.password", dotEnvValues);
+    }
+
+    /** The pure half of {@link #applyDatasourceSettings}, so the precedence rules are testable. */
+    static void applyDatasourceSetting(
+        String key,
+        String property,
+        Map<String, String> dotEnvValues
+    ) {
+        String value = System.getenv(key);
+        if (value == null) value = dotEnvValues.get(key);
+        // A blank value would fail Micronaut's property resolution; leave the yml default in place.
+        if (value == null || value.isBlank()) return;
+        if (System.getProperty(property) == null) { // an explicit -D flag wins
+            System.setProperty(property, value);
+        }
     }
 
     /**
@@ -87,6 +117,11 @@ public class Application {
                   GEMINI_MODEL                     Gemini model name
                   OLLAMA_BASE_URL, OLLAMA_MODEL    Local Ollama server and model
                   MICRONAUT_SERVER_PORT            Overrides the default server port
+                  DATABASE_URL                     Postgres JDBC URL for the trajectory store
+                  POSTGRES_USER, POSTGRES_PASSWORD Store credentials
+                  INGEST_TOKEN                     Bearer token required by /api/ingest, if set
+
+                Start a local store with `docker compose up -d` (the defaults match it).
                 """);
     }
 }

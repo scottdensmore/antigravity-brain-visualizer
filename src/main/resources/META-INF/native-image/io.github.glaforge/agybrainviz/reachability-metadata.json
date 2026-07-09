@@ -7,5 +7,10 @@
         ]
       }
     }
+  ],
+  "resources": [
+    {
+      "glob": "db/schema.sql"
+    }
   ]
 }

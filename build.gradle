@@ -47,7 +47,17 @@ dependencies {
     // Micronaut Langchain4j
     annotationProcessor("io.micronaut.langchain4j:micronaut-langchain4j-processor:2.0.1")
     implementation("io.micronaut.langchain4j:micronaut-langchain4j-core:2.0.1")
-    
+
+    // Shared Postgres store: a pooled DataSource + the driver. The repositories use
+    // plain JDBC, so the driver is only needed at runtime.
+    implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+    runtimeOnly("org.postgresql:postgresql:42.7.4")
+
+    // Testcontainers: H2's Postgres mode does not honour jsonb or `ON CONFLICT ... WHERE`,
+    // so repository tests run against a real Postgres.
+    testImplementation("org.testcontainers:postgresql:1.20.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+
     // Dependencies end here
 }
 

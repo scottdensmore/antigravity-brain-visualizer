@@ -1,0 +1,29 @@
+# Local Postgres for the Agent Brain Visualizer.
+#
+#     docker compose up -d      # start (data survives restarts in the named volume)
+#     docker compose down       # stop, keeping the data
+#     docker compose down -v    # stop and wipe the data
+#
+# The credentials below match the defaults in `.env.example`, so `./gradlew run`
+# works against this container with no extra configuration.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: agent-brain-viz-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agentbrainviz
+      POSTGRES_USER: agentviz
+      POSTGRES_PASSWORD: agentviz
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentviz -d agentbrainviz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

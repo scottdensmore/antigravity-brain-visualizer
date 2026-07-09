@@ -6,3 +6,26 @@ micronaut:
       default:
         paths: classpath:public
         mapping: "/**"
+
+# The shared trajectory store. Defaults match `docker-compose.yml`, so
+# `docker compose up -d && ./gradlew run` works with no configuration.
+# `Application.applyDatasourceSettings()` overrides these from DATABASE_URL /
+# POSTGRES_USER / POSTGRES_PASSWORD (real env var first, then `.env`).
+datasources:
+  default:
+    url: "jdbc:postgresql://localhost:5432/agentbrainviz"
+    username: agentviz
+    password: agentviz
+    driver-class-name: org.postgresql.Driver
+    dialect: POSTGRES
+    maximum-pool-size: 5
+    minimum-idle: 0
+    # Never fail application startup because the database is down: the UI must
+    # still load, and queries surface a 503 instead.
+    initialization-fail-timeout: -1
+    # Hikari's 30s default would stall startup for half a minute whenever the
+    # database is down, since the schema bootstrap asks for a connection.
+    connection-timeout: 5000
+    # Skip JMX registration, which would drag management reflection into the
+    # GraalVM native image for no benefit.
+    register-mbeans: false
