@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "0cbf8a61693f",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".env.example",
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/AntigravityNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/Application.java",
+    "src/main/java/io/github/glaforge/agybrainviz/ClaudeCodeNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestResult.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestSession.java",
+    "src/main/java/io/github/glaforge/agybrainviz/Ingestor.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionRepository.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SourceNormalizer.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestAuthFilterTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestorTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/SessionRepositoryTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0c/bf8a61693f/0/metadata.json",
+      "transcript": "/0c/bf8a61693f/0/full.jsonl",
+      "compact_transcript": "/0c/bf8a61693f/0/transcript.jsonl",
+      "content_hash": "/0c/bf8a61693f/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14038,
+    "cache_creation_tokens": 61753,
+    "cache_read_tokens": 11703407,
+    "output_tokens": 36316,
+    "api_call_count": 35
+  }
+}

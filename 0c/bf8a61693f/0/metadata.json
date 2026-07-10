@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_id": "0cbf8a61693f",
+  "session_id": "99320939-d56d-4c7e-b3e4-213a40305e7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-10T02:35:13.667223Z",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "src/main/java/io/github/glaforge/agybrainviz/SourceNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/ClaudeCodeNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/AntigravityNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionRepository.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestSession.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestResult.java",
+    "src/main/java/io/github/glaforge/agybrainviz/Ingestor.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestController.java",
+    "src/test/java/io/github/glaforge/agybrainviz/SessionRepositoryTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestorTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestAuthFilterTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java",
+    ".env.example",
+    "src/main/java/io/github/glaforge/agybrainviz/Application.java",
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "3978309e7c0c",
+  "checkpoint_transcript_start": 706,
+  "transcript_lines_at_start": 706,
+  "token_usage": {
+    "input_tokens": 14038,
+    "cache_creation_tokens": 61753,
+    "cache_read_tokens": 11703407,
+    "output_tokens": 36316,
+    "api_call_count": 35
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-10T02:35:13.626394Z",
+    "agent_lines": 1295,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1295,
+    "total_lines_changed": 1295,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
