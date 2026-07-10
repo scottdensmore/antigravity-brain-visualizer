@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.7.8",
+  "checkpoint_version": "branch-v1",
+  "checkpoint_id": "674e7c59235e",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".env.example",
+    ".github/workflows/ci.yml",
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/Application.java",
+    "src/main/java/io/github/glaforge/agybrainviz/StorageConfig.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/PostgresTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/StorageConfigTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/TestPostgres.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/67/4e7c59235e/0/metadata.json",
+      "transcript": "/67/4e7c59235e/0/full.jsonl",
+      "compact_transcript": "/67/4e7c59235e/0/transcript.jsonl",
+      "content_hash": "/67/4e7c59235e/0/content_hash.txt",
+      "prompt": "/67/4e7c59235e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6604,
+    "cache_creation_tokens": 278872,
+    "cache_read_tokens": 11726843,
+    "output_tokens": 26273,
+    "api_call_count": 42
+  }
+}

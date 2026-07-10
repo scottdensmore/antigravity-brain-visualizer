@@ -1,0 +1,5 @@
+Do we have a thin vertical slice to create a PR and check in yet or do we need to finish the entire plan?
+
+---
+
+for the full tests and not just mocking things, docker is on this machine and you can setup things for testing... don't forget to update the readme
