@@ -119,6 +119,7 @@ public class Application {
                   MICRONAUT_SERVER_PORT            Overrides the default server port
                   DATABASE_URL                     Postgres JDBC URL for the trajectory store
                   POSTGRES_USER, POSTGRES_PASSWORD Store credentials
+                  INGEST_TOKEN                     Bearer token required by /api/ingest, if set
 
                 Start a local store with `docker compose up -d` (the defaults match it).
                 """);
