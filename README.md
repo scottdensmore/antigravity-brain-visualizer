@@ -91,6 +91,29 @@ JDK on your `PATH`, or prefix Gradle commands with `mise exec -- ` (e.g. `mise e
 Running an older JDK fails at configuration time with *"Dependency requires at least JVM runtime
 version 25"*. (Node.js is only needed for the frontend/e2e tests — see [Development & Tests](#development--tests).)
 
+You also need **Docker**, for the Postgres store described next.
+
+### The trajectory store — Postgres
+
+Saved eval runs are kept in a Postgres database rather than on local disk, so they can be shared
+across the machines you work on. Start one with the checked-in compose file:
+
+```bash
+docker compose up -d      # data persists in a named volume across restarts
+```
+
+Its credentials are the application's built-in defaults, so nothing else is needed to run locally.
+To share data between machines, point each of them at one hosted Postgres (Neon, Supabase, Cloud
+SQL, …) by setting `DATABASE_URL`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` — see `.env.example`.
+
+The app still starts if the database is down; it logs a warning, serves the UI, and answers the
+endpoints that need the store with a `503`.
+
+> [!NOTE]
+> The eval run history previously lived in `~/.agybrainviz/eval-runs.jsonl`. That file is no longer
+> read, so a history saved before this change won't appear. Nothing deletes it — you can remove it
+> by hand once you're happy.
+
 ### Configuration — the `.env` file
 
 The easiest way to configure the app is to copy the checked-in sample and edit it:
@@ -160,6 +183,14 @@ Every variable below can live in `.env` or be exported as an environment variabl
 | `OLLAMA_BASE_URL` | ollama     | `http://localhost:11434` | Ollama server URL                            |
 | `OLLAMA_MODEL`    | ollama     | `gemma4`                 | Local model tag to use                       |
 
+#### Store configuration reference
+
+| Variable            | Default                                        | Description                          |
+| ------------------- | ---------------------------------------------- | ------------------------------------ |
+| `DATABASE_URL`      | `jdbc:postgresql://localhost:5432/agentbrainviz` | JDBC URL of the trajectory store    |
+| `POSTGRES_USER`     | `agentviz`                                     | Store username                       |
+| `POSTGRES_PASSWORD` | `agentviz`                                     | Store password                       |
+
 Once the server starts, open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to interact with the visualizer.
 
 ### Customizing the Port
@@ -207,8 +238,21 @@ Three suites cover the app; CI runs all of them on every pull request:
 mise exec -- ./gradlew build   # backend JUnit + Spotless (format check)
 npm install                    # once, for the frontend/e2e tests
 npm test                       # frontend unit tests (Vitest)
-npm run e2e                    # end-to-end (Playwright) against a booted jar with seeded fixtures
+docker compose up -d           # the store the e2e jar talks to
+mise exec -- npm run e2e       # end-to-end (Playwright) against a booted jar with seeded fixtures
 ```
+
+**The tests need Docker running.** Nothing is faked: the store tests exercise a real Postgres rather
+than an in-memory stand-in, because H2's Postgres mode supports neither `jsonb` nor the conditional
+`ON CONFLICT … WHERE` the store relies on — an in-memory database would test something the app never
+talks to.
+
+* `./gradlew build` starts its **own** Postgres via
+  [Testcontainers](https://testcontainers.com/) and applies the real `db/schema.sql` to it. It does
+  not use, or care about, your `docker compose` container — a suite that passed or failed depending
+  on what happened to be listening on port 5432 would be worse than no suite at all.
+* `npm run e2e` boots the packaged jar, which talks to a real database, so that one **does** need
+  `docker compose up -d` first. Run it under `mise exec` so the jar gets Java 25.
 
 Code is auto-formatted by Spotless (prettier-java + prettier for JS); run `mise exec -- ./gradlew
 spotlessApply` before committing.

@@ -51,6 +51,24 @@ jobs:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The eval run history lives in Postgres, so the jar under test needs one. The credentials and
+    # port match `docker-compose.yml`, which are also the app's built-in defaults — so the server
+    # command needs no extra configuration. (The backend job needs no service: its repository tests
+    # start their own container via Testcontainers.)
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: agentbrainviz
+          POSTGRES_USER: agentviz
+          POSTGRES_PASSWORD: agentviz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentviz -d agentbrainviz"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
 

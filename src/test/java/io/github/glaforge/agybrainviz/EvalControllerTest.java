@@ -26,20 +26,33 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
-/** Integration test for the eval endpoint over a temporary {@code user.home}. */
+/**
+ * Integration test for the eval endpoint: sessions come from a temporary {@code user.home}, run
+ * history from the shared test Postgres.
+ */
 @MicronautTest
 @ResourceLock("user.home")
-class EvalControllerTest {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS) // required by TestPropertyProvider
+class EvalControllerTest implements TestPropertyProvider {
+
+    /** Point the application context at the test container, not a developer's local Postgres. */
+    @Override
+    public Map<String, String> getProperties() {
+        return TestPostgres.datasourceProperties();
+    }
 
     @Inject
     @Client("/")
