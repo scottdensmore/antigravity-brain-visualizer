@@ -34,9 +34,17 @@ This project provides an interactive web UI for inspecting Antigravity AI agent 
 ## Development Environment & Commands
 
 ### Running the Application
-- The application requires the `GEMINI_API_KEY` environment variable to be set at runtime for the LangChain4j integration.
-- Start the server: `export GEMINI_API_KEY="..." && ./gradlew run`
-- By default, the application runs on `http://localhost:8080`.
+- **Store**: start Postgres first with `docker compose up -d` — its credentials
+  are the app's built-in defaults. The app still boots if the database is down
+  (it logs a warning and serves the UI), but store-backed endpoints then return
+  `503`.
+- **AI (optional)**: session summaries need a provider — set `GEMINI_API_KEY` for
+  Google Gemini (the default), or `AI_PROVIDER=ollama` for a local model (no key).
+  Configure via a `.env` file or environment variables (see `.env.example`). The
+  app runs without a provider; only summarization is unavailable.
+- **Run**: `docker compose up -d && ./gradlew run` (prefix with `mise exec -- ` if
+  `mise` isn't active, so Gradle uses Java 25). The server listens on
+  `http://localhost:8080`; override with `MICRONAUT_SERVER_PORT`.
 
 ### Testing
 - Run the test suite: `./gradlew test`
@@ -126,7 +134,7 @@ review-gated; the sub-agents named below live in `.claude/agents/`.
 - `src/main/java/io/github/glaforge/agybrainviz/` - Backend source code
   - `AnalysisController.java` - REST API for LangChain4j/Gemini processing and local file serving
   - `ChatModelFactory.java` - Configuration for the Gemini LLM
-  - `BrainVisualizer.java` - Application entry point
+  - `Application.java` - Application entry point (`main`, Micronaut bootstrap)
 - `src/main/resources/public/` - Frontend assets
   - `index.html` - Main HTML entry point
   - `style.css` - Global styles
