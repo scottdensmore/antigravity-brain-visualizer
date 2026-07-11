@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "1866275b57de",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/18/66275b57de/0/metadata.json",
+      "transcript": "/18/66275b57de/0/full.jsonl",
+      "compact_transcript": "/18/66275b57de/0/transcript.jsonl",
+      "content_hash": "/18/66275b57de/0/content_hash.txt",
+      "prompt": "/18/66275b57de/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 77880,
+    "cache_creation_tokens": 1256946,
+    "cache_read_tokens": 57033369,
+    "output_tokens": 199773,
+    "api_call_count": 227
+  }
+}
