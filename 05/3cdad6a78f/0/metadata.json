@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "053cdad6a78f",
+  "session_id": "99320939-d56d-4c7e-b3e4-213a40305e7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-11T22:08:07.279023Z",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    "cli/README.md",
+    "cli/internal/client/client.go",
+    "cli/internal/client/client_test.go",
+    "cli/internal/scan/scan.go",
+    "cli/internal/scan/scan_test.go",
+    "cli/main.go",
+    "cli/main_test.go"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "3533d32f8c45",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 89431,
+    "cache_creation_tokens": 1792339,
+    "cache_read_tokens": 93687651,
+    "output_tokens": 300471,
+    "api_call_count": 303
+  },
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-11T22:08:07.146992Z",
+    "agent_lines": 1518,
+    "agent_removed": 0,
+    "human_added": 129,
+    "human_modified": 7,
+    "human_removed": 0,
+    "total_committed": 1654,
+    "total_lines_changed": 1654,
+    "agent_percentage": 91.77750906892382,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 163,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        ".cursor/hooks.json": 40,
+        ".github/hooks/entire.json": 61
+      }
+    }
+  ]
+}

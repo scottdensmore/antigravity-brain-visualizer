@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "053cdad6a78f",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    "cli/README.md",
+    "cli/internal/client/client.go",
+    "cli/internal/client/client_test.go",
+    "cli/internal/scan/scan.go",
+    "cli/internal/scan/scan_test.go",
+    "cli/main.go",
+    "cli/main_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/05/3cdad6a78f/0/metadata.json",
+      "transcript": "/05/3cdad6a78f/0/full.jsonl",
+      "compact_transcript": "/05/3cdad6a78f/0/transcript.jsonl",
+      "content_hash": "/05/3cdad6a78f/0/content_hash.txt",
+      "prompt": "/05/3cdad6a78f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 89431,
+    "cache_creation_tokens": 1792339,
+    "cache_read_tokens": 93687651,
+    "output_tokens": 300471,
+    "api_call_count": 303
+  }
+}
