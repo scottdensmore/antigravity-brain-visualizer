@@ -5,10 +5,31 @@ This project provides an interactive web UI for inspecting Antigravity AI agent 
 *(Context: Transcripts consist of sequential JSON objects like `USER_INPUT`, `MODEL`, and `TOOL_CALL`, which the frontend parses and renders into a timeline).*
 
 ## Technology Stack
-- **Backend**: Java 21+, Micronaut
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3 (No framework)
-- **AI Integration**: LangChain4j, with a pluggable provider — Google Gemini (remote, default) or a local model via Ollama (e.g. Gemma). Selected with `AI_PROVIDER` (`gemini` | `ollama`). (Docs: https://docs.langchain4j.dev/integrations/language-models/google-genai/ and https://docs.langchain4j.dev/integrations/language-models/ollama/)
-- **Build Tool**: Gradle
+- **Backend**: Java 25 (pinned via `mise` to `temurin-25`; the Micronaut 5
+  plugins and the project's source level both require it), Micronaut 5 on the
+  Netty runtime, with `micronaut-serde-jackson` for JSON.
+- **Persistence**: PostgreSQL, accessed with **plain JDBC** over a
+  Micronaut-managed HikariCP pool (`micronaut-jdbc-hikari` + the `org.postgresql`
+  driver) — no ORM. Local dev runs the checked-in `docker-compose.yml`; the
+  schema is applied on startup from `src/main/resources/db/schema.sql`. Holds
+  ingested trajectories, cached AI analyses, and eval-run history.
+- **Frontend**: Vanilla JavaScript (ES6+ modules), HTML5, CSS3 — no framework and
+  no build step; the only runtime libraries are `marked.js` and `highlight.js`.
+- **Ingest CLI**: Go — `agent-ingest` (under `cli/`), a standalone binary that
+  scans a machine's local agent transcripts and pushes them to the app's
+  `/api/ingest` endpoints, so trajectories captured anywhere reach the shared
+  store.
+- **AI Integration**: LangChain4j (1.16.x), pluggable provider — Google Gemini
+  (remote, default) or a local model via Ollama (e.g. Gemma), selected with
+  `AI_PROVIDER` (`gemini` | `ollama`). (Docs:
+  https://docs.langchain4j.dev/integrations/language-models/google-genai/ and
+  https://docs.langchain4j.dev/integrations/language-models/ollama/)
+- **Build & packaging**: Gradle, with the Shadow fat jar, Micronaut AOT, a
+  GraalVM native image (`nativeCompile`), and Spotless (Prettier-Java + Prettier)
+  for formatting.
+- **Testing**: JUnit 5 with **Testcontainers** (a real Postgres) for the backend,
+  Vitest + jsdom for frontend units, Playwright for end-to-end, and `go test` for
+  the CLI.
 
 ## Development Environment & Commands
 
