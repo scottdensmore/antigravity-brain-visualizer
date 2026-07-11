@@ -29,6 +29,55 @@ This project provides an interactive web UI for inspecting Antigravity AI agent 
 - No Node.js, npm, or build step is required for the frontend.
 - When modifying CSS or JS, you need to run `./gradlew processResources` to update the classpath resources, and then refresh your browser.
 
+## Development Workflow
+
+Follow this workflow for every change. It is deliberately test-first and
+review-gated; the sub-agents named below live in `.claude/agents/`.
+
+1. **Orient before touching anything.** Inspect the repository, the current Git
+   state (`git status`, current branch), and every applicable instruction file
+   (this `AGENTS.md`, `README.md`, `CLAUDE.md` if present). Preserve unrelated
+   staged, unstaged, and untracked work — never stage or revert changes you did
+   not make.
+2. **Branch first.** Create a branch off `main` before making code changes; do
+   not commit feature work directly to `main`.
+3. **Use test-driven development** whenever behavior or structure is testable:
+   - Add or update a focused test *before* the implementation.
+   - Run it and confirm it fails for the expected reason (a test that passes
+     before you write the code is testing the wrong thing).
+   - Implement the smallest appropriate change.
+   - Re-run the focused test(s) while iterating (`./gradlew test --tests '…'`,
+     `npm test`, `go test ./…`).
+4. **Read the whole diff** (`git diff`, `git diff --staged`) and remove any
+   accidental or unrelated changes before going further.
+5. **Run the `ui-review` sub-agent** after an implementation pass, before
+   verification, whenever the change touches a CLI or the web UI. It reviews the
+   branch diff for CLI design, flags/arguments, help and error messages, exit
+   codes, stdin/stdout/stderr and composability, and — for the web UI —
+   standards, accessibility, and consistency. Address every actionable finding
+   before verifying.
+6. **Run the `verifier` sub-agent** to perform the builds and tests appropriate
+   to the change (`./gradlew build`, `npm test`, `npm run e2e`, `go test`). It
+   reports failures, flakes, missing coverage, and environment issues. Fix or
+   explicitly resolve every actionable finding; if a fix changes code, rerun the
+   verifier.
+7. **Run the `code-review` sub-agent before every commit**, against the branch
+   diff and all staged, unstaged, and untracked files. Address every actionable
+   finding before committing. (This is the same review the built-in
+   `/code-review` skill performs.)
+8. **Commit** using Conventional Commits (`feat:`, `fix:`, `chore:`,
+   `refactor:`, `docs:`, `test:`) once verification and code review are clean.
+   Run `./gradlew spotlessApply` first.
+9. **Before opening a pull request:** confirm local verification still holds;
+   rerun `code-review` only if the reviewed state changed since the pre-commit
+   review (code, tests, docs, generated files, conflict resolution, or any
+   staged/unstaged/untracked content) — do not repeat it on an unchanged
+   worktree. Push and open the PR only after that.
+10. **Merge only on a clean state** — GitHub reports a clean merge and all
+    configured checks (Backend, Frontend unit, End-to-end) pass. Self-merges are
+    allowed when those conditions are met; see *Pull Request & Git Requirements*
+    for the squash-merge command.
+
 ## Code Style & Conventions
 
 ### Java (Backend)
