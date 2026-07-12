@@ -33,10 +33,14 @@ class IngestAuthFilterTest {
     }
 
     private HttpResponse<?> guard(String configuredToken, String authorization) {
+        return guardWith(new IngestConfig(configuredToken), authorization);
+    }
+
+    private HttpResponse<?> guardWith(IngestConfig config, String authorization) {
         HttpRequest<?> request = authorization == null
             ? HttpRequest.GET("/api/ingest/manifest")
             : HttpRequest.GET("/api/ingest/manifest").header("Authorization", authorization);
-        return filter(configuredToken).guard(request);
+        return new IngestAuthFilter(config).guard(request);
     }
 
     @Test
@@ -72,5 +76,27 @@ class IngestAuthFilterTest {
     void rejectsANonBearerScheme() {
         assertEquals(HttpStatus.UNAUTHORIZED, guard(TOKEN, "Basic " + TOKEN).status());
         assertEquals(HttpStatus.UNAUTHORIZED, guard(TOKEN, TOKEN).status());
+    }
+
+    @Test
+    void failsClosedWhenAuthIsRequiredButNoTokenIsConfigured() {
+        // The operator demanded auth (INGEST_REQUIRE_AUTH) but gave no token to match, so no request
+        // can authenticate. Reject everything rather than fall back to the open default — and use 503,
+        // since this is a server misconfiguration the client cannot fix by presenting a credential.
+        IngestConfig requireButNoToken = new IngestConfig("", true);
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, guardWith(requireButNoToken, null).status());
+        assertEquals(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            guardWith(requireButNoToken, "Bearer anything").status()
+        );
+    }
+
+    @Test
+    void requiringAuthDoesNotChangeTheValidTokenPath() {
+        // When a token IS configured, requiring auth is redundant: a correct bearer still passes and a
+        // wrong one is still a 401.
+        IngestConfig requireWithToken = new IngestConfig(TOKEN, true);
+        assertNull(guardWith(requireWithToken, "Bearer " + TOKEN));
+        assertEquals(HttpStatus.UNAUTHORIZED, guardWith(requireWithToken, "Bearer nope").status());
     }
 }

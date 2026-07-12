@@ -183,6 +183,30 @@ and re-pushing unchanged content is a no-op the server reports as `skipped`.
 These are the only endpoints that write. Set `INGEST_TOKEN` once the server is reachable from
 another machine, and clients must then send `Authorization: Bearer <token>`.
 
+#### Securing an exposed deployment
+
+Run on localhost only and the defaults are fine. The moment the server is reachable from another
+machine — including any `docker compose --profile full up`, which publishes port 8080 on all
+interfaces — treat it as exposed and do the following:
+
+- **Set `INGEST_TOKEN`.** Without it, the write endpoints are open to anyone who can reach the port,
+  and a large pushed body can pin significant heap (the request is buffered whole). The server logs a
+  warning at startup whenever ingest is unauthenticated, so watch the boot log. Give the same token to
+  `agent-ingest` via `AGENT_INGEST_TOKEN`.
+- **Fail closed if you never want the open default.** Set `INGEST_REQUIRE_AUTH=true` and the server
+  refuses all ingest until a token is configured, so a missing `INGEST_TOKEN` can't silently leave the
+  writes exposed.
+- **Terminate TLS at a reverse proxy.** The app speaks plain HTTP; put nginx, Caddy, or a cloud load
+  balancer in front to serve HTTPS, so the bearer token and transcripts aren't sent in the clear. If
+  the proxy runs on the same host, keep `INGEST_TOKEN` set — an unauthenticated request forwarded from
+  a local proxy is indistinguishable from a genuine localhost client.
+- **Don't publish Postgres.** Keep the database on a private network; only the app needs to reach it.
+  The default compose file exposes 5432 for local development — remove that port mapping in a shared
+  deployment.
+
+Read endpoints stay open (this is a single-user tool); put the whole app behind the proxy's auth if
+you need to restrict who can view trajectories.
+
 > [!NOTE]
 > The eval run history previously lived in `~/.agybrainviz/eval-runs.jsonl`. That file is no longer
 > read, so a history saved before this change won't appear. Nothing deletes it — you can remove it
@@ -265,6 +289,7 @@ Every variable below can live in `.env` or be exported as an environment variabl
 | `POSTGRES_USER`     | `agentviz`                                     | Store username                       |
 | `POSTGRES_PASSWORD` | `agentviz`                                     | Store password                       |
 | `INGEST_TOKEN`      | _(unset — ingest is open)_                     | Bearer token required by `/api/ingest` |
+| `INGEST_REQUIRE_AUTH` | `false`                                      | When `true`, refuse all ingest until `INGEST_TOKEN` is set (fail closed) |
 
 Once the server starts, open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to interact with the visualizer.
 
