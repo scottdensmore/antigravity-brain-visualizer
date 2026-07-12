@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "3cd7e498934f",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "README.md",
+    "e2e/fixtures.mjs",
+    "e2e/global-setup.mjs",
+    "e2e/seed.setup.mjs",
+    "playwright.config.js",
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisSequences.java",
+    "src/main/java/io/github/glaforge/agybrainviz/BrainController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestSession.java",
+    "src/main/java/io/github/glaforge/agybrainviz/Ingestor.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionCollector.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionRepository.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SummaryRepository.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AnalysisControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AnalysisSequencesTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/BrainControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestorTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MineControllerTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MinerServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/OptimizeServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/PostgresTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/SessionRepositoryTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/SummaryRepositoryTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/d7e498934f/0/metadata.json",
+      "transcript": "/3c/d7e498934f/0/full.jsonl",
+      "compact_transcript": "/3c/d7e498934f/0/transcript.jsonl",
+      "content_hash": "/3c/d7e498934f/0/content_hash.txt",
+      "prompt": "/3c/d7e498934f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135910,
+    "cache_creation_tokens": 2887246,
+    "cache_read_tokens": 177984761,
+    "output_tokens": 479703,
+    "api_call_count": 427
+  }
+}

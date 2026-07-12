@@ -1,0 +1,144 @@
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<summary>Monitor event: "CI checks on PR #40 after ingest API"</summary>
+<event>Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<summary>Monitor event: "CI checks on PR #40 after ingest API"</summary>
+<event>End-to-end (Playwright): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<summary>Monitor event: "CI checks on PR #40 after ingest API"</summary>
+<event>Backend (JUnit + Spotless): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<tool-use-id>toolu_01QUQg8nHenxcPekvdDVCvvw</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/b5luwkft9.output</output-file>
+<status>completed</status>
+<summary>Monitor "CI checks on PR #40 after ingest API" stream ended</summary>
+</task-notification>
+
+---
+
+before going lets review the current workflow for this app
+
+---
+
+Lets update the workflow to build the app to be:
+1. Before making changes, inspect the repository, the current Git state, and
+   all applicable instruction files. Preserve unrelated staged, unstaged, and
+   untracked work.
+2. Create a branch before making code changes.
+3. Use test-driven development whenever behavior or structure is testable:
+   - Add or update a focused test before implementation.
+   - Run it and confirm that it fails for the expected reason.
+   - Implement the smallest appropriate change.
+   - Run focused tests while iterating.
+4. Inspect the complete diff and remove accidental or unrelated changes.
+5. After the main agent completes an implementation pass, run a `ui-review`
+   sub-agent before verification. The `ui-review` sub-agent is an expert in
+   command-line utilities and websites who examines the project and branch diff for CLI
+   design, usability, discoverability, flags and arguments, help and error
+   messages, exit codes, stdin/stdout/stderr behavior, scripting and
+   composability, compatibility, consistency, and user experience issues. For websites, follows standards, accessibility and other areas.
+   Address every actionable finding before running the `verifier` sub-agent.
+6. Run a `verifier` sub-agent to perform the builds and tests appropriate for
+   the change. The verifier must report failures, flakes, missing coverage, and
+   environment issues. Fix or explicitly resolve every actionable finding
+   before starting code review. If a verifier finding requires a code change,
+   rerun the verifier after addressing it.
+7. Before every commit, run a `code-review` sub-agent against the current branch
+   diff and all staged, unstaged, and untracked files. Address every actionable
+   finding before committing.
+8. After verification and code review are complete, commit using Conventional
+   Commits format.
+9. Before creating a pull request:
+   - Confirm that local verification remains valid.
+   - Rerun the `code-review` sub-agent only if the reviewed state changed after
+     the pre-commit review. A changed state includes code, tests,
+     documentation, generated files, conflict resolution, or any other staged,
+     unstaged, or untracked content.
+   - Do not repeat code review when the already-reviewed diff and worktree are
+     unchanged.
+   - Push and create the pull request only after local verification and any
+     required code review are complete.
+10. Merge a pull request only after GitHub reports a clean merge state and all
+    configured checks pass. Self-merges are allowed when those conditions are
+    met.
+
+---
+
+Update the UI review subagent to follow cli and the web bestpractices since this project includes both
+
+---
+
+Also update the code review agent to follow all the best practices of the languages and frameworks we are using in this project
+
+---
+
+do I need to restart you to actually starting using this new workflow with all sub agents?
+
+---
+
+Before step 4 lets update the tech stack in agents.md
+
+---
+
+Yes fix those two before step 4
+
+---
+
+Ok lets start step 4
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<summary>Monitor event: "CI checks on PR #40 after CLI"</summary>
+<event>CLI (Go): pass
+Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<summary>Monitor event: "CI checks on PR #40 after CLI"</summary>
+<event>End-to-end (Playwright): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<summary>Monitor event: "CI checks on PR #40 after CLI"</summary>
+<event>Backend (JUnit + Spotless): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<tool-use-id>toolu_01LmmQd1YZXjJGd2Fg8FVKwo</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/bm8iiwfwu.output</output-file>
+<status>completed</status>
+<summary>Monitor "CI checks on PR #40 after CLI" stream ended</summary>
+</task-notification>
+
+---
+
+Ok lets do step 5
