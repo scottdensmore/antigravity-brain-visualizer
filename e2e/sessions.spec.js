@@ -39,4 +39,21 @@ test.describe("session browsing", () => {
       "IDE refactor session"
     );
   });
+
+  test("the conversations API pages with limit/offset and reports the total", async ({
+    request,
+  }) => {
+    // The sidebar's "Load more" relies on this contract: a bounded page plus the full total.
+    const page1 = await (
+      await request.get("/api/brain/conversations?flavor=antigravity-cli&limit=1&offset=0")
+    ).json();
+    expect(page1.total).toBe(2);
+    expect(page1.items).toHaveLength(1);
+
+    const page2 = await (
+      await request.get("/api/brain/conversations?flavor=antigravity-cli&limit=1&offset=1")
+    ).json();
+    expect(page2.items).toHaveLength(1);
+    expect(page2.items[0].id).not.toBe(page1.items[0].id); // consecutive pages don't overlap
+  });
 });

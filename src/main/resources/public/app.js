@@ -26,6 +26,11 @@ import { showOptimize } from "./modules/optimize.js";
 let allConversations = [];
 let sortDescending = true;
 
+// The sidebar loads the newest sessions a page at a time; a large store is never fetched (or
+// rendered) all at once. Search and sort work over what's loaded — "Load more" pulls the next page.
+const CONV_PAGE_SIZE = 200;
+let convTotal = 0;
+
 document.addEventListener("DOMContentLoaded", () => {
   initUI();
 
@@ -240,17 +245,71 @@ export async function loadConversations() {
     document.getElementById("flavor-select").value
   );
   try {
-    const res = await fetch(`/api/brain/conversations?flavor=${flavor}`);
-    allConversations = await res.json();
-    renderConversationsList();
+    const res = await fetch(
+      `/api/brain/conversations?flavor=${flavor}&limit=${CONV_PAGE_SIZE}&offset=0`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const page = await res.json();
+    allConversations = page.items || [];
+    convTotal = page.total ?? allConversations.length;
+    announceConversations();
+    // Only the first load auto-selects (deep-link or newest session); re-renders must not.
+    renderConversationsList(true);
   } catch (e) {
     list.innerHTML =
       '<div class="loading-state" style="padding:16px;">Error loading sessions. Is the backend running?</div>';
   }
 }
 
-export function renderConversationsList() {
+// Appends the next page to what's already loaded. The offset is the count we hold; on a stable list
+// pages don't overlap, but if sessions are ingested while browsing, offset paging can repeat or skip
+// a row at the boundary (an accepted trade-off for a sidebar — re-open the flavor to refresh).
+export async function loadMoreConversations() {
+  const flavor = encodeURIComponent(
+    document.getElementById("flavor-select").value
+  );
+  const btn = document.getElementById("load-more-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Loading…";
+  }
+  try {
+    const res = await fetch(
+      `/api/brain/conversations?flavor=${flavor}&limit=${CONV_PAGE_SIZE}&offset=${allConversations.length}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const page = await res.json();
+    allConversations = allConversations.concat(page.items || []);
+    convTotal = page.total ?? convTotal;
+    announceConversations();
+    renderConversationsList();
+    // Keep the keyboard user on the control they just used (the button is rebuilt each render).
+    document.getElementById("load-more-btn")?.focus();
+  } catch (e) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Load more";
+    }
+  }
+}
+
+// Announces the loaded/total count on a polite live region, so a screen-reader user hears that more
+// sessions arrived. Kept separate from the list so re-rendering rows doesn't spam the reader.
+function announceConversations() {
+  const status = document.getElementById("conv-status");
+  if (status) {
+    status.textContent =
+      convTotal > allConversations.length
+        ? `Loaded ${allConversations.length} of ${convTotal} sessions.`
+        : `Loaded all ${allConversations.length} sessions.`;
+  }
+}
+
+export function renderConversationsList(autoSelect = false) {
   const list = document.getElementById("conversations-list");
+  // A re-render (search, sort, "Load more") rebuilds the list; keep the user's scroll position rather
+  // than jumping them back to the top.
+  const prevScroll = list.scrollTop;
   list.innerHTML = "";
 
   const searchTerm =
@@ -262,19 +321,27 @@ export function renderConversationsList() {
   );
 
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="loading-state">No sessions found</div>';
-    return;
+    const empty = document.createElement("div");
+    empty.className = "loading-state";
+    // Distinguish "the store is empty" from "no match in what's loaded, but more pages exist".
+    empty.textContent =
+      searchTerm && allConversations.length < convTotal
+        ? "No matches in the loaded sessions — load more to keep searching."
+        : "No sessions found";
+    list.appendChild(empty);
+  } else {
+    filtered.forEach((conv) => {
+      const div = document.createElement("div");
+      div.className = "conv-item";
+      div.dataset.id = conv.id;
+      div.dataset.summary = conv.summary;
+      div.dataset.updatedAt = conv.updatedAt || "0";
+      div.innerHTML = `<div class="conv-id">${escapeHtml(conv.summary)}</div>`;
+      list.appendChild(div);
+    });
   }
 
-  filtered.forEach((conv) => {
-    const div = document.createElement("div");
-    div.className = "conv-item";
-    div.dataset.id = conv.id;
-    div.dataset.summary = conv.summary;
-    div.dataset.updatedAt = conv.updatedAt || "0";
-    div.innerHTML = `<div class="conv-id">${escapeHtml(conv.summary)}</div>`;
-    list.appendChild(div);
-  });
+  appendLoadMore(list);
 
   // Event Delegation for conversation selection
   if (!list.dataset.listenerAttached) {
@@ -356,15 +423,40 @@ export function renderConversationsList() {
     list.dataset.listenerAttached = "true";
   }
 
-  // Check if there's a session ID in the URL hash
   const hashId = window.location.hash.substring(1);
-  const targetDiv = hashId
-    ? list.querySelector(`[data-id="${hashId}"]`)
-    : list.firstElementChild;
 
-  if (targetDiv) {
-    targetDiv.click();
+  if (autoSelect) {
+    // Initial load only: open the deep-linked session, or the newest one.
+    const targetDiv = hashId
+      ? list.querySelector(`[data-id="${hashId}"]`)
+      : list.firstElementChild;
+    if (targetDiv) {
+      targetDiv.click();
+    }
+  } else if (hashId) {
+    // A re-render must not re-open (and reload) the current session — just restore its highlight.
+    list
+      .querySelector(`.conv-item[data-id="${hashId}"]`)
+      ?.classList.add("active");
   }
+
+  list.scrollTop = prevScroll;
+}
+
+// Appends a "Load more" control when the store holds more sessions than are loaded. Rebuilt on every
+// render (the list is cleared each time), so its count stays in step with what's loaded.
+function appendLoadMore(list) {
+  if (allConversations.length >= convTotal) return;
+  const footer = document.createElement("div");
+  footer.className = "conv-loadmore";
+  const btn = document.createElement("button");
+  btn.id = "load-more-btn";
+  btn.className = "load-more-btn";
+  // "loaded" makes clear the count is how many are held locally, not how many matched a search.
+  btn.textContent = `Load more (${allConversations.length} of ${convTotal} loaded)`;
+  btn.addEventListener("click", () => loadMoreConversations());
+  footer.appendChild(btn);
+  list.appendChild(footer);
 }
 
 export async function selectConversation(id, element) {

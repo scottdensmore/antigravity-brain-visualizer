@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   filterAndSortConversations,
   loadConversations,
+  loadMoreConversations,
+  renderConversationsList,
   selectConversation,
 } from "../../main/resources/public/app.js";
 
@@ -98,14 +100,19 @@ describe("session browsing and selection (integration)", () => {
           json: () => Promise.resolve({ summary: "ok" }),
         });
       }
-      // conversation list
+      // conversation list (paged: {items, total, limit, offset})
       return Promise.resolve({
         ok: true,
         json: () =>
-          Promise.resolve([
-            { id: "aaa111", summary: "First <b>session", updatedAt: "2" },
-            { id: "bbb222", summary: "Second session", updatedAt: "1" },
-          ]),
+          Promise.resolve({
+            items: [
+              { id: "aaa111", summary: "First <b>session", updatedAt: "2" },
+              { id: "bbb222", summary: "Second session", updatedAt: "1" },
+            ],
+            total: 2,
+            limit: 200,
+            offset: 0,
+          }),
       });
     });
   }
@@ -126,6 +133,70 @@ describe("session browsing and selection (integration)", () => {
     expect(document.getElementById("current-session-id").dataset.id).toBe("aaa111");
     expect(document.getElementById("summarize-btn").disabled).toBe(false);
     expect(document.querySelector("#transcript-container .step-card")).not.toBeNull();
+  });
+
+  it("offers 'Load more' when the store has more than one page, and appends the next page", async () => {
+    // Page 0 returns 1 of 2 sessions; the footer must appear, and loading more appends the rest.
+    const pages = {
+      0: { items: [{ id: "aaa111", summary: "First", updatedAt: "2" }], total: 2, offset: 0 },
+      1: { items: [{ id: "bbb222", summary: "Second", updatedAt: "1" }], total: 2, offset: 1 },
+    };
+    global.fetch = vi.fn((url) => {
+      if (url.includes("/transcript")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }
+      const offset = Number(new URL(url, "http://x").searchParams.get("offset") || 0);
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(offset === 0 ? pages[0] : pages[1]),
+      });
+    });
+
+    await loadConversations();
+    await flush();
+
+    expect(document.querySelectorAll("#conversations-list .conv-item")).toHaveLength(1);
+    const btn = document.getElementById("load-more-btn");
+    expect(btn).not.toBeNull();
+    expect(btn.textContent).toContain("1 of 2");
+
+    await loadMoreConversations();
+    await flush();
+
+    expect(document.querySelectorAll("#conversations-list .conv-item")).toHaveLength(2);
+    // Everything loaded → the footer is gone.
+    expect(document.getElementById("load-more-btn")).toBeNull();
+  });
+
+  it("keeps 'Load more' and a search hint when nothing loaded matches but more pages exist", async () => {
+    global.fetch = vi.fn((url) => {
+      if (url.includes("/transcript")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            items: [{ id: "aaa111", summary: "First", updatedAt: "2" }],
+            total: 5,
+            offset: 0,
+          }),
+      });
+    });
+
+    await loadConversations();
+    await flush();
+
+    // A search that matches nothing in the one loaded session, while 4 more remain in the store.
+    document.getElementById("conversation-search").value = "zzz-no-match";
+    renderConversationsList();
+
+    expect(document.querySelectorAll("#conversations-list .conv-item")).toHaveLength(0);
+    expect(document.getElementById("conversations-list").textContent).toContain(
+      "load more to keep searching"
+    );
+    // The footer is still offered so the user can pull more pages to widen the search.
+    expect(document.getElementById("load-more-btn")).not.toBeNull();
   });
 
   it("shows a failure message when the transcript request errors", async () => {

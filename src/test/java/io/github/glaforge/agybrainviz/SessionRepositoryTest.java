@@ -101,12 +101,28 @@ class SessionRepositoryTest extends PostgresTest {
         sessions.upsert(sessionAt("codex", "new", 2_000L));
         sessions.upsert(sessionAt("claude-code", "other", 3_000L));
 
-        List<Map<String, String>> list = sessions.listConversations("codex");
+        List<Map<String, String>> list = sessions.listConversations("codex", 100, 0);
         assertEquals(2, list.size());
         assertEquals("new", list.get(0).get("id")); // newest first
         assertEquals("old", list.get(1).get("id"));
         assertEquals("title-new", list.get(0).get("summary"));
         assertEquals("2000", list.get(0).get("updatedAt")); // source mtime, epoch millis
+    }
+
+    @Test
+    void listConversationsHonoursLimitAndOffsetForStablePaging() {
+        sessions.upsert(sessionAt("codex", "a", 3_000L)); // newest
+        sessions.upsert(sessionAt("codex", "b", 2_000L));
+        sessions.upsert(sessionAt("codex", "c", 1_000L)); // oldest
+
+        List<Map<String, String>> page1 = sessions.listConversations("codex", 2, 0);
+        assertEquals(2, page1.size());
+        assertEquals("a", page1.get(0).get("id"));
+        assertEquals("b", page1.get(1).get("id"));
+
+        List<Map<String, String>> page2 = sessions.listConversations("codex", 2, 2);
+        assertEquals(1, page2.size());
+        assertEquals("c", page2.get(0).get("id")); // no overlap, no gap across the two pages
     }
 
     @Test
@@ -119,14 +135,14 @@ class SessionRepositoryTest extends PostgresTest {
         new SummaryRepository(dataSource())
             .upsert("codex", "a", "{\"summary\":\"s\"}", "Fixed the parser");
 
-        List<Map<String, String>> list = sessions.listConversations("codex");
+        List<Map<String, String>> list = sessions.listConversations("codex", 100, 0);
         assertEquals("Fixed the parser", list.get(0).get("summary"));
     }
 
     @Test
     void listFallsBackToTheSessionTitleWhenNoSummaryIsCached() {
         sessions.upsert(sessionAt("codex", "a", 1_000L));
-        assertEquals("title-a", sessions.listConversations("codex").get(0).get("summary"));
+        assertEquals("title-a", sessions.listConversations("codex", 100, 0).get(0).get("summary"));
     }
 
     @Test

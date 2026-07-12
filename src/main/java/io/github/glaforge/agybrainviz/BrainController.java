@@ -42,10 +42,32 @@ public class BrainController {
         this.sessions = sessions;
     }
 
+    /** Default page size when the client asks for none — enough to fill the sidebar in one load. */
+    static final int DEFAULT_LIMIT = 200;
+    /** Hard cap so a client can never make the store return an unbounded list in one response. */
+    static final int MAX_LIMIT = 1000;
+
+    /**
+     * One page of a source's sessions, newest first. The list is paged so a large store never has to
+     * be returned (or rendered) all at once; the client loads more on demand and uses {@code total} to
+     * know when it has them all.
+     */
     @ExecuteOn(TaskExecutors.IO)
     @Get("/conversations")
-    public List<Map<String, String>> listConversations(@QueryValue Optional<String> flavor) {
-        return sessions.listConversations(flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR));
+    public ConversationPage listConversations(
+        @QueryValue Optional<String> flavor,
+        @QueryValue Optional<Integer> limit,
+        @QueryValue Optional<Integer> offset
+    ) {
+        String source = flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR);
+        int pageLimit = clamp(limit.orElse(DEFAULT_LIMIT), 1, MAX_LIMIT);
+        int pageOffset = Math.max(0, offset.orElse(0));
+        List<Map<String, String>> items = sessions.listConversations(source, pageLimit, pageOffset);
+        return new ConversationPage(items, sessions.countBySource(source), pageLimit, pageOffset);
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     @ExecuteOn(TaskExecutors.IO)
