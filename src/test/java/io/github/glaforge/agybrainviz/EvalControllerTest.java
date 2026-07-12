@@ -29,22 +29,15 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.stream.StreamSupport;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
-/**
- * Integration test for the eval endpoint: sessions come from a temporary {@code user.home}, run
- * history from the shared test Postgres.
- */
+/** Integration test for the eval endpoint: sessions and run history come from the shared store. */
 @MicronautTest
-@ResourceLock("user.home")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) // required by TestPropertyProvider
 class EvalControllerTest implements TestPropertyProvider {
 
@@ -59,33 +52,17 @@ class EvalControllerTest implements TestPropertyProvider {
     HttpClient client;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static String originalUserHome;
-    private static Path tempHome;
 
-    @BeforeAll
-    static void setUpHome() throws IOException {
-        originalUserHome = System.getProperty("user.home");
-        tempHome = Files.createTempDirectory("agy-eval-test-home");
-        System.setProperty("user.home", tempHome.toString());
+    @BeforeEach
+    void reset() throws SQLException {
+        PostgresTest.resetStore();
     }
 
-    @AfterAll
-    static void restoreHome() {
-        if (originalUserHome != null) System.setProperty("user.home", originalUserHome);
-    }
+    private static final String STEPS =
+        "[{\"type\":\"USER_INPUT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}]";
 
-    private void writeAntigravity(String id, String transcript, String summaryJson)
-        throws IOException {
-        Path logs = tempHome
-            .resolve(".gemini")
-            .resolve("antigravity-cli")
-            .resolve("brain")
-            .resolve(id)
-            .resolve(".system_generated")
-            .resolve("logs");
-        Files.createDirectories(logs);
-        Files.writeString(logs.resolve("transcript.jsonl"), transcript);
-        if (summaryJson != null) Files.writeString(logs.resolve("summary.json"), summaryJson);
+    private void seedAntigravity(String id, String summaryJson, long mtime) {
+        PostgresTest.seedSession("antigravity-cli", id, "t-" + id, STEPS, summaryJson, mtime);
     }
 
     private JsonNode get(String uri) throws IOException {
@@ -100,17 +77,15 @@ class EvalControllerTest implements TestPropertyProvider {
 
     @Test
     void scoresCachedAnalysesForASource() throws IOException {
-        String transcript =
-            "{\"type\":\"USER_INPUT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n";
-        writeAntigravity(
+        seedAntigravity(
             "s-good",
-            transcript,
             "{\"shortTitle\":\"Fixed build\",\"summary\":\"Updated the JDK and it passed.\"," +
             "\"flow\":[\"Read config\"],\"recommendations\":[\"Pin the JDK\"]," +
-            "\"issues\":[{\"error\":\"Build failed\",\"circumvention\":\"Used JDK 25\"}]}"
+            "\"issues\":[{\"error\":\"Build failed\",\"circumvention\":\"Used JDK 25\"}]}",
+            1L
         );
-        writeAntigravity("s-poor", transcript, "{\"summary\":\"\"}");
-        writeAntigravity("s-none", transcript, null);
+        seedAntigravity("s-poor", "{\"summary\":\"\"}", 2L);
+        seedAntigravity("s-none", null, 3L);
 
         JsonNode r = get("/api/eval?flavor=antigravity-cli");
 
@@ -128,10 +103,10 @@ class EvalControllerTest implements TestPropertyProvider {
 
     @Test
     void judgeRequestedDegradesWithoutAiKey() throws IOException {
-        writeAntigravity(
+        seedAntigravity(
             "s-good",
-            "{\"type\":\"USER_INPUT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n",
-            "{\"shortTitle\":\"t\",\"summary\":\"s\",\"flow\":[\"f\"],\"recommendations\":[\"r\"]}"
+            "{\"shortTitle\":\"t\",\"summary\":\"s\",\"flow\":[\"f\"],\"recommendations\":[\"r\"]}",
+            1L
         );
 
         JsonNode r = get("/api/eval?flavor=antigravity-cli&judge=true");

@@ -19,88 +19,41 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.sql.SQLException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Tests the {@link SessionSource}-backed path (Codex/Claude Code) of {@link InsightsService}. */
-class InsightsServiceTest {
+/** Tests {@link InsightsService} over sessions gathered from the store. */
+class InsightsServiceTest extends PostgresTest {
 
-    /** Minimal in-memory SessionSource for the "fake" flavor. */
-    private static class FakeSource implements SessionSource {
+    @BeforeEach
+    void reset() throws SQLException {
+        resetStore();
+    }
 
-        private final Map<String, String> transcripts = new LinkedHashMap<>();
-        private final Map<String, String> summaries = new HashMap<>();
-
-        void add(String id, String transcriptJson, String summaryJson) {
-            transcripts.put(id, transcriptJson);
-            if (summaryJson != null) summaries.put(id, summaryJson);
-        }
-
-        @Override
-        public boolean handles(String flavor) {
-            return "fake".equals(flavor);
-        }
-
-        @Override
-        public List<Map<String, String>> listConversations() {
-            List<Map<String, String>> list = new ArrayList<>();
-            for (String id : transcripts.keySet()) {
-                Map<String, String> info = new HashMap<>();
-                info.put("id", id);
-                list.add(info);
-            }
-            return list;
-        }
-
-        @Override
-        public String transcriptJson(String id) {
-            return transcripts.getOrDefault(id, "[]");
-        }
-
-        @Override
-        public Optional<String> cachedSummary(String id) {
-            return Optional.ofNullable(summaries.get(id));
-        }
-
-        @Override
-        public boolean sessionExists(String id) {
-            return transcripts.containsKey(id);
-        }
-
-        @Override
-        public List<List<String>> analysisSequences(String id) {
-            return List.of();
-        }
-
-        @Override
-        public void deleteCache(String id) {}
-
-        @Override
-        public void writeCache(String id, String summaryJson, String title) {}
+    private InsightsService insights() {
+        return new InsightsService(new SessionCollector(new SessionRepository(dataSource())));
     }
 
     @Test
     void aggregatesSessionsFromASource() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add(
+        seedSession(
+            "fake",
             "s1",
             "[{\"created_at\":\"2026-06-19T10:00:00Z\",\"tool_calls\":[{\"name\":\"Bash\"}]}," +
             "{\"type\":\"ERROR_MESSAGE\",\"status\":\"ERROR\",\"error\":\"boom\",\"created_at\":\"2026-06-19T10:00:05Z\"}]",
-            "{\"recommendations\":[\"Use a linter\"],\"issues\":[{\"error\":\"Flaky test\"}]}"
+            "{\"recommendations\":[\"Use a linter\"],\"issues\":[{\"error\":\"Flaky test\"}]}",
+            1L
         );
-        fake.add(
+        seedSession(
+            "fake",
             "s2",
             "[{\"created_at\":\"2026-06-19T11:00:00Z\",\"tool_calls\":[{\"name\":\"Read\"}]}]",
-            null
+            null,
+            2L
         );
 
-        InsightsReport r = new InsightsService(new SessionCollector(List.of(fake)))
-            .forFlavor("fake");
+        InsightsReport r = insights().forFlavor("fake");
 
         assertEquals("fake", r.flavor());
         assertEquals(2, r.sessionCount());
@@ -116,14 +69,12 @@ class InsightsServiceTest {
 
     @Test
     void capsScanAtMaxSessionsButReportsTrueTotal() throws IOException {
-        FakeSource fake = new FakeSource();
         int total = SessionCollector.MAX_SESSIONS + 50;
         for (int i = 0; i < total; i++) {
-            fake.add("s" + i, "[]", null);
+            seedSession("fake", "s" + i, "[]", null, i);
         }
 
-        InsightsReport r = new InsightsService(new SessionCollector(List.of(fake)))
-            .forFlavor("fake");
+        InsightsReport r = insights().forFlavor("fake");
         assertEquals(total, r.sessionCount());
         assertEquals(SessionCollector.MAX_SESSIONS, r.sampledSessions());
     }

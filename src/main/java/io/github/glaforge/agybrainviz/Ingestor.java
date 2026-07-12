@@ -41,11 +41,17 @@ public class Ingestor {
 
     private final List<SourceNormalizer> normalizers;
     private final SessionRepository sessions;
+    private final SummaryRepository summaries;
 
     @Inject
-    public Ingestor(List<SourceNormalizer> normalizers, SessionRepository sessions) {
+    public Ingestor(
+        List<SourceNormalizer> normalizers,
+        SessionRepository sessions,
+        SummaryRepository summaries
+    ) {
         this.normalizers = normalizers;
         this.sessions = sessions;
+        this.summaries = summaries;
     }
 
     /** Stores a batch, counting each trajectory as ingested, skipped (unchanged), or failed. */
@@ -99,6 +105,11 @@ public class Ingestor {
                 sha256(raw)
             )
         );
+        // Store a pushed cached analysis (e.g. Antigravity's on-disk summary.json) if present, so a
+        // machine that already generated one doesn't force every viewer to recompute it.
+        if (!isBlank(pushed.summary())) {
+            summaries.upsert(pushed.source(), pushed.id(), pushed.summary(), title);
+        }
         return written ? Outcome.INGESTED : Outcome.SKIPPED;
     }
 

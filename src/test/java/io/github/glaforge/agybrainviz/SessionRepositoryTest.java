@@ -17,9 +17,11 @@ package io.github.glaforge.agybrainviz;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,11 +34,15 @@ class SessionRepositoryTest extends PostgresTest {
     @BeforeEach
     void setUp() throws SQLException {
         sessions = new SessionRepository(dataSource());
-        truncate("sessions");
+        resetStore(); // sessions + summaries: listConversations now joins them
     }
 
     private SessionRepository.Session session(String source, String id, String steps, String hash) {
         return new SessionRepository.Session(source, id, "title-" + id, 1_000L, steps, hash);
+    }
+
+    private SessionRepository.Session sessionAt(String source, String id, long mtime) {
+        return new SessionRepository.Session(source, id, "title-" + id, mtime, "[]", "h-" + id);
     }
 
     @Test
@@ -87,5 +93,69 @@ class SessionRepositoryTest extends PostgresTest {
     void countAndManifestAreEmptyForAnUnknownSource() {
         assertEquals(0, sessions.countBySource("nope"));
         assertTrue(sessions.manifest("nope").isEmpty());
+    }
+
+    @Test
+    void listsConversationsNewestFirstScopedToSource() {
+        sessions.upsert(sessionAt("codex", "old", 1_000L));
+        sessions.upsert(sessionAt("codex", "new", 2_000L));
+        sessions.upsert(sessionAt("claude-code", "other", 3_000L));
+
+        List<Map<String, String>> list = sessions.listConversations("codex");
+        assertEquals(2, list.size());
+        assertEquals("new", list.get(0).get("id")); // newest first
+        assertEquals("old", list.get(1).get("id"));
+        assertEquals("title-new", list.get(0).get("summary"));
+        assertEquals("2000", list.get(0).get("updatedAt")); // source mtime, epoch millis
+    }
+
+    @Test
+    void listPrefersTheCachedAiShortTitleOverTheSessionTitle() {
+        // After analysis runs, its concise short title should label the session in the list, the way
+        // the old file path preferred short_title.txt over the raw first prompt.
+        sessions.upsert(
+            new SessionRepository.Session("codex", "a", "Long raw first prompt…", 1_000L, "[]", "h")
+        );
+        new SummaryRepository(dataSource())
+            .upsert("codex", "a", "{\"summary\":\"s\"}", "Fixed the parser");
+
+        List<Map<String, String>> list = sessions.listConversations("codex");
+        assertEquals("Fixed the parser", list.get(0).get("summary"));
+    }
+
+    @Test
+    void listFallsBackToTheSessionTitleWhenNoSummaryIsCached() {
+        sessions.upsert(sessionAt("codex", "a", 1_000L));
+        assertEquals("title-a", sessions.listConversations("codex").get(0).get("summary"));
+    }
+
+    @Test
+    void stepsReturnsTheStoredArrayOrNull() {
+        sessions.upsert(session("codex", "a", "[{\"type\":\"MESSAGE\"}]", "h1"));
+        assertTrue(sessions.steps("codex", "a").contains("MESSAGE"));
+        assertNull(sessions.steps("codex", "missing"));
+    }
+
+    @Test
+    void existsReflectsWhetherASessionIsStored() {
+        sessions.upsert(session("codex", "a", "[]", "h1"));
+        assertTrue(sessions.exists("codex", "a"));
+        assertFalse(sessions.exists("codex", "b"));
+        assertFalse(sessions.exists("claude-code", "a"));
+    }
+
+    @Test
+    void collectReturnsStepsAndJoinedSummaryNewestFirstUpToLimit() {
+        sessions.upsert(sessionAt("codex", "old", 1_000L));
+        sessions.upsert(sessionAt("codex", "mid", 2_000L));
+        sessions.upsert(sessionAt("codex", "new", 3_000L));
+        new SummaryRepository(dataSource()).upsert("codex", "new", "{\"summary\":\"s\"}", "t");
+
+        List<SessionRepository.CollectedSession> collected = sessions.collect("codex", 2);
+        assertEquals(2, collected.size());
+        assertEquals("new", collected.get(0).id()); // newest first, limited to 2
+        assertEquals("mid", collected.get(1).id());
+        assertTrue(collected.get(0).summaryJson().contains("summary"));
+        assertNull(collected.get(1).summaryJson()); // no summary joined
     }
 }

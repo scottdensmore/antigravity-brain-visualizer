@@ -22,7 +22,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 
@@ -56,6 +59,33 @@ public class SessionRepository {
         "SELECT id, content_hash FROM sessions WHERE source = ?";
 
     private static final String COUNT_SQL = "SELECT count(*) FROM sessions WHERE source = ?";
+
+    // The cached AI short title labels a session once analysis has run, matching the old file path
+    // (which preferred short_title.txt); the ingest-derived title is the fallback. `id` is the
+    // tie-break so identical mtimes list (and page) deterministically.
+    private static final String LIST_SQL = """
+        SELECT s.id, COALESCE(NULLIF(m.short_title, ''), s.title) AS title, s.source_mtime
+        FROM sessions s
+        LEFT JOIN summaries m ON m.source = s.source AND m.session_id = s.id
+        WHERE s.source = ?
+        ORDER BY s.updated_at DESC, s.id
+        """;
+
+    private static final String STEPS_SQL =
+        "SELECT steps FROM sessions WHERE source = ? AND id = ?";
+
+    private static final String EXISTS_SQL = "SELECT 1 FROM sessions WHERE source = ? AND id = ?";
+
+    // The cross-session features want the newest N sessions with their cached
+    // analysis; a LEFT JOIN keeps sessions that have no summary yet.
+    private static final String COLLECT_SQL = """
+        SELECT s.id, s.steps, m.summary
+        FROM sessions s
+        LEFT JOIN summaries m ON m.source = s.source AND m.session_id = s.id
+        WHERE s.source = ?
+        ORDER BY s.updated_at DESC, s.id
+        LIMIT ?
+        """;
 
     private final DataSource dataSource;
 
@@ -116,6 +146,94 @@ public class SessionRepository {
             throw new StoreUnavailableException("Could not read the manifest for " + source, e);
         }
         return manifest;
+    }
+
+    /** A session with its normalized steps and any cached analysis, for the cross-session features. */
+    public record CollectedSession(String id, String stepsJson, String summaryJson) {}
+
+    /**
+     * @return one entry per session ({@code id}, {@code summary}, {@code updatedAt}) for a source,
+     *     newest first — the shape the frontend's conversation list expects. {@code updatedAt} is the
+     *     source file's modification time in epoch milliseconds, matching the former file-based list.
+     */
+    public List<Map<String, String>> listConversations(String source) {
+        List<Map<String, String>> out = new ArrayList<>();
+        try (
+            Connection connection = dataSource.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(LIST_SQL)
+        ) {
+            stmt.setString(1, source);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, String> info = new HashMap<>();
+                    info.put("id", rs.getString("id"));
+                    info.put("summary", rs.getString("title"));
+                    info.put("updatedAt", Long.toString(rs.getLong("source_mtime")));
+                    out.add(info);
+                }
+            }
+        } catch (SQLException e) {
+            throw new StoreUnavailableException("Could not list sessions for " + source, e);
+        }
+        return out;
+    }
+
+    /** @return the session's normalized steps as a JSON array string, or {@code null} if not found. */
+    public String steps(String source, String id) {
+        try (
+            Connection connection = dataSource.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(STEPS_SQL)
+        ) {
+            stmt.setString(1, source);
+            stmt.setString(2, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        } catch (SQLException e) {
+            throw new StoreUnavailableException("Could not read the transcript for " + id, e);
+        }
+    }
+
+    /** @return whether a session with this id is stored under the source. */
+    public boolean exists(String source, String id) {
+        try (
+            Connection connection = dataSource.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(EXISTS_SQL)
+        ) {
+            stmt.setString(1, source);
+            stmt.setString(2, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new StoreUnavailableException("Could not check for session " + id, e);
+        }
+    }
+
+    /** @return up to {@code limit} sessions for a source, newest first, each with its cached summary. */
+    public List<CollectedSession> collect(String source, int limit) {
+        List<CollectedSession> out = new ArrayList<>();
+        try (
+            Connection connection = dataSource.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(COLLECT_SQL)
+        ) {
+            stmt.setString(1, source);
+            stmt.setInt(2, limit);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    out.add(
+                        new CollectedSession(
+                            rs.getString("id"),
+                            rs.getString("steps"),
+                            rs.getString("summary")
+                        )
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            throw new StoreUnavailableException("Could not collect sessions for " + source, e);
+        }
+        return out;
     }
 
     /** @return how many trajectories are stored for a source. */

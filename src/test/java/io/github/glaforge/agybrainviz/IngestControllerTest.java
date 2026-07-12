@@ -72,7 +72,7 @@ class IngestControllerTest implements TestPropertyProvider {
 
     private String batch(String source, String id, String raw) throws IOException {
         return MAPPER.writeValueAsString(
-            java.util.List.of(new IngestSession(source, id, null, 1_700_000_000_000L, raw))
+            java.util.List.of(new IngestSession(source, id, null, 1_700_000_000_000L, raw, null))
         );
     }
 

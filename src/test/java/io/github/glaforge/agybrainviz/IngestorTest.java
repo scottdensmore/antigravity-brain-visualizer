@@ -36,9 +36,12 @@ class IngestorTest extends PostgresTest {
 
     private Ingestor ingestor;
 
+    private SummaryRepository summaries;
+
     @BeforeEach
     void setUp() throws SQLException {
         SessionRepository sessions = new SessionRepository(dataSource());
+        summaries = new SummaryRepository(dataSource());
         ingestor =
             new Ingestor(
                 List.of(
@@ -46,9 +49,11 @@ class IngestorTest extends PostgresTest {
                     new CodexNormalizer(),
                     new ClaudeCodeNormalizer()
                 ),
-                sessions
+                sessions,
+                summaries
             );
         truncate("sessions");
+        truncate("summaries");
     }
 
     private static final String ANTIGRAVITY_RAW =
@@ -60,7 +65,30 @@ class IngestorTest extends PostgresTest {
         "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"timestamp\":\"2026-06-19T10:01:00Z\"}\n";
 
     private IngestSession push(String source, String id, String raw) {
-        return new IngestSession(source, id, null, 1_700_000_000_000L, raw);
+        return new IngestSession(source, id, null, 1_700_000_000_000L, raw, null);
+    }
+
+    @Test
+    void storesAPushedCachedSummaryAlongsideTheSession() {
+        ingestor.ingest(
+            List.of(
+                new IngestSession(
+                    "antigravity-cli",
+                    "s1",
+                    null,
+                    1L,
+                    ANTIGRAVITY_RAW,
+                    "{\"shortTitle\":\"t\",\"summary\":\"cached\"}"
+                )
+            )
+        );
+        assertTrue(summaries.find("antigravity-cli", "s1").orElse("").contains("cached"));
+    }
+
+    @Test
+    void aPushWithoutASummaryLeavesNoCachedAnalysis() {
+        ingestor.ingest(List.of(push("antigravity-cli", "s1", ANTIGRAVITY_RAW)));
+        assertTrue(summaries.find("antigravity-cli", "s1").isEmpty());
     }
 
     private String storedSteps(String source, String id) throws SQLException {
@@ -127,7 +155,16 @@ class IngestorTest extends PostgresTest {
     @Test
     void theClientsTitleWinsOverTheDerivedOne() throws Exception {
         ingestor.ingest(
-            List.of(new IngestSession("antigravity-cli", "s1", "  Explicit  ", 1L, ANTIGRAVITY_RAW))
+            List.of(
+                new IngestSession(
+                    "antigravity-cli",
+                    "s1",
+                    "  Explicit  ",
+                    1L,
+                    ANTIGRAVITY_RAW,
+                    null
+                )
+            )
         );
         assertEquals("Explicit", storedTitle("antigravity-cli", "s1"));
     }
@@ -205,7 +242,7 @@ class IngestorTest extends PostgresTest {
     void aZeroMtimeBecomesNowSoTheSessionStillSortsToTheTop() throws SQLException {
         long before = System.currentTimeMillis();
         ingestor.ingest(
-            List.of(new IngestSession("antigravity-cli", "s1", null, 0L, ANTIGRAVITY_RAW))
+            List.of(new IngestSession("antigravity-cli", "s1", null, 0L, ANTIGRAVITY_RAW, null))
         );
         try (
             Connection c = dataSource().getConnection();

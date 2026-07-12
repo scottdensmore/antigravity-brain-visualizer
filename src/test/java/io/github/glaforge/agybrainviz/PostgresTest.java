@@ -44,4 +44,46 @@ abstract class PostgresTest {
             stmt.execute("TRUNCATE TABLE " + table + " RESTART IDENTITY");
         }
     }
+
+    /** Clears the session and summary tables — the state the read path serves from. */
+    static void resetStore() throws SQLException {
+        truncate("sessions");
+        truncate("summaries");
+    }
+
+    /** Seeds one stored session (and optional cached summary) as ingest would have left it. */
+    static void seedSession(
+        String source,
+        String id,
+        String title,
+        String stepsJson,
+        String summaryJson,
+        long mtime
+    ) {
+        new SessionRepository(dataSource())
+            .upsert(
+                new SessionRepository.Session(
+                    source,
+                    id,
+                    title,
+                    mtime,
+                    stepsJson == null ? "[]" : stepsJson,
+                    "h-" + source + "-" + id
+                )
+            );
+        if (summaryJson != null) {
+            new SummaryRepository(dataSource()).upsert(source, id, summaryJson, title);
+        }
+    }
+
+    /** Convenience seed with a derived title. */
+    static void seedSession(
+        String source,
+        String id,
+        String stepsJson,
+        String summaryJson,
+        long mtime
+    ) {
+        seedSession(source, id, "title-" + id, stepsJson, summaryJson, mtime);
+    }
 }

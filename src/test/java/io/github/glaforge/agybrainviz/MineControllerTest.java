@@ -24,66 +24,45 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.SQLException;
+import java.util.Map;
 import java.util.stream.StreamSupport;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.TestInstance;
 
 /**
- * Integration test for the miner endpoint over a temporary {@code user.home}. With no
- * {@code GEMINI_API_KEY} in the test environment, AI is not configured, so the endpoint exercises the
- * graceful "evidence only" path end-to-end (parse → mine → serialize) without any network call.
+ * Integration test for the miner endpoint. With no {@code GEMINI_API_KEY} in the test environment, AI
+ * is not configured, so the endpoint exercises the graceful "evidence only" path end-to-end
+ * (gather → mine → serialize) over sessions gathered from the store.
  */
 @MicronautTest
-@ResourceLock("user.home")
-class MineControllerTest {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS) // required by TestPropertyProvider
+class MineControllerTest implements TestPropertyProvider {
+
+    @Override
+    public Map<String, String> getProperties() {
+        return TestPostgres.datasourceProperties();
+    }
 
     @Inject
     @Client("/")
     HttpClient client;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static String originalUserHome;
-    private static Path tempHome;
 
-    @BeforeAll
-    static void setUpHome() throws IOException {
-        originalUserHome = System.getProperty("user.home");
-        tempHome = Files.createTempDirectory("agy-mine-test-home");
-        System.setProperty("user.home", tempHome.toString());
+    @BeforeEach
+    void reset() throws SQLException {
+        PostgresTest.resetStore();
     }
 
-    @AfterAll
-    static void restoreHome() {
-        if (originalUserHome != null) System.setProperty("user.home", originalUserHome);
-    }
-
-    private void writeAntigravity(String id, String transcript, String summaryJson)
-        throws IOException {
-        Path logs = tempHome
-            .resolve(".gemini")
-            .resolve("antigravity-cli")
-            .resolve("brain")
-            .resolve(id)
-            .resolve(".system_generated")
-            .resolve("logs");
-        Files.createDirectories(logs);
-        Files.writeString(logs.resolve("transcript.jsonl"), transcript);
-        if (summaryJson != null) Files.writeString(logs.resolve("summary.json"), summaryJson);
-    }
-
-    // A session whose model step runs Read → Edit → Bash, plus an analysis with a failure→fix pair.
-    private String transcript() {
-        return (
-            "{\"type\":\"USER_INPUT\",\"source\":\"USER_EXPLICIT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n" +
-            "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T10:00:05Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}},{\"name\":\"Edit\",\"arguments\":{}},{\"name\":\"Bash\",\"arguments\":{}}]}\n"
-        );
-    }
+    // A session whose model step runs Read → Edit → Bash, stored as Antigravity's native steps.
+    private static final String STEPS =
+        "[{\"type\":\"USER_INPUT\",\"source\":\"USER_EXPLICIT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}," +
+        "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T10:00:05Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}},{\"name\":\"Edit\",\"arguments\":{}},{\"name\":\"Bash\",\"arguments\":{}}]}]";
 
     private boolean containsField(JsonNode arr, String field, String value) {
         return StreamSupport
@@ -96,8 +75,8 @@ class MineControllerTest {
         String summary =
             "{\"recommendations\":[\"Pin the JDK with mise\"]," +
             "\"issues\":[{\"error\":\"Build fails on JDK 21\",\"circumvention\":\"Install JDK 25\"}]}";
-        writeAntigravity("s1", transcript(), summary);
-        writeAntigravity("s2", transcript(), summary);
+        PostgresTest.seedSession("antigravity-cli", "s1", "t", STEPS, summary, 1L);
+        PostgresTest.seedSession("antigravity-cli", "s2", "t", STEPS, summary, 2L);
 
         JsonNode r = MAPPER.readTree(
             client.toBlocking().retrieve("/api/mine?flavor=antigravity-cli")
@@ -105,7 +84,6 @@ class MineControllerTest {
 
         assertEquals(2, r.get("sessionCount").asInt());
         assertEquals(2, r.get("analyzedSessions").asInt());
-        // AI is not configured in the test environment, so only the evidence is populated.
         assertFalse(r.get("aiGenerated").asBoolean());
         assertTrue(r.get("note").asText().contains("Configure an AI provider"));
 

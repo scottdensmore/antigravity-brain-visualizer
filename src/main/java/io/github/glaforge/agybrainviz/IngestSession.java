@@ -29,6 +29,15 @@ import io.micronaut.serde.annotation.Serdeable;
  * @param title an optional short label; the server derives one from the transcript when absent
  * @param sourceMtime when the transcript last changed on the client, in epoch milliseconds
  * @param raw the tool's transcript, one JSON object per line
+ * @param summary an optional cached AI analysis (the {@code AnalysisResponse} JSON) to store with the
+ *     session — e.g. Antigravity's on-disk {@code summary.json}; {@code null} when there is none
  */
 @Serdeable
-public record IngestSession(String source, String id, String title, long sourceMtime, String raw) {}
+public record IngestSession(
+    String source,
+    String id,
+    String title,
+    long sourceMtime,
+    String raw,
+    String summary
+) {}
