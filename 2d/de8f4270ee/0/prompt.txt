@@ -724,3 +724,61 @@ The `catch (RuntimeException e)` catches `StoreUnavailableException` (which `Sum
 Findings #1 and #2 are worth fixing before commit; #3 is optional.</result>
 <usage><subagent_tokens>49759</subagent_tokens><tool_uses>22</tool_uses><duration_ms>283370</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a32c3fac7403d0410</task-id>
+<tool-use-id>toolu_018kQA1k9i9qwdFr5Di9S9Mj</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a32c3fac7403d0410.output</output-file>
+<status>completed</status>
+<summary>Agent "Review pagination change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>This is a clean, well-constructed change. I found no actionable defects — the pagination logic, clamp, and API/frontend contract are all correct and tested. Details below, ranked by severity.
+
+## Assessment against your specific questions
+
+**1. Pagination ordering &amp; the offset-by-count anomaly — correct, but the comment overstates it (nit)**
+
+`ORDER BY s.updated_at DESC, s.id` is a total order: `id` is part of the primary key `(source, id)` (schema.sql:18), so the tiebreak is unique per source. On a *stable* dataset consecutive pages never overlap or skip — verified by `SessionRepositoryTest.listConversationsHonoursLimitAndOffsetForStablePaging`.
+
+Under concurrent ingest the classic offset anomaly is real: a client holding N rows requests `offset = N`; if a newer session was inserted meanwhile, everything shifts down one slot, so the row previously at index N-1 (already shown) reappears at index N — a **duplicate**. In the frontend that surfaces as two `.conv-item` nodes with the same `data-id` in the sidebar. A deletion causes the mirror-image skip.
+
+The `app.js:261` comment ("The offset is how many we hold, so pages don't overlap") is only true for a static list, so it's slightly misleading. This is an acceptable tradeoff for a sidebar, but it isn't documented as a limitation. A keyset alternative is worth noting and is essentially free here: the `sessions_source_updated (source, updated_at DESC, id)` index already supports `WHERE source = ? AND (updated_at, id) &lt; (?, ?)` with the last row's cursor, which is both drift-free and avoids deep-offset scans. Nit / informational.
+
+**2. The clamp — correct.** `clamp(limit, 1, MAX_LIMIT)` maps `limit&lt;=0` and negatives to 1 and oversized to 1000; `Math.max(0, offset)` floors offset at 0. No negative or zero LIMIT and no negative OFFSET can reach pgjdbc. A non-integer query value (`limit=abc`) fails Micronaut binding with a 400, which is fine. `listClampsAnOversizedLimitToTheHardCap` covers the cap.
+
+**3. Breaking shape change — no stragglers.** The only functional consumer is the bundled `app.js`, which was updated. `SessionCollector` uses `countBySource` but never `listConversations`, so it's unaffected. `playwright.config.js:47` hits the endpoint only as a webServer readiness probe (needs a 200, not an array). Java/JS/e2e tests were all updated to the `{items,total,limit,offset}` shape. No docs reference the array shape.
+
+**4. Frontend — correct.**
+- `offset = allConversations.length` is the right cursor for append-only loading.
+- `page.total ?? …` is harmless defensive code: `total` is a primitive `int` and always serializes (as `0`, never `null`), so the coalesce never actually triggers — but it's safe.
+- `appendLoadMore` builds a fresh button with one listener each render, and `list.innerHTML = ""` discards the old node, so there's **no listener leak**.
+- Auto-select: with items, `list.firstElementChild` is the first `.conv-item` (footer is appended last, so it's never first). With zero filtered results the first child is the "No sessions found" div; `targetDiv.click()` then finds no `.conv-item` via `closest()` and no-ops — safe.
+- Empty-filter-but-more-pages: `appendLoadMore` gates on `allConversations.length &gt;= convTotal` independent of the filter, so the footer correctly still appears when a search matches nothing loaded but more pages exist. Good.
+
+*Nit:* `loadMoreConversations` re-runs `renderConversationsList`, whose hash branch re-`click()`s the currently-selected item and re-fetches its transcript on every "Load more" press (and can jog scroll). Pre-existing behavior (search/sort already do this), just now triggered by paging too. Low priority.
+
+**5. MAX_LIMIT=1000 with the summaries LEFT JOIN — sensible.** The join is on `summaries(source, session_id)` (PK-backed), so it's an indexed lookup per row; 1000 rows × one probe is cheap, and the ordering is fully served by `sessions_source_updated`. No new index needed. The client `CONV_PAGE_SIZE=200` matches `DEFAULT_LIMIT`, well under the cap.
+
+**6. Tests — they do fail without the change.** The Java tests won't even compile against the old `listConversations(source)` signature / array response; the Vitest test asserts the `{items,total}` shape and the load-more button that don't exist pre-change. Coverage is good.
+
+*Missing cases (nits):*
+- Offset past the end (e.g. `offset=99`) → expect empty `items` with `total` still correct. Untested; low risk given the clamp math.
+- The empty-search-but-more-pages footer path (filtered empty yet button present) — asserted nowhere despite being a deliberate design point.
+
+## Other minor notes (nits)
+
+- `loadConversations`/`loadMoreConversations` never check `res.ok` before `res.json()`. A 500 (`StoreUnavailableException`) whose body happens to be JSON would parse to `page.items || []` → an empty sidebar with no error shown, rather than the catch-block message. Convention (vanilla-JS: handle non-2xx `fetch`). Pre-existing pattern, but the paged version inherits it. `src/main/resources/public/app.js:248` and `:273`.
+- `countBySource` and `listConversations` run as two separate connections/queries, not one transaction, so `total` and `items.length` can be momentarily inconsistent under concurrent ingest. Fine for a sidebar; noting for completeness.
+
+## Relevant files
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/BrainController.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/SessionRepository.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/ConversationPage.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/app.js
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/db/schema.sql
+
+Bottom line: no must-fix issues. The one thing worth an explicit decision is #1 — either accept the offset-drift duplicate/skip and fix the misleading `app.js` comment, or switch to keyset pagination (the index already supports it).</result>
+<usage><subagent_tokens>31279</subagent_tokens><tool_uses>19</tool_uses><duration_ms>161956</duration_ms></usage>
+</task-notification>
