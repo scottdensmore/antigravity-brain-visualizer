@@ -17,6 +17,7 @@ package io.github.glaforge.agybrainviz;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -27,6 +28,10 @@ import java.util.Optional;
  * localhost. Set it as soon as the server is reachable from another machine — those endpoints are the
  * only ones that write.
  *
+ * <p>{@code INGEST_REQUIRE_AUTH} is an opt-in fail-closed switch for operators who never want the
+ * open default: when it is truthy, {@link IngestAuthFilter} rejects all ingest until a token is
+ * configured, so a missing {@code INGEST_TOKEN} can't silently leave the writes exposed.
+ *
  * <p>Reading through this bean (rather than {@code System.getenv} inline) gives {@link
  * IngestAuthFilter} a test seam, matching {@link AiConfig}.
  */
@@ -34,22 +39,43 @@ import java.util.Optional;
 public class IngestConfig {
 
     private final String ingestToken;
+    private final boolean requireAuth;
 
     @Inject
     public IngestConfig() {
-        this(env("INGEST_TOKEN"));
+        this(env("INGEST_TOKEN"), parseFlag(env("INGEST_REQUIRE_AUTH")));
     }
 
-    // Test seam: construct with an explicit token, bypassing the environment.
+    // Test seam: an explicit token with the open default (auth not required).
     IngestConfig(String ingestToken) {
+        this(ingestToken, false);
+    }
+
+    // Test seam: construct with explicit values, bypassing the environment.
+    IngestConfig(String ingestToken, boolean requireAuth) {
         this.ingestToken = ingestToken;
+        this.requireAuth = requireAuth;
     }
 
     /** @return the shared token, or empty when the ingest endpoints are unguarded. */
     public Optional<String> token() {
         return (ingestToken == null || ingestToken.isBlank())
             ? Optional.empty()
-            : Optional.of(ingestToken);
+            : Optional.of(ingestToken.trim());
+    }
+
+    /** @return whether ingest must be authenticated, even at the cost of rejecting it when no token is set. */
+    public boolean requireAuth() {
+        return requireAuth;
+    }
+
+    /** Reads a boolean-ish env flag: {@code true}/{@code 1}/{@code yes}/{@code on} (any case) is true. */
+    static boolean parseFlag(String value) {
+        if (value == null) return false;
+        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "true", "1", "yes", "on" -> true;
+            default -> false;
+        };
     }
 
     private static String env(String key) {

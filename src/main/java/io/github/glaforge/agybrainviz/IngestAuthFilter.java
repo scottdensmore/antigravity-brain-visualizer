@@ -19,6 +19,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.RequestFilter;
 import io.micronaut.http.annotation.ServerFilter;
 import jakarta.inject.Inject;
@@ -48,12 +49,25 @@ public class IngestAuthFilter {
         this.config = config;
     }
 
-    /** @return a 401 to short-circuit the request, or {@code null} to let it proceed. */
+    /** @return a 401/503 to short-circuit the request, or {@code null} to let it proceed. */
     @RequestFilter
     @Nullable
     public HttpResponse<?> guard(HttpRequest<?> request) {
         Optional<String> expected = config.token();
-        if (expected.isEmpty()) return null; // unguarded by configuration
+        if (expected.isEmpty()) {
+            // No token configured. Normally that's the localhost-only default, so wave through — but
+            // if the operator opted into INGEST_REQUIRE_AUTH they want auth enforced, and there is no
+            // token any request could present. Fail closed: reject with a 503 (a server-side
+            // misconfiguration the client can't fix by authenticating), never fall back to open. The
+            // body stays generic — the specific cause (missing INGEST_TOKEN) is for the operator's
+            // startup log, not an unauthenticated caller.
+            if (config.requireAuth()) {
+                return HttpResponse
+                    .status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Ingest is unavailable."));
+            }
+            return null; // unguarded by configuration
+        }
 
         String header = request.getHeaders().get(HttpHeaders.AUTHORIZATION);
         if (header == null || !header.startsWith(BEARER) || !matches(expected.get(), header)) {
