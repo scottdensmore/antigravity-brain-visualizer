@@ -56,6 +56,9 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       # Set this once the app is reachable off localhost, and pass the same value to agent-ingest.
       INGEST_TOKEN: ${INGEST_TOKEN:-}
+      # Structured JSON logs by default in the container (one object per line, for a log aggregator).
+      # Override with LOG_APPENDER=CONSOLE_TEXT for human-readable container logs.
+      LOG_APPENDER: ${LOG_APPENDER:-CONSOLE_JSON}
     ports:
       - "8080:8080"
     healthcheck:
