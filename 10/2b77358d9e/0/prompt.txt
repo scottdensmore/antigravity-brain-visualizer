@@ -526,3 +526,43 @@ return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
 Bottom line: ship-ready once the `Locale` import is added; the rest are optional.</result>
 <usage><subagent_tokens>25411</subagent_tokens><tool_uses>13</tool_uses><duration_ms>113017</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a570b29ccf22f697c</task-id>
+<tool-use-id>toolu_014TogZRX5hoYuXs77azrTBn</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a570b29ccf22f697c.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify auth hardening" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Verdict: **GREEN**
+
+All appropriate checks ran and passed. Nothing fixed or modified.
+
+## Commands run and outcomes
+
+1. `docker compose up -d postgres` → `Container agent-brain-viz-db Running` (Postgres available).
+
+2. `mise exec -- ./gradlew build` (repo root) → **BUILD SUCCESSFUL in 530ms**. Every task, including `spotlessCheck`/`spotlessJavaCheck`/`spotlessJavascriptCheck` and `test`, reported **UP-TO-DATE** — i.e. cached, nothing actually re-executed this invocation. Green, but on its own it did not run tests. I forced fresh runs below to prove execution.
+
+3. `mise exec -- ./gradlew test --tests IngestAuthFilterTest --tests IngestConfigTest --tests IngestSecurityAdvisoryTest --rerun` → **BUILD SUCCESSFUL**, `test` task `1 executed` (not cached). Verified in `build/test-results/test/` (fresh timestamps 2026-07-12T05:56):
+   - `IngestAuthFilterTest`: 8 tests, 0 failures — includes `failsClosedWhenAuthIsRequiredButNoTokenIsConfigured()` and `requiringAuthDoesNotChangeTheValidTokenPath()`.
+   - `IngestConfigTest`: 5 tests, 0 failures — `requireAuthAcceptsCommonAffirmatives()`, `requireAuthTreatsAnythingElseAsFalse()`, `aTokenIsTrimmedAndExposed()`, etc.
+   - `IngestSecurityAdvisoryTest`: 3 tests, 0 failures — includes `requiringAuthWithoutATokenIsAMisconfiguration()`.
+
+4. `mise exec -- ./gradlew test --rerun` (whole suite) → **BUILD SUCCESSFUL**, `test` executed fresh. Aggregated `build/test-results/test/`: **35 classes, 237 tests, 0 failures, 0 errors.** The Testcontainers-backed `SessionRepositoryTest` executed and passed, confirming Docker/Postgres works in this environment.
+
+5. Boot checks (optional) — ran the shadow jar `build/libs/agybrainviz-0.1-SNAPSHOT-all.jar` under `mise exec`, `AI_PROVIDER=ollama`, `-Ddotenv.enabled=false`:
+   - No `INGEST_TOKEN` → startup log emits the expected **WARN** from `i.g.g.a.IngestSecurityAdvisory`: "Ingest endpoints are UNAUTHENTICATED …", server reached `Startup completed`.
+   - `INGEST_REQUIRE_AUTH=true`, no token → startup log emits the expected **ERROR**: "INGEST_REQUIRE_AUTH is set but INGEST_TOKEN is empty — all ingest will be refused …", server started.
+   Both app processes were stopped afterward; none left running.
+
+## Notes
+- Tests that didn't execute: none of concern — the initial `./gradlew build` was fully cached, but I re-ran the entire suite with `--rerun` (237 tests fresh) and the three target classes fresh, all passing.
+- Flakes: none observed. Tests are deterministic unit tests plus one Testcontainers class; no pass/fail variation across the runs.
+- Coverage: the new fail-closed 503 path, the `parseFlag`/trim behavior, and all three `classify` postures (AUTHENTICATED/OPEN/MISCONFIGURED) are directly unit-tested, and both runtime log branches (WARN/ERROR) were confirmed live at boot. No gaps identified.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisory.java` and their tests under `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/`.</result>
+<usage><subagent_tokens>26146</subagent_tokens><tool_uses>16</tool_uses><duration_ms>179835</duration_ms></usage>
+</task-notification>
