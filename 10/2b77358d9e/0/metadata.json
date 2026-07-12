@@ -1,0 +1,97 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "102b77358d9e",
+  "session_id": "99320939-d56d-4c7e-b3e4-213a40305e7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-12T05:59:43.759141Z",
+  "branch": "feat/ingest-auth-hardening",
+  "checkpoints_count": 3,
+  "save_step_count": 4,
+  "files_touched": [
+    ".env.example",
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisory.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestAuthFilterTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestConfigTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisoryTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "2a809eb62e0a",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 183135,
+    "cache_creation_tokens": 3239261,
+    "cache_read_tokens": 298415082,
+    "output_tokens": 664958,
+    "api_call_count": 652
+  },
+  "session_metrics": {
+    "turn_count": 34
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-12T05:59:43.447957Z",
+    "agent_lines": 279,
+    "agent_removed": 7,
+    "human_added": 8,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 295,
+    "total_lines_changed": 302,
+    "agent_percentage": 94.70198675496688,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 163,
+      "user_lines_removed": 0,
+      "agent_lines_added": 287,
+      "agent_lines_removed": 7,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        ".cursor/hooks.json": 40,
+        ".github/hooks/entire.json": 61
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 163,
+      "user_lines_removed": 0,
+      "agent_lines_added": 287,
+      "agent_lines_removed": 7,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        ".cursor/hooks.json": 40,
+        ".github/hooks/entire.json": 61
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 163,
+      "user_lines_removed": 0,
+      "agent_lines_added": 287,
+      "agent_lines_removed": 7,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7,
+        ".codex/config.toml": 3,
+        ".codex/hooks.json": 52,
+        ".cursor/hooks.json": 40,
+        ".github/hooks/entire.json": 61
+      }
+    }
+  ]
+}

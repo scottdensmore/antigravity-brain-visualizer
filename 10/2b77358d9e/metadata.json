@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "102b77358d9e",
+  "strategy": "manual-commit",
+  "branch": "feat/ingest-auth-hardening",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".env.example",
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisory.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestAuthFilterTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestConfigTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisoryTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/10/2b77358d9e/0/metadata.json",
+      "transcript": "/10/2b77358d9e/0/full.jsonl",
+      "compact_transcript": "/10/2b77358d9e/0/transcript.jsonl",
+      "content_hash": "/10/2b77358d9e/0/content_hash.txt",
+      "prompt": "/10/2b77358d9e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 183135,
+    "cache_creation_tokens": 3239261,
+    "cache_read_tokens": 298415082,
+    "output_tokens": 664958,
+    "api_call_count": 652
+  }
+}
