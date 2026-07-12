@@ -140,6 +140,15 @@ docker compose exec postgres psql -U agentviz agentbrainviz   # a psql shell int
 docker compose exec postgres pg_dump -U agentviz agentbrainviz > backup.sql   # back the store up
 ```
 
+The app exposes two health probes for a container orchestrator, load balancer, or uptime monitor:
+
+- `GET /health` — **liveness**: `200 {"status":"UP"}` whenever the process is serving. It never
+  touches the database (the compose healthcheck uses this), so a store blip doesn't mark the app
+  unhealthy — it still serves the UI.
+- `GET /health/ready` — **readiness**: `200 {"status":"UP","db":"UP"}` when the store is reachable,
+  `503 {"status":"DOWN","db":"DOWN"}` when it isn't, so traffic isn't routed to an app that can't
+  serve trajectory data.
+
 Pushing trajectories still runs on the **host**, because that's where your agent transcripts live —
 point [`agent-ingest`](cli/README.md) at the containerized app:
 

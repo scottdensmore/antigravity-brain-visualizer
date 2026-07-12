@@ -59,8 +59,10 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      # bash (present in the temurin image) can open a raw TCP socket, so no curl needed.
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      # No curl in the JRE image, so use bash's /dev/tcp to make a minimal HTTP request to the
+      # liveness probe and confirm a 200. Liveness (not readiness) on purpose: the app serves the UI
+      # even when the store is down, so a database blip must not mark the container unhealthy.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080 && printf \"GET /health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"200 OK\" <&3'"]
       interval: 10s
       timeout: 5s
       retries: 12
