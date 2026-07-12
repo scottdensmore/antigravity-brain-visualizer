@@ -676,3 +676,51 @@ Per-source JSON objects *do* carry `summariesSynced`, so a script that reads `.t
 Verdict: two actionable issues — the summary-manifest failure blocking transcript ingest (robustness regression) and the `--json` total missing `summariesSynced` (machine-output inconsistency) — should be fixed before merge; wording and help-text items are optional.</result>
 <usage><subagent_tokens>30712</subagent_tokens><tool_uses>13</tool_uses><duration_ms>206454</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a98832b18c4ac1bb9</task-id>
+<tool-use-id>toolu_01EPeTqEDixJHnPRcY7aFFio</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a98832b18c4ac1bb9.output</output-file>
+<status>completed</status>
+<summary>Agent "Review summary-sync change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Review complete. The change is well-structured and the hash contract is sound. I found one actionable observability gap (with a server-side counterpart) and a couple of minor items.
+
+## Findings (most severe first)
+
+### 1. Actionable — CLI silently drops summary-push failures
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go` (~line 205, the `pendingSummaries` push loop)
+
+The loop only does `sr.SummariesSynced += r.Ingested` and ignores `r.Skipped` and `r.Failed` from `PushSummaries`. The transcript loop right above it accumulates `r.Failed` into `sr.Failed`, which drives `sourceReport.errored()` and the non-zero exit code. So a summary batch that the server returns as `{"ingested":0,"failed":5}` (HTTP 200) produces: `SummariesSynced += 0`, no `Error`, `errored()==false`, exit 0, and — because `summarySuffix` returns `""` when `n==0` — no line in the report at all.
+
+Concrete failure: the store is up enough to answer the manifest but the summary INSERTs fail (e.g. a transient DB fault mid-run). The user sees a clean success report while nothing synced, and the run exits 0. This directly violates `sourceReport`'s own doc contract ("a failure is never silently dropped from the summary"). Fix: surface `r.Failed` (and it will keep re-pushing each run until it clears, which is fine, but the failure must be visible).
+
+### 2. Actionable (paired with #1) — server converts a store outage into a per-item FAILED + 200
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/Ingestor.java` `storeSummary`, line 110
+
+The `catch (RuntimeException e)` catches `StoreUnavailableException` (which `SummaryRepository.upsert` throws for *any* `SQLException` — both a bad-jsonb data error and a dead connection). The comment says it "mirror[s] the trajectory path," but the trajectory `store()` does **not** wrap `sessions.upsert` in a per-item catch — a store outage there propagates out of `ingest()` and becomes an HTTP 500, which the CLI surfaces as an error. Here, an outage is swallowed into `Outcome.FAILED` and returned as HTTP 200 with `failed&gt;0`. Combined with finding #1, a genuine outage during the summary-only phase is completely invisible. Consider only catching the data-shape failure per-item (or letting `StoreUnavailableException` propagate as it does for trajectories). Note: the code does correctly return `FAILED` (not `INGESTED`) for the swallowed case, so the Q5 "reports as ingested" concern does not apply — the item is FAILED, the gap is only that the batch reports 200.
+
+### 3. Nit — WHERE clause can freeze a stale `short_title` on ride-along
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/SummaryRepository.java` line 43-46
+
+`... WHERE summaries.content_hash IS DISTINCT FROM excluded.content_hash` gates the *entire* `DO UPDATE`, including `short_title`. Previously the ride-along upsert always refreshed `short_title` to the transcript-derived title. Now, if a transcript changes (triggering a ride-along) but the accompanying `summary.json` is byte-identical, the title update is skipped and `summaries.short_title` stays stale — and `SessionRepository.LIST_SQL` prefers `m.short_title` over `s.title`, so the list would keep showing the old label. Narrow and low-impact (derived titles are usually stable, and this only bites when summary content is frozen while the transcript moves). Not covered by a test. Leaving as a nit.
+
+## Assessment of the specific questions
+
+1. **Hash contract — holds.** The CLI hashes the UTF-8-coerced summary string (`scan.readSummary` → `strings.ToValidUTF8` → `Sha256Hex`) and sends that exact string; the server hashes `pushed.summary()` via `Hashing.sha256Hex` **before** the `?::jsonb` cast (`SummaryRepository.upsert` binds param 5 from the raw string). No re-serialization path exists — `manifest()` returns the stored `content_hash` column, never a value re-derived from jsonb. `SummaryRepositoryTest.manifestPublishesTheContentHashPerSession` pins this (`manifest.get("a") == Hashing.sha256Hex(rawInput)`). Identical to the transcript contract.
+
+2. **`changedSummaries` — correct, no double-sync.** The changed-transcript set (full push) and the unchanged-transcript-summary set are disjoint by construction, so nothing is both ridden-along and separately pushed (verified by `TestAChangedTranscriptCarriesItsSummaryAndDoesNotAlsoSyncItSeparately`). The NEW-transcript-push-fails case leaves the summary neither synced nor stored *for that run*, but the transcript stays absent from the manifest, so next run it rides along again — deferred, not lost.
+
+3. **Legacy NULL-hash self-healing — correct, non-looping.** `MANIFEST_SQL` filters `content_hash IS NOT NULL`, so a pre-migration row is unadvertised → CLI re-pushes once → `NULL IS DISTINCT FROM 'hash'` is true → row written and hash set (`executeUpdate()` returns 1 → INGESTED). Next run the manifest carries it and the CLI skips. The only perpetual re-push is if two machines hold differently-formatted copies of the same summary — inherent to raw-content hashing and identical to the transcript behavior.
+
+4. **COALESCE — no regression to existing callers.** Both existing callers pass a non-blank title (ride-along: `titleFor`, never blank; `AnalysisController`: `responseObj.shortTitle()`), so `COALESCE(excluded.short_title, existing)` returns the incoming title exactly as before. AI-computed summaries live under `source = flavorName`, a separate keyspace from the ingest sources, and their title is embedded in the content, so title change ⟺ content change ⟺ WHERE passes. Confirmed no regression (aside from the ride-along edge in finding #3).
+
+6. **`chunkBy` refactor — behavior-preserving.** `chunk` now delegates with `sizeOf = len(s.Raw)`; the loop body is line-for-line the same, so existing chunk tests hold. Summary budgeting via `len(s.Summary)` is correct and idiomatic Go generics. New tests are hermetic and would fail without the change (e.g. `TestSyncsAPostHocSummaryForAnUnchangedTranscript` asserts a summary-only push happens with the transcript unchanged; `TestDoesNotResyncASummaryTheStoreAlreadyHas` asserts the skip).
+
+7. **Schema — the additive ALTER is the right call** for this repo's established `SchemaBootstrap` pattern; CREATE-plus-ALTER is redundant-but-safe (fresh DB gets the column from CREATE, existing DB from `ADD COLUMN IF NOT EXISTS`). **No new index needed:** `MANIFEST_SQL` filters `source = ? AND content_hash IS NOT NULL`, and the PK `(source, session_id)` already has `source` as its leading column, so the source filter is index-served; `content_hash IS NOT NULL` is a cheap residual predicate.
+
+Findings #1 and #2 are worth fixing before commit; #3 is optional.</result>
+<usage><subagent_tokens>49759</subagent_tokens><tool_uses>22</tool_uses><duration_ms>283370</duration_ms></usage>
+</task-notification>
