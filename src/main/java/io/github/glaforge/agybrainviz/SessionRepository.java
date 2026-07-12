@@ -69,6 +69,7 @@ public class SessionRepository {
         LEFT JOIN summaries m ON m.source = s.source AND m.session_id = s.id
         WHERE s.source = ?
         ORDER BY s.updated_at DESC, s.id
+        LIMIT ? OFFSET ?
         """;
 
     private static final String STEPS_SQL =
@@ -156,13 +157,15 @@ public class SessionRepository {
      *     newest first — the shape the frontend's conversation list expects. {@code updatedAt} is the
      *     source file's modification time in epoch milliseconds, matching the former file-based list.
      */
-    public List<Map<String, String>> listConversations(String source) {
+    public List<Map<String, String>> listConversations(String source, int limit, int offset) {
         List<Map<String, String>> out = new ArrayList<>();
         try (
             Connection connection = dataSource.getConnection();
             PreparedStatement stmt = connection.prepareStatement(LIST_SQL)
         ) {
             stmt.setString(1, source);
+            stmt.setInt(2, limit);
+            stmt.setInt(3, offset);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     Map<String, String> info = new HashMap<>();

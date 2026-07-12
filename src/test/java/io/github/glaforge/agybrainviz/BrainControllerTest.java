@@ -90,8 +90,10 @@ class BrainControllerTest implements TestPropertyProvider {
     // ----- listConversations -----
 
     @Test
-    void listReturnsEmptyForAFlavorWithNoSessions() {
-        assertEquals("[]", get("/api/brain/conversations?flavor=nothing-here").trim());
+    void listReturnsAnEmptyPageForAFlavorWithNoSessions() throws IOException {
+        JsonNode page = MAPPER.readTree(get("/api/brain/conversations?flavor=nothing-here"));
+        assertTrue(page.get("items").isEmpty());
+        assertEquals(0, page.get("total").asInt());
     }
 
     @Test
@@ -99,8 +101,10 @@ class BrainControllerTest implements TestPropertyProvider {
         PostgresTest.seedSession("list-flavor", "older", "Old work", "[]", null, 1_000L);
         PostgresTest.seedSession("list-flavor", "newer", "New work", "[]", null, 2_000L);
 
-        JsonNode arr = MAPPER.readTree(get("/api/brain/conversations?flavor=list-flavor"));
+        JsonNode page = MAPPER.readTree(get("/api/brain/conversations?flavor=list-flavor"));
+        JsonNode arr = page.get("items");
         assertEquals(2, arr.size());
+        assertEquals(2, page.get("total").asInt());
         assertEquals("newer", arr.get(0).get("id").asText());
         assertEquals("New work", arr.get(0).get("summary").asText());
         assertEquals("2000", arr.get(0).get("updatedAt").asText());
@@ -112,9 +116,46 @@ class BrainControllerTest implements TestPropertyProvider {
         PostgresTest.seedSession("codex", "c1", "codex work", "[]", null, 1_000L);
         PostgresTest.seedSession("claude-code", "cc1", "claude work", "[]", null, 1_000L);
 
-        JsonNode arr = MAPPER.readTree(get("/api/brain/conversations?flavor=codex"));
+        JsonNode arr = MAPPER.readTree(get("/api/brain/conversations?flavor=codex")).get("items");
         assertEquals(1, arr.size());
         assertEquals("c1", arr.get(0).get("id").asText());
+    }
+
+    @Test
+    void listPagesWithLimitAndOffsetAndReportsTheTotal() throws IOException {
+        PostgresTest.seedSession("paged", "a", "A", "[]", null, 3_000L); // newest
+        PostgresTest.seedSession("paged", "b", "B", "[]", null, 2_000L);
+        PostgresTest.seedSession("paged", "c", "C", "[]", null, 1_000L); // oldest
+
+        JsonNode page1 = MAPPER.readTree(
+            get("/api/brain/conversations?flavor=paged&limit=2&offset=0")
+        );
+        assertEquals(2, page1.get("items").size());
+        assertEquals(3, page1.get("total").asInt()); // total is the whole source, not the page
+        assertEquals("a", page1.get("items").get(0).get("id").asText());
+
+        JsonNode page2 = MAPPER.readTree(
+            get("/api/brain/conversations?flavor=paged&limit=2&offset=2")
+        );
+        assertEquals(1, page2.get("items").size());
+        assertEquals("c", page2.get("items").get(0).get("id").asText());
+    }
+
+    @Test
+    void listClampsAnOversizedLimitToTheHardCap() throws IOException {
+        JsonNode page = MAPPER.readTree(get("/api/brain/conversations?flavor=paged&limit=999999"));
+        assertEquals(BrainController.MAX_LIMIT, page.get("limit").asInt());
+    }
+
+    @Test
+    void listReturnsAnEmptyPageForAnOffsetPastTheEndButKeepsTheTotal() throws IOException {
+        PostgresTest.seedSession("edge", "only", "Only one", "[]", null, 1_000L);
+
+        JsonNode page = MAPPER.readTree(
+            get("/api/brain/conversations?flavor=edge&limit=10&offset=50")
+        );
+        assertTrue(page.get("items").isEmpty());
+        assertEquals(1, page.get("total").asInt()); // the total still reflects the whole source
     }
 
     // ----- getTranscript -----
