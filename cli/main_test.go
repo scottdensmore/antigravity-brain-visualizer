@@ -37,19 +37,39 @@ func sha(s string) string { return scan.Sha256Hex(s) }
 // fakeServer stands in for the app's ingest API: it holds a manifest and records
 // every pushed batch, so a test can drive the whole scan → diff → push loop.
 type fakeServer struct {
-	mu       sync.Mutex
-	manifest map[string]map[string]string // source -> id -> hash
-	pushed   [][]map[string]any
-	srv      *httptest.Server
+	mu                  sync.Mutex
+	manifest            map[string]map[string]string // source -> id -> transcript hash
+	summaryManifest     map[string]map[string]string // source -> id -> summary hash
+	pushed              [][]map[string]any
+	pushedSummaries     [][]map[string]any
+	failSummaryManifest bool // GET summaries/manifest returns 500
+	failSummaryPush     bool // POST summaries reports every item as failed
+	srv                 *httptest.Server
 }
 
 func newFakeServer() *fakeServer {
-	f := &fakeServer{manifest: map[string]map[string]string{}}
+	f := &fakeServer{
+		manifest:        map[string]map[string]string{},
+		summaryManifest: map[string]map[string]string{},
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/ingest/manifest", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		m := f.manifest[r.URL.Query().Get("source")]
+		if m == nil {
+			m = map[string]string{}
+		}
+		_ = json.NewEncoder(w).Encode(m)
+	})
+	mux.HandleFunc("/api/ingest/summaries/manifest", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.failSummaryManifest {
+			http.Error(w, `{"error":"boom"}`, http.StatusInternalServerError)
+			return
+		}
+		m := f.summaryManifest[r.URL.Query().Get("source")]
 		if m == nil {
 			m = map[string]string{}
 		}
@@ -63,8 +83,32 @@ func newFakeServer() *fakeServer {
 		f.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(map[string]int{"ingested": len(batch), "skipped": 0, "failed": 0})
 	})
+	mux.HandleFunc("/api/ingest/summaries", func(w http.ResponseWriter, r *http.Request) {
+		var batch []map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&batch)
+		f.mu.Lock()
+		f.pushedSummaries = append(f.pushedSummaries, batch)
+		fail := f.failSummaryPush
+		f.mu.Unlock()
+		if fail {
+			// A 200 that reports the items as failed, exactly as the server does for a bad summary.
+			_ = json.NewEncoder(w).Encode(map[string]int{"ingested": 0, "skipped": 0, "failed": len(batch)})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]int{"ingested": len(batch), "skipped": 0, "failed": 0})
+	})
 	f.srv = httptest.NewServer(mux)
 	return f
+}
+
+func (f *fakeServer) pushedSummaryCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, b := range f.pushedSummaries {
+		n += len(b)
+	}
+	return n
 }
 
 func (f *fakeServer) pushedCount() int {
@@ -186,6 +230,128 @@ func TestSkipsSessionsAlreadyInTheManifest(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "skipped") {
 		t.Errorf("summary should mention skipped; got %q", stdout)
+	}
+}
+
+// seedAntigravity writes one Antigravity session (transcript + optional summary) under home and
+// returns the transcript and summary content so a test can seed the fake manifests.
+func seedAntigravity(t *testing.T, home, id, transcript, summary string) {
+	t.Helper()
+	logs := filepath.Join(home, ".gemini/antigravity-cli/brain", id, ".system_generated/logs")
+	write(t, filepath.Join(logs, "transcript.jsonl"), transcript)
+	if summary != "" {
+		write(t, filepath.Join(logs, "summary.json"), summary)
+	}
+}
+
+func TestSyncsAPostHocSummaryForAnUnchangedTranscript(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := t.TempDir()
+	transcript := "{\"type\":\"USER_INPUT\"}\n"
+	summary := "{\"summary\":\"late\"}"
+	seedAntigravity(t, home, "sess-1", transcript, summary)
+	// The transcript is already stored (manifest matches), and the store has no summary yet.
+	f.manifest["antigravity-cli"] = map[string]string{"sess-1": sha(transcript)}
+
+	code, stdout, _ := runCLI(t, []string{"--server", f.srv.URL, "--home", home, "--source", "antigravity-cli"}, nil)
+	if code != 0 {
+		t.Fatalf("exit = %d; stdout=%q", code, stdout)
+	}
+	if f.pushedCount() != 0 {
+		t.Errorf("the unchanged transcript must not be re-pushed, got %d", f.pushedCount())
+	}
+	if f.pushedSummaryCount() != 1 {
+		t.Fatalf("the post-hoc summary should sync on its own, got %d", f.pushedSummaryCount())
+	}
+	if got := f.pushedSummaries[0][0]["summary"]; got != summary {
+		t.Errorf("pushed summary body = %v, want %q", got, summary)
+	}
+	if !strings.Contains(stdout, "summary(ies) synced") {
+		t.Errorf("report should mention the synced summary; got %q", stdout)
+	}
+}
+
+func TestDoesNotResyncASummaryTheStoreAlreadyHas(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := t.TempDir()
+	transcript := "{\"type\":\"USER_INPUT\"}\n"
+	summary := "{\"summary\":\"already there\"}"
+	seedAntigravity(t, home, "sess-1", transcript, summary)
+	// Both the transcript and the summary are already stored with matching hashes.
+	f.manifest["antigravity-cli"] = map[string]string{"sess-1": sha(transcript)}
+	f.summaryManifest["antigravity-cli"] = map[string]string{"sess-1": sha(summary)}
+
+	code, _, _ := runCLI(t, []string{"--server", f.srv.URL, "--home", home, "--source", "antigravity-cli"}, nil)
+	if code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	if f.pushedSummaryCount() != 0 {
+		t.Errorf("an unchanged summary must not re-sync, got %d", f.pushedSummaryCount())
+	}
+}
+
+func TestAChangedTranscriptCarriesItsSummaryAndDoesNotAlsoSyncItSeparately(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := t.TempDir()
+	// The transcript is new (not in the manifest), so it's a full push — the summary rides along and
+	// must NOT also be sent through the summary-only path.
+	seedAntigravity(t, home, "sess-1", "{\"type\":\"USER_INPUT\"}\n", "{\"summary\":\"new\"}")
+
+	code, _, _ := runCLI(t, []string{"--server", f.srv.URL, "--home", home, "--source", "antigravity-cli"}, nil)
+	if code != 0 {
+		t.Fatalf("exit = %d", code)
+	}
+	if f.pushedCount() != 1 {
+		t.Fatalf("the new transcript should be pushed once, got %d", f.pushedCount())
+	}
+	if f.pushedSummaryCount() != 0 {
+		t.Errorf("the summary rode along the transcript; it must not sync separately, got %d", f.pushedSummaryCount())
+	}
+}
+
+func TestSummaryManifestFailureDoesNotBlockTranscriptSync(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	f.failSummaryManifest = true // e.g. a server too old to expose the endpoint
+	home := t.TempDir()
+	// A new transcript (not in the manifest) that must still ingest despite the summary side failing.
+	seedAntigravity(t, home, "sess-1", "{\"type\":\"USER_INPUT\"}\n", "{\"summary\":\"x\"}")
+
+	code, stdout, stderr := runCLI(t, []string{"--server", f.srv.URL, "--home", home, "--source", "antigravity-cli"}, nil)
+	if code != 0 {
+		t.Fatalf("a summary-manifest failure must not fail the run; exit = %d, stderr=%q", code, stderr)
+	}
+	if f.pushedCount() != 1 {
+		t.Errorf("the transcript must still be pushed, got %d", f.pushedCount())
+	}
+	if !strings.Contains(stderr, "skipping summary sync") {
+		t.Errorf("the skipped summary sync should be reported on stderr; got %q", stderr)
+	}
+	if !strings.Contains(stdout, "1 ingested") {
+		t.Errorf("the transcript ingest should be reported; got %q", stdout)
+	}
+}
+
+func TestSummaryPushFailureIsSurfacedAndFailsTheRun(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	f.failSummaryPush = true
+	home := t.TempDir()
+	transcript := "{\"type\":\"USER_INPUT\"}\n"
+	seedAntigravity(t, home, "sess-1", transcript, "{\"summary\":\"late\"}")
+	// Transcript already stored (unchanged), summary missing → the CLI attempts a summary-only push,
+	// which the server fails. That must be visible, not silently dropped.
+	f.manifest["antigravity-cli"] = map[string]string{"sess-1": sha(transcript)}
+
+	code, stdout, _ := runCLI(t, []string{"--server", f.srv.URL, "--home", home, "--source", "antigravity-cli"}, nil)
+	if code != exitFailed {
+		t.Fatalf("a failed summary push must fail the run; exit = %d", code)
+	}
+	if !strings.Contains(stdout, "summary(ies) failed") {
+		t.Errorf("the report must show the failed summary; got %q", stdout)
 	}
 }
 
@@ -375,6 +541,10 @@ func TestNonUTF8TranscriptIsIngestedOnceThenSkipped(t *testing.T) {
 			mu.Unlock()
 			return
 		}
+		if r.URL.Path == "/api/ingest/summaries/manifest" {
+			_, _ = w.Write([]byte("{}")) // this test has no summaries
+			return
+		}
 		var batch []struct{ ID, Raw string }
 		_ = json.NewDecoder(r.Body).Decode(&batch)
 		mu.Lock()
@@ -469,7 +639,7 @@ func TestTokenComesFromTheEnvironment(t *testing.T) {
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		if r.URL.Path == "/api/ingest/manifest" {
+		if strings.HasSuffix(r.URL.Path, "/manifest") {
 			_, _ = w.Write([]byte("{}"))
 			return
 		}

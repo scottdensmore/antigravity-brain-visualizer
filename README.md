@@ -168,7 +168,9 @@ any language — can contribute the sessions its agents recorded:
 | Endpoint | Purpose |
 | -------- | ------- |
 | `GET /api/ingest/manifest?source=<source>` | Every stored `id → contentHash`. A client diffs against this and uploads only what changed. |
-| `POST /api/ingest/sessions` | A batch of `{source, id, title?, sourceMtime, raw}`, where `raw` is the tool's own transcript. Returns `{ingested, skipped, failed}`. |
+| `POST /api/ingest/sessions` | A batch of `{source, id, title?, sourceMtime, raw, summary?}`, where `raw` is the tool's own transcript. Returns `{ingested, skipped, failed}`. |
+| `GET /api/ingest/summaries/manifest?source=<source>` | Every stored `id → summaryContentHash`, so a client can sync a summary written after its transcript was already ingested. |
+| `POST /api/ingest/summaries` | A batch of `{source, id, summary}` — a cached analysis pushed on its own, without re-sending the transcript. Returns `{ingested, skipped, failed}`. |
 
 The client stays thin: it locates transcripts, reads them, and reports when they changed. **The
 server does the parsing**, reusing the same adapters the UI relies on, so a client never has to

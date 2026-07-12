@@ -123,6 +123,58 @@ func TestPushSummaryFieldIsSentWhenSetAndOmittedWhenEmpty(t *testing.T) {
 	}
 }
 
+func TestSummaryManifestParsesTheIdToHashMap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/ingest/summaries/manifest" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("source"); got != "antigravity-cli" {
+			t.Errorf("source = %q", got)
+		}
+		_, _ = io.WriteString(w, `{"s1":"h1"}`)
+	}))
+	defer srv.Close()
+
+	got, err := New(srv.URL, "").SummaryManifest(context.Background(), "antigravity-cli")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["s1"] != "h1" || len(got) != 1 {
+		t.Fatalf("summary manifest = %v", got)
+	}
+}
+
+func TestPushSummariesSendsTheBatchWithTheServersFieldNames(t *testing.T) {
+	var raw map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/ingest/summaries" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		var arr []map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&arr)
+		if len(arr) > 0 {
+			raw = arr[0]
+		}
+		_, _ = io.WriteString(w, `{"ingested":1,"skipped":0,"failed":0}`)
+	}))
+	defer srv.Close()
+
+	res, err := New(srv.URL, "").PushSummaries(context.Background(),
+		[]PushSummary{{Source: "antigravity-cli", ID: "s1", Summary: `{"summary":"s"}`}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Ingested != 1 {
+		t.Fatalf("result = %+v", res)
+	}
+	// Field names must match the server's IngestSummary record exactly.
+	for _, k := range []string{"source", "id", "summary"} {
+		if _, ok := raw[k]; !ok {
+			t.Errorf("pushed JSON missing field %q; got keys %v", k, keysOf(raw))
+		}
+	}
+}
+
 func TestAuthorizationHeaderSentOnlyWhenTokenSet(t *testing.T) {
 	var auth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -24,13 +24,20 @@ CREATE INDEX IF NOT EXISTS sessions_source_updated
 
 -- Cached AI analyses, keyed to the session they describe.
 CREATE TABLE IF NOT EXISTS summaries (
-    source      text        NOT NULL,
-    session_id  text        NOT NULL,
-    summary     jsonb       NOT NULL,
-    short_title text,
-    updated_at  timestamptz NOT NULL DEFAULT now(),
+    source       text        NOT NULL,
+    session_id   text        NOT NULL,
+    summary      jsonb       NOT NULL,
+    short_title  text,
+    content_hash text,
+    updated_at   timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (source, session_id)
 );
+
+-- Added after the summaries table shipped: the hash lets an ingest client tell
+-- whether a locally-stored summary is already in the store, so a summary that
+-- appears after its transcript was ingested can still sync. Additive and
+-- idempotent, so the startup bootstrap applies it on every boot.
+ALTER TABLE summaries ADD COLUMN IF NOT EXISTS content_hash text;
 
 -- Saved eval runs. `saved_at` is an ISO-8601 instant, so it doubles as the
 -- delete key and a lexicographic stand-in for chronological order. It is NOT

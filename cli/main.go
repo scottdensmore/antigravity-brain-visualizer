@@ -174,8 +174,19 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 		changed := changedSessions(list, manifest)
 		sr := sourceReport{Skipped: len(list) - len(changed)}
 
+		// Summary sync is a best-effort layer on top of the transcript sync. If the summary manifest
+		// can't be fetched — a transient error, or a server too old to expose the endpoint — warn and
+		// skip it. It must never block or fail the transcript sync below.
+		var pendingSummaries []client.PushSummary
+		if summaryManifest, err := cl.SummaryManifest(ctx, source); err != nil {
+			fmt.Fprintf(stderr, "agent-ingest: skipping summary sync for %s: %s\n", source, err)
+		} else {
+			pendingSummaries = changedSummaries(list, manifest, summaryManifest)
+		}
+
 		if cfg.dryRun {
 			sr.Ingested = len(changed) // "would ingest"
+			sr.SummariesSynced = len(pendingSummaries)
 			report.add(source, sr)
 			continue
 		}
@@ -190,6 +201,22 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 			sr.Ingested += r.Ingested
 			sr.Skipped += r.Skipped
 			sr.Failed += r.Failed
+		}
+		// Sync summaries written after their transcript was ingested (they ride along no push). Skip
+		// when the transcript push failed — the store is likely down. Unlike the manifest fetch, a
+		// push that is attempted and fails is a real failure: surface it (report + exit code), never
+		// drop it silently.
+		if sr.Error == "" {
+			for _, batch := range chunkBy(pendingSummaries, func(s client.PushSummary) int { return len(s.Summary) }, cfg.batchSize, maxBatchBytes) {
+				r, err := cl.PushSummaries(ctx, batch)
+				if err != nil {
+					fmt.Fprintf(stderr, "agent-ingest: %s\n", err)
+					sr.Error = err.Error()
+					break
+				}
+				sr.SummariesSynced += r.Ingested
+				sr.SummariesFailed += r.Failed
+			}
 		}
 		report.add(source, sr)
 	}
@@ -237,23 +264,50 @@ const maxBatchBytes = 16 << 20 // 16 MiB
 // cap or the byte budget. A session larger than the budget is sent alone rather than dropped or
 // split; one that large is on its own the only request that can exceed the budget.
 func chunk(sessions []client.PushSession, maxCount, maxBytes int) [][]client.PushSession {
-	var batches [][]client.PushSession
-	var current []client.PushSession
+	return chunkBy(sessions, func(s client.PushSession) int { return len(s.Raw) }, maxCount, maxBytes)
+}
+
+// chunkBy is the shared batching used for both transcripts and summaries: it flushes a batch when the
+// next item would exceed the count cap or the byte budget (measured by sizeOf), and sends a single
+// over-budget item on its own rather than dropping or splitting it.
+func chunkBy[T any](items []T, sizeOf func(T) int, maxCount, maxBytes int) [][]T {
+	var batches [][]T
+	var current []T
 	currentBytes := 0
-	for _, s := range sessions {
-		size := len(s.Raw)
+	for _, item := range items {
+		size := sizeOf(item)
 		if len(current) > 0 && (len(current) >= maxCount || currentBytes+size > maxBytes) {
 			batches = append(batches, current)
 			current = nil
 			currentBytes = 0
 		}
-		current = append(current, s)
+		current = append(current, item)
 		currentBytes += size
 	}
 	if len(current) > 0 {
 		batches = append(batches, current)
 	}
 	return batches
+}
+
+// changedSummaries picks the on-disk summaries the store is missing or that changed, but only for
+// sessions whose transcript is unchanged — a changed transcript is a full push that already carries
+// its summary along. This is what lets a summary written after its transcript was ingested still sync.
+func changedSummaries(list []scan.Session, transcriptManifest, summaryManifest map[string]string) []client.PushSummary {
+	var out []client.PushSummary
+	for _, s := range list {
+		if s.Summary == "" {
+			continue // no local summary to sync
+		}
+		if transcriptManifest[s.ID] != s.Hash {
+			continue // transcript changed → the summary rides along the full push
+		}
+		if summaryManifest[s.ID] == scan.Sha256Hex(s.Summary) {
+			continue // already stored, unchanged
+		}
+		out = append(out, client.PushSummary{Source: s.Source, ID: s.ID, Summary: s.Summary})
+	}
+	return out
 }
 
 func progress(cfg config, stderr io.Writer, format string, args ...any) {
@@ -301,7 +355,7 @@ It scans this machine for Antigravity, OpenAI Codex, and Claude Code sessions an
 uploads them to the visualizer's ingest API. Sessions already stored with the same
 content are skipped, so running it repeatedly (e.g. on a schedule) is safe. For a source
 that keeps its own AI summary on disk (Antigravity), that summary is uploaded with the
-transcript.
+transcript, or synced on its own on a later run if it was written after the transcript.
 
 Flags:
   --server URL      base URL of the visualizer (default %q; or $AGENT_INGEST_SERVER)
@@ -349,21 +403,25 @@ func (m *multiFlag) Set(v string) error {
 // sourceReport is the outcome for one source. Error is set when the source could
 // not be synced, so a failure is never silently dropped from the summary.
 type sourceReport struct {
-	Ingested int    `json:"ingested"`
-	Skipped  int    `json:"skipped"`
-	Failed   int    `json:"failed"`
-	Error    string `json:"error,omitempty"`
+	Ingested        int    `json:"ingested"`
+	Skipped         int    `json:"skipped"`
+	Failed          int    `json:"failed"`
+	SummariesSynced int    `json:"summariesSynced,omitempty"`
+	SummariesFailed int    `json:"summariesFailed,omitempty"`
+	Error           string `json:"error,omitempty"`
 }
 
-func (s sourceReport) errored() bool { return s.Error != "" || s.Failed > 0 }
+func (s sourceReport) errored() bool { return s.Error != "" || s.Failed > 0 || s.SummariesFailed > 0 }
 
 // report accumulates per-source outcomes and renders the summary.
 type report struct {
-	dryRun bool
-	order  []string
-	perSrc map[string]sourceReport
-	total  client.Result
-	failed bool
+	dryRun               bool
+	order                []string
+	perSrc               map[string]sourceReport
+	total                client.Result
+	totalSummaries       int
+	totalSummariesFailed int
+	failed               bool
 }
 
 func newReport(dryRun bool) *report {
@@ -378,6 +436,8 @@ func (r *report) add(source string, sr sourceReport) {
 	r.total.Ingested += sr.Ingested
 	r.total.Skipped += sr.Skipped
 	r.total.Failed += sr.Failed
+	r.totalSummaries += sr.SummariesSynced
+	r.totalSummariesFailed += sr.SummariesFailed
 	if sr.errored() {
 		r.failed = true
 	}
@@ -386,9 +446,17 @@ func (r *report) add(source string, sr sourceReport) {
 func (r *report) write(stdout io.Writer, jsonOut bool) {
 	if jsonOut {
 		payload := map[string]any{
-			"ok":      !r.failed,
-			"dryRun":  r.dryRun,
-			"total":   r.total,
+			"ok":     !r.failed,
+			"dryRun": r.dryRun,
+			// The total mirrors the per-source shape (which carries summariesSynced/Failed), so a
+			// script reading .total sees the same fields as .sources.*.
+			"total": sourceReport{
+				Ingested:        r.total.Ingested,
+				Skipped:         r.total.Skipped,
+				Failed:          r.total.Failed,
+				SummariesSynced: r.totalSummaries,
+				SummariesFailed: r.totalSummariesFailed,
+			},
 			"sources": r.perSrc,
 		}
 		enc := json.NewEncoder(stdout)
@@ -415,7 +483,28 @@ func (r *report) write(stdout io.Writer, jsonOut bool) {
 			fmt.Fprintf(stdout, "%-*s  error: %s\n", width, s, sr.Error)
 			continue
 		}
-		fmt.Fprintf(stdout, "%-*s  %d %s, %d skipped, %d failed\n", width, s, sr.Ingested, verb, sr.Skipped, sr.Failed)
+		fmt.Fprintf(stdout, "%-*s  %d %s, %d skipped, %d failed%s\n", width, s, sr.Ingested, verb, sr.Skipped, sr.Failed, summarySuffix(sr.SummariesSynced, sr.SummariesFailed, r.dryRun))
 	}
-	fmt.Fprintf(stdout, "%-*s  %d %s, %d skipped, %d failed\n", width, "total", r.total.Ingested, verb, r.total.Skipped, r.total.Failed)
+	fmt.Fprintf(stdout, "%-*s  %d %s, %d skipped, %d failed%s\n", width, "total", r.total.Ingested, verb, r.total.Skipped, r.total.Failed, summarySuffix(r.totalSummaries, r.totalSummariesFailed, r.dryRun))
+}
+
+// summarySuffix appends the standalone-summary tally to a report line, but only when there is one, so
+// the common no-summary case reads exactly as before. Failures are always shown — a summary that was
+// pushed and rejected must never be dropped silently from the report.
+func summarySuffix(synced, failed int, dryRun bool) string {
+	var parts []string
+	if synced > 0 {
+		if dryRun {
+			parts = append(parts, fmt.Sprintf("%d summary(ies) would sync", synced))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d summary(ies) synced", synced))
+		}
+	}
+	if failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d summary(ies) failed", failed))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return ", " + strings.Join(parts, ", ")
 }

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,5 +80,55 @@ class SummaryRepositoryTest extends PostgresTest {
 
         assertTrue(summaries.find("codex", "same").get().contains("codex"));
         assertTrue(summaries.find("claude-code", "same").get().contains("claude"));
+    }
+
+    @Test
+    void upsertReportsWhetherItWroteAndSkipsUnchangedContent() {
+        assertTrue(summaries.upsert("codex", "a", "{\"summary\":\"one\"}", "t"), "first write");
+        assertFalse(
+            summaries.upsert("codex", "a", "{\"summary\":\"one\"}", "t"),
+            "identical content should be a no-op"
+        );
+        assertTrue(
+            summaries.upsert("codex", "a", "{\"summary\":\"two\"}", "t"),
+            "changed content should write"
+        );
+    }
+
+    @Test
+    void manifestPublishesTheContentHashPerSession() {
+        summaries.upsert("codex", "a", "{\"summary\":\"one\"}", "t");
+        summaries.upsert("codex", "b", "{\"summary\":\"two\"}", "t");
+        summaries.upsert("claude-code", "c", "{\"summary\":\"other\"}", "t");
+
+        Map<String, String> manifest = summaries.manifest("codex");
+        assertEquals(2, manifest.size());
+        // The published hash is the shared content hash the client also computes.
+        assertEquals(Hashing.sha256Hex("{\"summary\":\"one\"}"), manifest.get("a"));
+        assertEquals(Hashing.sha256Hex("{\"summary\":\"two\"}"), manifest.get("b"));
+    }
+
+    @Test
+    void aNullTitleDoesNotWipeAnExistingShortTitle() throws Exception {
+        summaries.upsert("codex", "a", "{\"summary\":\"first\"}", "Nice Title");
+        // A summary-only push carries no title; it must not erase the label set earlier.
+        summaries.upsert("codex", "a", "{\"summary\":\"second\"}", null);
+
+        assertEquals("Nice Title", storedShortTitle("codex", "a"));
+    }
+
+    private String storedShortTitle(String source, String id) throws SQLException {
+        try (
+            var c = dataSource().getConnection();
+            var s = c.prepareStatement(
+                "SELECT short_title FROM summaries WHERE source=? AND session_id=?"
+            )
+        ) {
+            s.setString(1, source);
+            s.setString(2, id);
+            try (var rs = s.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        }
     }
 }
