@@ -291,3 +291,39 @@ Relevant files:
 - `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java`</result>
 <usage><subagent_tokens>18797</subagent_tokens><tool_uses>14</tool_uses><duration_ms>102136</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a8b9a80477ad5e2d6</task-id>
+<tool-use-id>toolu_01MyoEEJy9fYQeaogVN38aui</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a8b9a80477ad5e2d6.output</output-file>
+<status>completed</status>
+<summary>Agent "Review large-payload fix" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have completed my review. Both properties, the chunk logic, and both test suites check out; findings below.
+
+## Verification performed
+- Confirmed against `micronaut-http-server-5.0.2` sources that `micronaut.server.max-request-size` and `micronaut.server.max-request-buffer-size` are both real properties, both default to 10 MB, both apply to a fully-buffered `@Body` (the controller uses `@Body List&lt;IngestSession&gt;`, `@ExecuteOn(IO)` — `IngestController.java:62-63`). The value form is `@ReadableBytes`, so the raw `134217728` is valid, and it is below the property's own `&lt; Integer.MAX_VALUE` guard. Config is correct.
+- `gofmt -l` clean, `go vet` clean, `go test -run TestChunk` passes.
+- Traced the chunk flush logic: no empty batches (append guarded by `len(current) &gt; 0`), oversized-session-alone works (first session always appended when `current` is empty, then the next iteration flushes it), count cap honored with no off-by-one (flush at `len(current) &gt;= maxCount` before appending → batches of exactly `maxCount`). A normal batch can never exceed both caps at once; the only over-budget batch is a lone oversized session, which by construction has count 1. Logic is sound.
+
+## Findings
+
+**1. Memory/DoS angle from the 13x buffer increase combined with optional auth — nit (worth documenting)**
+`src/main/resources/application.yml:8-11`. Raising `max-request-buffer-size` to 128 MiB means each in-flight ingest request can pin up to 128 MiB of heap (the `@Body` is fully buffered, per the Micronaut javadoc: "the maximum number of request bytes that will be buffered"). Auth is applied only when `INGEST_TOKEN` is set (`IngestController.java:34`; unauthenticated otherwise), the container has no explicit heap cap, and requests run concurrently on the IO pool. Concrete failure: on an exposed instance with `INGEST_TOKEN` unset, a handful of concurrent 128 MiB POSTs to `/api/ingest/sessions` exhausts heap → OOM. The change is reasonable for a trusted CLI, but the ceiling should be paired with a note/requirement that exposed deployments set `INGEST_TOKEN` (and ideally a front-proxy body cap). Not a code defect — a deployment risk the diff introduces.
+
+**2. The "oversized session sent alone" contract can still 413 — nit**
+`cli/main.go` (chunk comment + `--batch-size` help) and `application.yml` comment both frame a lone large session as guaranteed to get through. The 16 MiB byte budget bounds only multi-session batches; a single session larger than the budget is passed through unbounded. Byte accounting uses `len(s.Raw)` and ignores JSON string-escaping expansion. For *bounded* batches this is safe — worst-case escaping (control bytes → `\uXXXX`, 6x) on a 16 MiB budget is ~96 MiB, comfortably under the 128 MiB ceiling with framing overhead negligible; the 8x headroom is a good choice. But a lone session whose raw exceeds ~21 MiB of escape-heavy content, or ~128 MiB of plain text, will still 413 despite going "alone." Real transcripts are mostly plain text so the practical limit is a single ~128 MiB transcript — rare, but the comment/help text overpromises. Consider softening the wording or noting the residual cap.
+
+**3. `TestChunkStillRespectsTheCountCap` does not fail without the change — nit**
+`cli/main_test.go`. The pre-change `chunk` (count-only) already produced `[2,1]` for this input, so this test passes against the old implementation. It's a useful regression guard, but unlike the other two new tests (which genuinely fail without the change), it does not cover new behavior. Fine to keep; just noting it isn't change-proving.
+
+## Clean
+- `chunk` logic is correct: no empty batches, correct oversized-alone handling, count cap with no off-by-one, and no batch can exceed both caps simultaneously.
+- The Java test (`IngestControllerTest.acceptsALargeTranscriptOverTheDefaultRequestLimit`) drives real HTTP through the embedded server with an 11 MiB body of `x` (no escaping), so it genuinely 413s and fails without the config change.
+- Config property names, namespace, and raw-byte value form are all correct for Micronaut 5.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/application.yml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestController.java`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java`.</result>
+<usage><subagent_tokens>22789</subagent_tokens><tool_uses>10</tool_uses><duration_ms>165903</duration_ms></usage>
+</task-notification>
