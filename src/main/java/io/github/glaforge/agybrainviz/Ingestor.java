@@ -106,9 +106,19 @@ public class Ingestor {
             )
         );
         // Store a pushed cached analysis (e.g. Antigravity's on-disk summary.json) if present, so a
-        // machine that already generated one doesn't force every viewer to recompute it.
+        // machine that already generated one doesn't force every viewer to recompute it. A summary
+        // that won't store (e.g. it isn't valid jsonb) must not sink the session it rode in with, nor
+        // the rest of the batch — the transcript is what matters, so log it and move on.
         if (!isBlank(pushed.summary())) {
-            summaries.upsert(pushed.source(), pushed.id(), pushed.summary(), title);
+            try {
+                summaries.upsert(pushed.source(), pushed.id(), pushed.summary(), title);
+            } catch (RuntimeException e) {
+                LOG.warn(
+                    "Stored trajectory {} but could not store its pushed summary: {}",
+                    pushed.id(),
+                    e.getMessage()
+                );
+            }
         }
         return written ? Outcome.INGESTED : Outcome.SKIPPED;
     }

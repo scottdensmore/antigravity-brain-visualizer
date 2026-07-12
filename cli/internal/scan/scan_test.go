@@ -182,6 +182,75 @@ func TestScanSkipsUnreadableEntriesRatherThanFailing(t *testing.T) {
 	}
 }
 
+func TestScanReadsAntigravitySummaryJSON(t *testing.T) {
+	home := t.TempDir()
+	// Antigravity writes its own AI analysis next to the transcript; the CLI carries it
+	// so a summary computed on this machine reaches the shared store.
+	logs := filepath.Join(home, ".gemini/antigravity-cli/brain/sess-1/.system_generated/logs")
+	write(t, filepath.Join(logs, "transcript.jsonl"), "{\"type\":\"USER_INPUT\"}\n")
+	summary := "{\"summary\":\"did the thing\"}"
+	write(t, filepath.Join(logs, "summary.json"), summary)
+
+	sessions, err := Scan(home, []string{"antigravity-cli"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0].Summary != summary {
+		t.Errorf("Summary = %q, want the on-disk summary.json", sessions[0].Summary)
+	}
+}
+
+func TestScanHasNoSummaryWhenNoneOnDisk(t *testing.T) {
+	home := t.TempDir()
+	logs := filepath.Join(home, ".gemini/antigravity-cli/brain/sess-1/.system_generated/logs")
+	write(t, filepath.Join(logs, "transcript.jsonl"), "{\"type\":\"USER_INPUT\"}\n")
+
+	sessions, err := Scan(home, []string{"antigravity-cli"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) != 1 || sessions[0].Summary != "" {
+		t.Fatalf("a session with no summary.json must carry an empty Summary, got %q", sessions[0].Summary)
+	}
+}
+
+func TestScanIgnoresMalformedSummaryJSON(t *testing.T) {
+	home := t.TempDir()
+	// The server stores the summary in a jsonb column, so a non-JSON file would fail the
+	// whole push. Drop it here rather than poison the batch.
+	logs := filepath.Join(home, ".gemini/antigravity-cli/brain/sess-1/.system_generated/logs")
+	write(t, filepath.Join(logs, "transcript.jsonl"), "{\"type\":\"USER_INPUT\"}\n")
+	write(t, filepath.Join(logs, "summary.json"), "not json at all")
+
+	sessions, err := Scan(home, []string{"antigravity-cli"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) != 1 || sessions[0].Summary != "" {
+		t.Fatalf("a malformed summary.json must be dropped, got %q", sessions[0].Summary)
+	}
+}
+
+func TestScanFlatSourcesCarryNoSummary(t *testing.T) {
+	home := t.TempDir()
+	// Codex and Claude Code have no native on-disk summary — the visualizer computes theirs.
+	write(t, filepath.Join(home, ".codex/sessions/r.jsonl"), "hello")
+	write(t, filepath.Join(home, ".claude/projects/p/cc.jsonl"), "{\"type\":\"user\"}\n")
+
+	sessions, err := Scan(home, []string{"codex", "claude-code"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range sessions {
+		if s.Summary != "" {
+			t.Errorf("%s/%s should carry no summary, got %q", s.Source, s.ID, s.Summary)
+		}
+	}
+}
+
 func TestScanHashesUTF8CoercedContentSoItMatchesTheServer(t *testing.T) {
 	home := t.TempDir()
 	// A transcript with an invalid UTF-8 byte, as embedded tool output can produce.

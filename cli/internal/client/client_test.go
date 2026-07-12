@@ -98,6 +98,31 @@ func TestPushSerializesTheServersFieldNames(t *testing.T) {
 	}
 }
 
+func TestPushSummaryFieldIsSentWhenSetAndOmittedWhenEmpty(t *testing.T) {
+	var payloads []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var arr []map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&arr)
+		payloads = arr
+		_, _ = io.WriteString(w, `{"ingested":0,"skipped":0,"failed":0}`)
+	}))
+	defer srv.Close()
+
+	_, err := New(srv.URL, "").Push(context.Background(), []PushSession{
+		{Source: "antigravity-cli", ID: "a", Raw: "x", Summary: `{"summary":"s"}`},
+		{Source: "codex", ID: "b", Raw: "y"}, // no summary
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := payloads[0]["summary"]; got != `{"summary":"s"}` {
+		t.Errorf("summary should be sent as the raw JSON string, got %v", got)
+	}
+	if _, present := payloads[1]["summary"]; present {
+		t.Errorf("an empty summary must be omitted (omitempty), got keys %v", keysOf(payloads[1]))
+	}
+}
+
 func TestAuthorizationHeaderSentOnlyWhenTokenSet(t *testing.T) {
 	var auth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

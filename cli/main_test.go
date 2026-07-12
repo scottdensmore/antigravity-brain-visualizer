@@ -127,6 +127,48 @@ func TestPushesEveryDiscoveredSessionWhenManifestIsEmpty(t *testing.T) {
 	}
 }
 
+func TestPushCarriesAntigravitySummary(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := t.TempDir()
+	logs := filepath.Join(home, ".gemini/antigravity-cli/brain/sess-1/.system_generated/logs")
+	write(t, filepath.Join(logs, "transcript.jsonl"), "{\"type\":\"USER_INPUT\"}\n")
+	write(t, filepath.Join(logs, "summary.json"), "{\"summary\":\"did the thing\"}")
+
+	code, stdout, _ := runCLI(t, []string{"--server", f.srv.URL, "--home", home, "--source", "antigravity-cli"}, nil)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stdout=%q", code, stdout)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.pushed) == 0 || len(f.pushed[0]) == 0 {
+		t.Fatal("expected the antigravity session to be pushed")
+	}
+	if got := f.pushed[0][0]["summary"]; got != "{\"summary\":\"did the thing\"}" {
+		t.Errorf("pushed payload should carry the on-disk summary, got %v", got)
+	}
+}
+
+func TestPushOmitsSummaryWhenAbsent(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := seedHome(t) // codex + claude sessions, neither has a native summary
+
+	code, _, _ := runCLI(t, []string{"--server", f.srv.URL, "--home", home}, nil)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, batch := range f.pushed {
+		for _, s := range batch {
+			if _, present := s["summary"]; present {
+				t.Errorf("a session with no summary must omit the field, got payload %v", s)
+			}
+		}
+	}
+}
+
 func TestSkipsSessionsAlreadyInTheManifest(t *testing.T) {
 	f := newFakeServer()
 	defer f.srv.Close()

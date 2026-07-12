@@ -54,6 +54,7 @@ type PushSession struct {
 	Title       string `json:"title,omitempty"`
 	SourceMtime int64  `json:"sourceMtime"`
 	Raw         string `json:"raw"`
+	Summary     string `json:"summary,omitempty"`
 }
 
 // Result mirrors the server's IngestResult.
