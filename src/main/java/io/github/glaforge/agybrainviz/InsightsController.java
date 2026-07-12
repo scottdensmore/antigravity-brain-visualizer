@@ -21,7 +21,6 @@ import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
-import java.io.IOException;
 import java.util.Optional;
 
 /** Serves cross-session "fleet" analytics for a source. */
@@ -37,7 +36,7 @@ public class InsightsController {
 
     @ExecuteOn(TaskExecutors.IO)
     @Get(produces = "application/json")
-    public InsightsReport insights(@QueryValue Optional<String> flavor) throws IOException {
+    public InsightsReport insights(@QueryValue Optional<String> flavor) {
         return insightsService.forFlavor(flavor.orElse("antigravity-cli"));
     }
 
@@ -48,7 +47,7 @@ public class InsightsController {
         @QueryValue Optional<String> flavor,
         @QueryValue String category,
         @QueryValue String key
-    ) throws IOException {
+    ) {
         return insightsService.drilldown(flavor.orElse("antigravity-cli"), category, key);
     }
 }

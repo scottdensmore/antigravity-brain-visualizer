@@ -25,11 +25,12 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.annotation.MockBean;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -40,24 +41,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.TestInstance;
 
 /**
- * Integration tests for {@link AnalysisController}, covering the "generate AI analysis" journey. The
- * LLM ({@link AnalyzerService}), the provider config ({@link AiConfig}) and the token estimator
- * ({@link TokenCounter}) are replaced with deterministic mock beans so the orchestration, caching,
- * and error paths are exercised without any network access.
- *
- * <p>These tests mutate the process-global {@code user.home} system property, so they declare a
- * resource lock on it to stay correct if test parallelism is ever enabled.
+ * Integration tests for {@link AnalysisController}, covering the "generate AI analysis" journey.
+ * Sessions and cached summaries come from the store; the LLM, provider config, and token estimator
+ * are deterministic mock beans, so the orchestration, caching, and error paths run without a network.
  */
 @MicronautTest
-@ResourceLock("user.home")
-class AnalysisControllerTest {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS) // required by TestPropertyProvider
+class AnalysisControllerTest implements TestPropertyProvider {
+
+    @Override
+    public Map<String, String> getProperties() {
+        return TestPostgres.datasourceProperties();
+    }
 
     @Inject
     @Client("/")
@@ -65,7 +65,6 @@ class AnalysisControllerTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // Controllable mock state, shared with the @MockBean factory methods below.
     private static final AtomicReference<String> PROVIDER = new AtomicReference<>("gemini");
     private static final AtomicReference<Optional<String>> API_KEY = new AtomicReference<>(
         Optional.of("test-key")
@@ -74,33 +73,20 @@ class AnalysisControllerTest {
     private static final List<String> ANALYZE_CALLS = new CopyOnWriteArrayList<>();
     private static final AtomicInteger CONSOLIDATE_CALLS = new AtomicInteger(0);
 
-    // Optional latches to deterministically hold an in-flight analyze() call (concurrency test).
     private static final AtomicReference<CountDownLatch> ANALYZE_STARTED = new AtomicReference<>();
     private static final AtomicReference<CountDownLatch> ANALYZE_RELEASE = new AtomicReference<>();
 
-    // Failure injection for the graceful-fallback tests.
     private static final AtomicBoolean ANALYZE_FAILS = new AtomicBoolean(false);
     private static final AtomicBoolean CONSOLIDATE_FAILS = new AtomicBoolean(false);
 
-    private static String originalUserHome;
-    private static Path tempHome;
-
-    @BeforeAll
-    static void setUpHome() throws IOException {
-        originalUserHome = System.getProperty("user.home");
-        tempHome = Files.createTempDirectory("agy-analysis-test-home");
-        System.setProperty("user.home", tempHome.toString());
-    }
-
-    @AfterAll
-    static void restoreHome() {
-        if (originalUserHome != null) {
-            System.setProperty("user.home", originalUserHome);
-        }
-    }
+    // Normalized-schema steps (USER_INPUT + FUNCTION_CALL) that yield analysis sequences for
+    // Codex/Claude-style sources.
+    private static final String NORMALIZED_STEPS =
+        "[{\"type\":\"USER_INPUT\",\"content\":\"do it\"}," +
+        "{\"type\":\"FUNCTION_CALL\",\"source\":\"MODEL\",\"tool_calls\":[{\"name\":\"exec_command\",\"args\":{\"command\":\"ls\"}}]}]";
 
     @BeforeEach
-    void resetMocks() {
+    void reset() throws SQLException {
         PROVIDER.set("gemini");
         API_KEY.set(Optional.of("test-key"));
         TOKEN_RESULT.set(10);
@@ -110,6 +96,7 @@ class AnalysisControllerTest {
         ANALYZE_RELEASE.set(null);
         ANALYZE_FAILS.set(false);
         CONSOLIDATE_FAILS.set(false);
+        PostgresTest.resetStore();
     }
 
     @MockBean(AiConfig.class)
@@ -186,50 +173,38 @@ class AnalysisControllerTest {
         };
     }
 
-    private void writeTranscript(String id, String content) throws IOException {
-        Path logs = tempHome
-            .resolve(".gemini")
-            .resolve("antigravity-cli")
-            .resolve("brain")
-            .resolve(id)
-            .resolve(".system_generated")
-            .resolve("logs");
-        Files.createDirectories(logs);
-        Files.writeString(logs.resolve("transcript.jsonl"), content);
-    }
-
-    private Path logsDir(String id) {
-        return tempHome
-            .resolve(".gemini")
-            .resolve("antigravity-cli")
-            .resolve("brain")
-            .resolve(id)
-            .resolve(".system_generated")
-            .resolve("logs");
-    }
-
     private String get(String uri) {
         return client.toBlocking().retrieve(uri);
     }
 
-    private void writeCodexSession(String relPath, String content) throws IOException {
-        Path file = tempHome.resolve(".codex").resolve("sessions").resolve(relPath);
-        Files.createDirectories(file.getParent());
-        Files.writeString(file, content);
+    private void seed(String source, String id, String stepsJson) {
+        PostgresTest.seedSession(source, id, "t-" + id, stepsJson, null, 1L);
     }
 
-    private void writeClaudeCodeSession(String relPath, String content) throws IOException {
-        Path file = tempHome.resolve(".claude").resolve("projects").resolve(relPath);
-        Files.createDirectories(file.getParent());
-        Files.writeString(file, content);
+    private void seedSummary(String source, String id, String summaryJson) {
+        new SummaryRepository(TestPostgres.dataSource()).upsert(source, id, summaryJson, "t");
     }
+
+    private Optional<String> cached(String source, String id) {
+        return new SummaryRepository(TestPostgres.dataSource()).find(source, id);
+    }
+
+    // A native-Antigravity transcript: one user line plus a planner response carrying two tool calls,
+    // so TranscriptParser yields three condensed lines.
+    private static final String ANTIGRAVITY_THREE_LINES =
+        "[{\"type\":\"USER_INPUT\",\"content\":\"go\"}," +
+        "{\"type\":\"PLANNER_RESPONSE\",\"tool_calls\":[" +
+        "{\"name\":\"a\",\"arguments\":{\"CommandLine\":\"one\"}}," +
+        "{\"name\":\"b\",\"arguments\":{\"CommandLine\":\"two\"}}]}]";
+
+    private static final String ANTIGRAVITY_ONE_LINE =
+        "[{\"type\":\"USER_INPUT\",\"content\":\"do the thing\"}]";
 
     // ----- progress endpoint -----
 
     @Test
     void progressReturnsSentinelWhenNoAnalysisRunning() throws IOException {
-        String body = get("/api/analysis/conversations/unknown-id/progress");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/unknown-id/progress"));
         assertEquals("", node.get("phase").asText());
         assertEquals(-1, node.get("progress").asInt());
     }
@@ -239,42 +214,36 @@ class AnalysisControllerTest {
     @Test
     void summarizeReturnsErrorWhenApiKeyMissing() throws IOException {
         API_KEY.set(Optional.empty());
-        String body = get("/api/analysis/conversations/any-id/summarize");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/any-id/summarize"));
         assertTrue(node.get("summary").asText().contains("GEMINI_API_KEY"));
     }
 
     @Test
     void summarizeRunsWithoutAnApiKeyWhenUsingOllama() throws IOException {
-        // Ollama needs no key: the guard must pass and serve the cached analysis.
         PROVIDER.set("ollama");
         API_KEY.set(Optional.empty());
         String id = "ollama-session";
-        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"hi\"}\n");
-        Files.writeString(logsDir(id).resolve("summary.json"), "{\"summary\":\"local result\"}");
+        seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
+        seedSummary("antigravity-cli", id, "{\"summary\":\"local result\"}");
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/" + id + "/summarize"));
         assertEquals("local result", node.get("summary").asText());
     }
 
     @Test
     void summarizeReturnsNoTranscriptMessageWhenTranscriptMissing() throws IOException {
-        String body = get("/api/analysis/conversations/no-transcript-here/summarize");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(
+            get("/api/analysis/conversations/no-transcript-here/summarize")
+        );
         assertEquals("No transcript found.", node.get("summary").asText());
     }
 
-    // ----- codex source analysis -----
+    // ----- codex / claude source analysis (normalized schema) -----
 
     @Test
     void summarizesCodexSessionAndCachesResult() throws IOException {
         String id = "rollout-2026-06-20T15-00-00-codexanalysis";
-        writeCodexSession(
-            "2026/06/20/" + id + ".jsonl",
-            "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"do it\"}]}}\n" +
-            "{\"type\":\"response_item\",\"timestamp\":\"t\",\"payload\":{\"type\":\"function_call\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"ls\\\"}\",\"call_id\":\"c1\"}}\n"
-        );
+        seed("codex", id, NORMALIZED_STEPS);
 
         String body = get(
             "/api/analysis/conversations/" + id + "/summarize?flavor=codex&force=true"
@@ -282,7 +251,6 @@ class AnalysisControllerTest {
         assertEquals("chunk summary", MAPPER.readTree(body).get("summary").asText());
         assertEquals(1, ANALYZE_CALLS.size());
 
-        // A subsequent non-forced request is served from the Codex cache without re-invoking the LLM.
         String again = get("/api/analysis/conversations/" + id + "/summarize?flavor=codex");
         assertEquals("Chunk Title", MAPPER.readTree(again).get("shortTitle").asText());
         assertEquals(1, ANALYZE_CALLS.size());
@@ -290,20 +258,16 @@ class AnalysisControllerTest {
 
     @Test
     void codexSummarizeReturnsNoTranscriptForUnknownId() throws IOException {
-        String body = get("/api/analysis/conversations/unknown-codex/summarize?flavor=codex");
-        assertEquals("No transcript found.", MAPPER.readTree(body).get("summary").asText());
+        JsonNode node = MAPPER.readTree(
+            get("/api/analysis/conversations/unknown-codex/summarize?flavor=codex")
+        );
+        assertEquals("No transcript found.", node.get("summary").asText());
     }
-
-    // ----- claude-code source analysis -----
 
     @Test
     void summarizesClaudeCodeSessionAndCachesResult() throws IOException {
         String id = "12121212-3434-5656-7878-909090909090";
-        writeClaudeCodeSession(
-            "-Users-me-proj/" + id + ".jsonl",
-            "{\"type\":\"user\",\"timestamp\":\"t\",\"message\":{\"role\":\"user\",\"content\":\"do it\"}}\n" +
-            "{\"type\":\"assistant\",\"timestamp\":\"t\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"u1\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}\n"
-        );
+        seed("claude-code", id, NORMALIZED_STEPS);
 
         String body = get(
             "/api/analysis/conversations/" + id + "/summarize?flavor=claude-code&force=true"
@@ -319,14 +283,10 @@ class AnalysisControllerTest {
     @Test
     void summarizeReturnsCachedSummaryWithoutCallingLlm() throws IOException {
         String id = "cached-session";
-        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"hi\"}\n");
-        Files.writeString(
-            logsDir(id).resolve("summary.json"),
-            "{\"summary\":\"previously cached\"}"
-        );
+        seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
+        seedSummary("antigravity-cli", id, "{\"summary\":\"previously cached\"}");
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/" + id + "/summarize"));
         assertEquals("previously cached", node.get("summary").asText());
         assertTrue(ANALYZE_CALLS.isEmpty(), "cached path must not invoke the LLM");
     }
@@ -336,37 +296,33 @@ class AnalysisControllerTest {
     @Test
     void fallsBackToLocalMergeWhenConsolidationFails() throws IOException {
         String id = "consolidation-fallback";
-        writeTranscript(
-            id,
-            "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n" +
-            "{\"type\":\"PLANNER_RESPONSE\",\"tool_calls\":[" +
-            "{\"name\":\"a\",\"arguments\":{\"CommandLine\":\"one\"}}," +
-            "{\"name\":\"b\",\"arguments\":{\"CommandLine\":\"two\"}}]}\n"
-        );
+        seed("antigravity-cli", id, ANTIGRAVITY_THREE_LINES);
         TOKEN_RESULT.set(100_001); // force multiple chunks -> consolidation
         CONSOLIDATE_FAILS.set(true);
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(
+            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+        );
         String summary = node.get("summary").asText();
 
-        // Not a hard error; the partial chunk analyses are merged locally instead.
         assertFalse(summary.startsWith("Error generating summary"));
         assertTrue(summary.contains("partial analyses"));
         assertTrue(summary.contains("chunk summary"));
         assertEquals("Chunk Title", node.get("shortTitle").asText());
         // A degraded fallback must NOT be cached, so a later load retries the real consolidation.
-        assertFalse(Files.exists(logsDir(id).resolve("summary.json")));
+        assertTrue(cached("antigravity-cli", id).isEmpty());
     }
 
     @Test
     void returnsClearMessageWhenTheModelFailsForEveryChunk() throws IOException {
         String id = "all-chunks-fail";
-        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n");
+        seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
         ANALYZE_FAILS.set(true);
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
-        String summary = MAPPER.readTree(body).get("summary").asText();
+        String summary = MAPPER
+            .readTree(get("/api/analysis/conversations/" + id + "/summarize?force=true"))
+            .get("summary")
+            .asText();
         assertFalse(summary.startsWith("Error generating summary"));
         assertTrue(summary.contains("could not be generated"));
     }
@@ -376,36 +332,30 @@ class AnalysisControllerTest {
     @Test
     void summarizeSingleChunkRunsAnalysisAndCachesResult() throws IOException {
         String id = "single-chunk-session";
-        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"do the thing\"}\n");
+        seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(
+            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+        );
 
         assertEquals("chunk summary", node.get("summary").asText());
         assertEquals("Chunk Title", node.get("shortTitle").asText());
         assertEquals(1, ANALYZE_CALLS.size());
         assertEquals(0, CONSOLIDATE_CALLS.get());
-        // Result is cached to disk for next time.
-        assertTrue(Files.exists(logsDir(id).resolve("summary.json")));
-        assertEquals("Chunk Title", Files.readString(logsDir(id).resolve("short_title.txt")));
+        // Result is cached in the store for next time.
+        assertTrue(cached("antigravity-cli", id).orElse("").contains("Chunk Title"));
     }
 
     @Test
     void summarizeMultipleChunksConsolidatesResults() throws IOException {
         String id = "multi-chunk-session";
-        // One user line + two tool calls => three condensed lines.
-        writeTranscript(
-            id,
-            "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n" +
-            "{\"type\":\"PLANNER_RESPONSE\",\"tool_calls\":[" +
-            "{\"name\":\"a\",\"arguments\":{\"CommandLine\":\"one\"}}," +
-            "{\"name\":\"b\",\"arguments\":{\"CommandLine\":\"two\"}}]}\n"
-        );
+        seed("antigravity-cli", id, ANTIGRAVITY_THREE_LINES);
         // Force every multi-line join over budget so chunking splits down to single lines.
         TOKEN_RESULT.set(100_001);
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(
+            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+        );
 
         assertEquals("final summary", node.get("summary").asText());
         assertEquals("Final Title", node.get("shortTitle").asText());
@@ -416,28 +366,23 @@ class AnalysisControllerTest {
     @Test
     void forceRecomputeOverwritesAnExistingCachedSummary() throws IOException {
         String id = "force-session";
-        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n");
-        Files.writeString(logsDir(id).resolve("summary.json"), "{\"summary\":\"stale\"}");
+        seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
+        seedSummary("antigravity-cli", id, "{\"summary\":\"stale\"}");
 
-        String body = get("/api/analysis/conversations/" + id + "/summarize?force=true");
-        JsonNode node = MAPPER.readTree(body);
+        JsonNode node = MAPPER.readTree(
+            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+        );
 
         assertEquals("chunk summary", node.get("summary").asText());
-        // The LLM was invoked even though a cached summary existed.
         assertEquals(1, ANALYZE_CALLS.size());
-        // The cache file was overwritten with the freshly computed result.
-        assertTrue(Files.readString(logsDir(id).resolve("summary.json")).contains("chunk summary"));
+        assertTrue(cached("antigravity-cli", id).orElse("").contains("chunk summary"));
     }
 
     @Test
     void summarizeReportsAlreadyRunningForAConcurrentRequest() throws Exception {
         String id = "concurrent-session";
-        writeTranscript(id, "{\"type\":\"USER_INPUT\",\"content\":\"go\"}\n");
+        seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
 
-        // Note: this test assumes the IO executor is the default unbounded/cached pool — request #1
-        // holds one thread on f.get(), its chunk task holds a second on the release latch, and
-        // request #2 needs a third. If the IO pool is ever pinned to a small fixed size this would
-        // block until the 10s latch timeout rather than asserting cleanly.
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         ANALYZE_STARTED.set(started);
@@ -448,7 +393,6 @@ class AnalysisControllerTest {
             Future<String> first = background.submit(() ->
                 get("/api/analysis/conversations/" + id + "/summarize?force=true")
             );
-            // Wait until the first request is inside analyze() and holding the per-id lock.
             assertTrue(started.await(5, TimeUnit.SECONDS), "first analysis did not start");
 
             String second = get("/api/analysis/conversations/" + id + "/summarize?force=true");

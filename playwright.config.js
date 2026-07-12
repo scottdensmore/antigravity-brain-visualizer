@@ -33,7 +33,15 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Pushes the fixture sessions to the store once the server is up; every test depends on it.
+    { name: "setup", testMatch: /.*\.setup\.mjs/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+    },
+  ],
   webServer: {
     command: serverCommand,
     url: `http://localhost:${PORT}/api/brain/conversations`,

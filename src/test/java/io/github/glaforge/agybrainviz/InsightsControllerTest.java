@@ -23,53 +23,51 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.SQLException;
+import java.util.Map;
 import java.util.stream.StreamSupport;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.TestInstance;
 
-/** Integration tests for the cross-session insights endpoint, over a temporary {@code user.home}. */
+/** Integration tests for the cross-session insights endpoint, over sessions gathered from the store. */
 @MicronautTest
-@ResourceLock("user.home")
-class InsightsControllerTest {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS) // required by TestPropertyProvider
+class InsightsControllerTest implements TestPropertyProvider {
+
+    @Override
+    public Map<String, String> getProperties() {
+        return TestPostgres.datasourceProperties();
+    }
 
     @Inject
     @Client("/")
     HttpClient client;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static String originalUserHome;
-    private static Path tempHome;
 
-    @BeforeAll
-    static void setUpHome() throws IOException {
-        originalUserHome = System.getProperty("user.home");
-        tempHome = Files.createTempDirectory("agy-insights-test-home");
-        System.setProperty("user.home", tempHome.toString());
+    @BeforeEach
+    void reset() throws SQLException {
+        PostgresTest.resetStore();
     }
 
-    @AfterAll
-    static void restoreHome() {
-        if (originalUserHome != null) System.setProperty("user.home", originalUserHome);
+    // Turns a JSONL transcript into the stored steps array (Antigravity's native schema, unchanged).
+    private static String steps(String jsonl) {
+        return "[" + String.join(",", jsonl.strip().split("\n")) + "]";
     }
 
-    private void writeAntigravity(String id, String transcript, String summaryJson)
-        throws IOException {
-        Path logs = tempHome
-            .resolve(".gemini")
-            .resolve("antigravity-cli")
-            .resolve("brain")
-            .resolve(id)
-            .resolve(".system_generated")
-            .resolve("logs");
-        Files.createDirectories(logs);
-        Files.writeString(logs.resolve("transcript.jsonl"), transcript);
-        if (summaryJson != null) Files.writeString(logs.resolve("summary.json"), summaryJson);
+    private void seedAntigravity(String id, String jsonl, String summaryJson, long mtime) {
+        PostgresTest.seedSession(
+            "antigravity-cli",
+            id,
+            "t-" + id,
+            steps(jsonl),
+            summaryJson,
+            mtime
+        );
     }
 
     private JsonNode get(String uri) throws IOException {
@@ -84,18 +82,20 @@ class InsightsControllerTest {
 
     @Test
     void aggregatesAntigravitySessions() throws IOException {
-        writeAntigravity(
+        seedAntigravity(
             "session-errors",
             "{\"type\":\"USER_INPUT\",\"source\":\"USER_EXPLICIT\",\"content\":\"go\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n" +
             "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T10:00:05Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}},{\"name\":\"Bash\",\"arguments\":{}}]}\n" +
-            "{\"type\":\"ERROR_MESSAGE\",\"status\":\"ERROR\",\"error\":\"NullPointerException at X\",\"created_at\":\"2026-06-19T10:00:10Z\"}\n",
-            "{\"recommendations\":[\"Add a lint rule\",\"Write more tests\"],\"issues\":[{\"error\":\"NPE in parser\",\"circumvention\":\"added null check\"}]}"
+            "{\"type\":\"ERROR_MESSAGE\",\"status\":\"ERROR\",\"error\":\"NullPointerException at X\",\"created_at\":\"2026-06-19T10:00:10Z\"}",
+            "{\"recommendations\":[\"Add a lint rule\",\"Write more tests\"],\"issues\":[{\"error\":\"NPE in parser\",\"circumvention\":\"added null check\"}]}",
+            1L
         );
-        writeAntigravity(
+        seedAntigravity(
             "session-clean",
             "{\"type\":\"USER_INPUT\",\"source\":\"USER_EXPLICIT\",\"content\":\"hi\",\"created_at\":\"2026-06-19T11:00:00Z\"}\n" +
-            "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T11:00:01Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}}]}\n",
-            null
+            "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T11:00:01Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}}]}",
+            null,
+            2L
         );
 
         JsonNode r = get("/api/insights?flavor=antigravity-cli");
@@ -116,12 +116,13 @@ class InsightsControllerTest {
 
     @Test
     void drillsDownIntoATallyItem() throws IOException {
-        writeAntigravity(
+        seedAntigravity(
             "session-errors",
             "{\"type\":\"USER_INPUT\",\"source\":\"USER_EXPLICIT\",\"content\":\"fix the parser\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n" +
             "{\"type\":\"PLANNER_RESPONSE\",\"source\":\"MODEL\",\"created_at\":\"2026-06-19T10:00:05Z\",\"tool_calls\":[{\"name\":\"Read\",\"arguments\":{}}]}\n" +
-            "{\"type\":\"ERROR_MESSAGE\",\"status\":\"ERROR\",\"error\":\"NullPointerException at X\",\"created_at\":\"2026-06-19T10:00:10Z\"}\n",
-            null
+            "{\"type\":\"ERROR_MESSAGE\",\"status\":\"ERROR\",\"error\":\"NullPointerException at X\",\"created_at\":\"2026-06-19T10:00:10Z\"}",
+            null,
+            1L
         );
 
         JsonNode r = get(
@@ -143,7 +144,6 @@ class InsightsControllerTest {
         JsonNode r = get("/api/insights?flavor=antigravity-ide");
         assertEquals(0, r.get("sessionCount").asInt());
         assertEquals(0, r.get("sampledSessions").asInt());
-        // Empty collections are omitted by serde; absent means "no tools".
         JsonNode topTools = r.get("topTools");
         assertTrue(topTools == null || topTools.isEmpty());
     }

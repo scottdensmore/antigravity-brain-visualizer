@@ -26,8 +26,6 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +63,8 @@ public class AnalysisController {
     private final ExecutorService executor;
     private final AiConfig aiConfig;
     private final TokenCounter tokenCounter;
-    private final List<SessionSource> sessionSources;
+    private final SessionRepository sessions;
+    private final SummaryRepository summaries;
 
     @Inject
     public AnalysisController(
@@ -73,17 +72,15 @@ public class AnalysisController {
         @Named(TaskExecutors.IO) ExecutorService executor,
         AiConfig aiConfig,
         TokenCounter tokenCounter,
-        List<SessionSource> sessionSources
+        SessionRepository sessions,
+        SummaryRepository summaries
     ) {
         this.analyzerService = analyzerService;
         this.executor = executor;
         this.aiConfig = aiConfig;
         this.tokenCounter = tokenCounter;
-        this.sessionSources = sessionSources;
-    }
-
-    private Optional<SessionSource> sourceFor(String flavor) {
-        return sessionSources.stream().filter(s -> s.handles(flavor)).findFirst();
+        this.sessions = sessions;
+        this.summaries = summaries;
     }
 
     private static final Map<String, Object> runningTasks = new ConcurrentHashMap<>();
@@ -106,42 +103,20 @@ public class AnalysisController {
         }
 
         try {
-            Optional<SessionSource> source = sourceFor(flavor.orElse(""));
-            boolean external = source.isPresent();
+            String flavorName = flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR);
             boolean forceRecompute = force.orElse(false);
 
-            // Antigravity caches the summary inside the agent's own brain dir; external sources
-            // (Codex, Claude Code) cache via their SessionSource. Antigravity paths are resolved up
-            // front; for external sources they stay null.
-            Path logsDir = external
-                ? null
-                : AntigravityPaths.logsDir(flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR), id);
-            Path transcriptPath = external ? null : AntigravityPaths.transcript(logsDir);
-            Path summaryJsonPath = external ? null : AntigravityPaths.summaryJson(logsDir);
-            Path shortTitlePath = external ? null : AntigravityPaths.shortTitle(logsDir);
-
-            boolean exists = external
-                ? source.get().sessionExists(id)
-                : Files.exists(transcriptPath);
-            if (!exists) {
+            if (!sessions.exists(flavorName, id)) {
                 return "{\"summary\": \"No transcript found.\"}";
             }
 
             if (!forceRecompute) {
-                Optional<String> cached = external
-                    ? source.get().cachedSummary(id)
-                    : (
-                        Files.exists(summaryJsonPath)
-                            ? Optional.of(Files.readString(summaryJsonPath))
-                            : Optional.empty()
-                    );
+                Optional<String> cached = summaries.find(flavorName, id);
                 if (cached.isPresent()) {
                     return cached.get();
                 }
-            } else if (external) {
-                source.get().deleteCache(id);
             } else {
-                Files.deleteIfExists(summaryJsonPath);
+                summaries.delete(flavorName, id);
             }
 
             ObjectMapper mapper = new ObjectMapper();
@@ -149,9 +124,10 @@ public class AnalysisController {
             boolean consolidationFellBack = false;
 
             try {
-                List<List<String>> sequences = external
-                    ? source.get().analysisSequences(id)
-                    : TranscriptParser.parseSequences(Files.readAllLines(transcriptPath));
+                List<List<String>> sequences = AnalysisSequences.fromStepsJson(
+                    flavorName,
+                    sessions.steps(flavorName, id)
+                );
 
                 ToIntFunction<String> tokenFn = tokenCounter::estimate;
 
@@ -301,23 +277,16 @@ public class AnalysisController {
                 }
 
                 String title = responseObj.shortTitle();
+                // Caching is best-effort: a store hiccup must not discard a summary we just computed.
+                // Log it, though — a persistently failing cache silently re-spends tokens every load.
                 try {
-                    if (external) {
-                        source.get().writeCache(id, jsonResponse, title);
-                    } else {
-                        // The short title is best-effort; a failure here must not block caching or
-                        // returning the summary.
-                        try {
-                            if (title != null && !title.isEmpty()) {
-                                Files.writeString(shortTitlePath, title.trim());
-                            }
-                        } catch (Exception ignore) {}
-                        Files.writeString(summaryJsonPath, jsonResponse);
-                    }
-                    return jsonResponse;
+                    summaries.upsert(flavorName, id, jsonResponse, title);
                 } catch (Exception e) {
-                    throw new Exception("Invalid JSON response");
+                    System.err.println(
+                        "Could not cache the summary for " + id + ": " + e.getMessage()
+                    );
                 }
+                return jsonResponse;
             } catch (Exception e) {
                 System.err.println("Exception caught during analysis:");
                 e.printStackTrace();

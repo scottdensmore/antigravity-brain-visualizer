@@ -63,4 +63,48 @@ class ApplicationTest {
         Application.applyFrameworkSettings(Map.of(KEY, "   "));
         assertNull(System.getProperty(PROPERTY));
     }
+
+    // The datasource bridge, exercised through a made-up property so the test JVM's real
+    // `datasources.default.*` settings are never touched.
+
+    private static final String DS_KEY = "FOO_DATABASE_URL";
+    private static final String DS_PROPERTY = "datasources.foo.url";
+
+    @AfterEach
+    void clearDatasourceProperty() {
+        System.clearProperty(DS_PROPERTY);
+    }
+
+    @Test
+    void bridgesADotEnvValueOntoTheDatasourceProperty() {
+        Application.applyDatasourceSetting(
+            DS_KEY,
+            DS_PROPERTY,
+            Map.of(DS_KEY, "jdbc:postgresql://h/d")
+        );
+        assertEquals("jdbc:postgresql://h/d", System.getProperty(DS_PROPERTY));
+    }
+
+    @Test
+    void anExplicitSystemPropertyWinsOverTheDotEnvDatasourceValue() {
+        System.setProperty(DS_PROPERTY, "jdbc:postgresql://explicit/db"); // as if passed with -D
+        Application.applyDatasourceSetting(
+            DS_KEY,
+            DS_PROPERTY,
+            Map.of(DS_KEY, "jdbc:postgresql://h/d")
+        );
+        assertEquals("jdbc:postgresql://explicit/db", System.getProperty(DS_PROPERTY));
+    }
+
+    @Test
+    void leavesTheYamlDefaultInPlaceWhenNothingIsSet() {
+        Application.applyDatasourceSetting(DS_KEY, DS_PROPERTY, Map.of());
+        assertNull(System.getProperty(DS_PROPERTY));
+    }
+
+    @Test
+    void treatsABlankDatasourceValueAsUnset() {
+        Application.applyDatasourceSetting(DS_KEY, DS_PROPERTY, Map.of(DS_KEY, "   "));
+        assertNull(System.getProperty(DS_PROPERTY));
+    }
 }

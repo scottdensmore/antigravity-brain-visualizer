@@ -1,5 +1,6 @@
-// Playwright global setup: seed the fixture brain directory that the server reads via -Duser.home,
-// and fail early with a helpful message if the runnable jar hasn't been built yet.
+// Playwright global setup: write the fixture config file and stage the session payloads that
+// seed.setup.mjs will push to the store once the server is up. Fails early with a helpful message if
+// the runnable jar hasn't been built yet.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -10,7 +11,9 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 
 export default function globalSetup() {
   const home = path.join(projectRoot, "build", "e2e-home");
-  seedFixtures(home);
+  const { sessions } = seedFixtures(home);
+  // The seed project (which runs once the server is up) reads these and pushes them to /api/ingest.
+  fs.writeFileSync(path.join(projectRoot, "build", "e2e-fixtures.json"), JSON.stringify(sessions));
 
   const libs = path.join(projectRoot, "build", "libs");
   const hasJar =

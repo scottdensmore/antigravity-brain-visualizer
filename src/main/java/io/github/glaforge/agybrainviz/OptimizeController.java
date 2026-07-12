@@ -23,7 +23,6 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
-import java.io.IOException;
 
 /** The prompt lab: compares two analysis prompt variants, scored by the deterministic eval. */
 @Controller("/api/optimize")
@@ -50,7 +49,7 @@ public class OptimizeController {
 
     @ExecuteOn(TaskExecutors.IO)
     @Post(produces = "application/json")
-    public OptimizeReport compare(@Body OptimizeRequest request) throws IOException {
+    public OptimizeReport compare(@Body OptimizeRequest request) {
         String flavor = request.flavor() == null ? "antigravity-cli" : request.flavor();
         return optimizeService.compare(
             flavor,

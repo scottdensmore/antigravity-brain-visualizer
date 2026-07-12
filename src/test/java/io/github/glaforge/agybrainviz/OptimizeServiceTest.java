@@ -18,20 +18,16 @@ package io.github.glaforge.agybrainviz;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.sql.SQLException;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Tests the prompt lab: eval-as-fitness comparison of two instructions, with graceful fallbacks. */
-class OptimizeServiceTest {
+class OptimizeServiceTest extends PostgresTest {
 
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(4);
 
@@ -40,55 +36,9 @@ class OptimizeServiceTest {
         EXECUTOR.shutdownNow();
     }
 
-    private static class FakeSource implements SessionSource {
-
-        private final Map<String, String> transcripts = new LinkedHashMap<>();
-
-        void add(String id, String transcriptJson) {
-            transcripts.put(id, transcriptJson);
-        }
-
-        @Override
-        public boolean handles(String flavor) {
-            return "fake".equals(flavor);
-        }
-
-        @Override
-        public List<Map<String, String>> listConversations() {
-            List<Map<String, String>> list = new ArrayList<>();
-            for (String id : transcripts.keySet()) {
-                Map<String, String> info = new HashMap<>();
-                info.put("id", id);
-                list.add(info);
-            }
-            return list;
-        }
-
-        @Override
-        public String transcriptJson(String id) {
-            return transcripts.getOrDefault(id, "[]");
-        }
-
-        @Override
-        public Optional<String> cachedSummary(String id) {
-            return Optional.empty();
-        }
-
-        @Override
-        public boolean sessionExists(String id) {
-            return transcripts.containsKey(id);
-        }
-
-        @Override
-        public List<List<String>> analysisSequences(String id) {
-            return List.of();
-        }
-
-        @Override
-        public void deleteCache(String id) {}
-
-        @Override
-        public void writeCache(String id, String summaryJson, String title) {}
+    @BeforeEach
+    void reset() throws SQLException {
+        resetStore();
     }
 
     // A well-formed analysis (passes all deterministic checks).
@@ -116,78 +66,75 @@ class OptimizeServiceTest {
         return new AiConfig("gemini", "", null, null, null);
     }
 
-    private FakeSource sourceWith(int sessions) {
-        FakeSource fake = new FakeSource();
+    private void seedSessions(int sessions) {
         for (int i = 0; i < sessions; i++) {
-            fake.add("s" + i, "[{\"type\":\"USER_INPUT\",\"content\":\"go\"}]");
+            seedSession("fake", "s" + i, "[{\"type\":\"USER_INPUT\",\"content\":\"go\"}]", null, i);
         }
-        return fake;
     }
 
-    private OptimizeService service(
-        FakeSource fake,
-        VariantAnalyzerService analyzer,
-        AiConfig cfg
-    ) {
-        return new OptimizeService(new SessionCollector(List.of(fake)), analyzer, cfg, EXECUTOR);
+    private OptimizeService service(VariantAnalyzerService analyzer, AiConfig cfg) {
+        return new OptimizeService(
+            new SessionCollector(new SessionRepository(dataSource())),
+            analyzer,
+            cfg,
+            EXECUTOR
+        );
     }
 
     @Test
-    void scoresBothVariantsSoTheWinnerIsVisible() throws IOException {
+    void scoresBothVariantsSoTheWinnerIsVisible() {
+        seedSessions(3);
         // Instruction A yields good analyses, B yields poor ones.
         VariantAnalyzerService analyzer = (instruction, transcript) ->
             instruction.contains("BETTER") ? good() : poor();
 
-        OptimizeReport r = service(sourceWith(3), analyzer, configured())
+        OptimizeReport r = service(analyzer, configured())
             .compare("fake", 3, "BETTER prompt", "worse prompt");
 
         assertEquals(3, r.sampleSize());
         assertEquals(3, r.a().scored());
         assertEquals(3, r.b().scored());
-        // A (good) clearly outscores B (poor).
         assertTrue(r.a().avgScore() > r.b().avgScore());
         assertEquals(100.0, r.a().avgScore());
-        // Per-check pass rates are reported for both.
         assertEquals(EvalScorer.checkNames().size(), r.a().checkPassRates().size());
     }
 
     @Test
-    void capsTheSampleSize() throws IOException {
+    void capsTheSampleSize() {
+        seedSessions(20);
         VariantAnalyzerService analyzer = (instruction, transcript) -> good();
-        OptimizeReport r = service(sourceWith(20), analyzer, configured())
-            .compare("fake", 99, "a", "b");
+        OptimizeReport r = service(analyzer, configured()).compare("fake", 99, "a", "b");
         assertEquals(OptimizeService.MAX_SAMPLE, r.sampleSize());
     }
 
     @Test
-    void degradesWhenAiNotConfigured() throws IOException {
+    void degradesWhenAiNotConfigured() {
+        seedSessions(3);
         VariantAnalyzerService analyzer = (instruction, transcript) -> {
             throw new AssertionError("analyzer must not be called when AI is not configured");
         };
-        OptimizeReport r = service(sourceWith(3), analyzer, notConfigured())
-            .compare("fake", 3, "a", "b");
+        OptimizeReport r = service(analyzer, notConfigured()).compare("fake", 3, "a", "b");
         assertEquals(0, r.sampleSize());
         assertTrue(r.note().contains("Configure an AI provider"));
     }
 
     @Test
-    void reportsWhenThereAreNoSessions() throws IOException {
+    void reportsWhenThereAreNoSessions() {
         VariantAnalyzerService analyzer = (instruction, transcript) -> good();
-        OptimizeReport r = service(new FakeSource(), analyzer, configured())
-            .compare("fake", 3, "a", "b");
+        OptimizeReport r = service(analyzer, configured()).compare("fake", 3, "a", "b");
         assertEquals(0, r.sampleSize());
         assertTrue(r.note().contains("No sessions"));
     }
 
     @Test
-    void degradesGracefullyWhenAnAnalysisFails() throws IOException {
+    void degradesGracefullyWhenAnAnalysisFails() {
+        seedSessions(2);
         // Variant B always throws; A always succeeds. B simply scores nothing rather than erroring.
         VariantAnalyzerService analyzer = (instruction, transcript) -> {
             if (instruction.contains("boom")) throw new RuntimeException("model down");
             return good();
         };
-        OptimizeReport r = service(sourceWith(2), analyzer, configured())
-            .compare("fake", 2, "ok", "boom");
+        OptimizeReport r = service(analyzer, configured()).compare("fake", 2, "ok", "boom");
         assertEquals(2, r.a().scored());
         assertEquals(0, r.b().scored());
         assertEquals(0.0, r.b().avgScore());

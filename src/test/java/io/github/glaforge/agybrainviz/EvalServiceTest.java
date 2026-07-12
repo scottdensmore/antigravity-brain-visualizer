@@ -19,20 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Tests the eval harness: deterministic scoring plus the opt-in LLM-judge layer and its fallbacks. */
-class EvalServiceTest {
+class EvalServiceTest extends PostgresTest {
 
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(4);
 
@@ -41,57 +36,9 @@ class EvalServiceTest {
         EXECUTOR.shutdownNow();
     }
 
-    private static class FakeSource implements SessionSource {
-
-        private final Map<String, String> transcripts = new LinkedHashMap<>();
-        private final Map<String, String> summaries = new HashMap<>();
-
-        void add(String id, String transcriptJson, String summaryJson) {
-            transcripts.put(id, transcriptJson);
-            if (summaryJson != null) summaries.put(id, summaryJson);
-        }
-
-        @Override
-        public boolean handles(String flavor) {
-            return "fake".equals(flavor);
-        }
-
-        @Override
-        public List<Map<String, String>> listConversations() {
-            List<Map<String, String>> list = new ArrayList<>();
-            for (String id : transcripts.keySet()) {
-                Map<String, String> info = new HashMap<>();
-                info.put("id", id);
-                list.add(info);
-            }
-            return list;
-        }
-
-        @Override
-        public String transcriptJson(String id) {
-            return transcripts.getOrDefault(id, "[]");
-        }
-
-        @Override
-        public Optional<String> cachedSummary(String id) {
-            return Optional.ofNullable(summaries.get(id));
-        }
-
-        @Override
-        public boolean sessionExists(String id) {
-            return transcripts.containsKey(id);
-        }
-
-        @Override
-        public List<List<String>> analysisSequences(String id) {
-            return List.of();
-        }
-
-        @Override
-        public void deleteCache(String id) {}
-
-        @Override
-        public void writeCache(String id, String summaryJson, String title) {}
+    @BeforeEach
+    void reset() throws SQLException {
+        resetStore();
     }
 
     private static final String GOOD_SUMMARY =
@@ -112,18 +59,22 @@ class EvalServiceTest {
         return new AiConfig("gemini", "", null, null, null);
     }
 
-    private EvalService eval(FakeSource fake, AiConfig cfg, AnalysisJudgeService judge) {
-        return new EvalService(new SessionCollector(List.of(fake)), cfg, judge, EXECUTOR);
+    private EvalService eval(AiConfig cfg, AnalysisJudgeService judge) {
+        return new EvalService(
+            new SessionCollector(new SessionRepository(dataSource())),
+            cfg,
+            judge,
+            EXECUTOR
+        );
     }
 
     @Test
-    void scoresOnlyCachedAnalysesAndAggregates() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s-good", "[]", GOOD_SUMMARY);
-        fake.add("s-poor", "[]", POOR_SUMMARY);
-        fake.add("s-none", "[]", null); // no cached analysis => not evaluated
+    void scoresOnlyCachedAnalysesAndAggregates() {
+        seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
+        seedSession("fake", "s-poor", "[]", POOR_SUMMARY, 2L);
+        seedSession("fake", "s-none", "[]", null, 3L); // no cached analysis => not evaluated
 
-        EvalReport r = eval(fake, configured(), FORBIDDEN_JUDGE).forFlavor("fake", false);
+        EvalReport r = eval(configured(), FORBIDDEN_JUDGE).forFlavor("fake", false);
 
         assertEquals("fake", r.flavor());
         assertEquals(3, r.sessionCount());
@@ -137,37 +88,33 @@ class EvalServiceTest {
                 .stream()
                 .anyMatch(n -> n.name().equals("schema-complete") && n.count() == 1)
         );
-        // Judge was not requested: the deterministic report stands on its own.
         assertFalse(r.judge().ran());
         assertTrue(r.judge().note().contains("Run the LLM judge"));
     }
 
     @Test
-    void reportsZeroWhenNothingHasBeenAnalyzed() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s1", "[]", null);
+    void reportsZeroWhenNothingHasBeenAnalyzed() {
+        seedSession("fake", "s1", "[]", null, 1L);
 
-        EvalReport r = eval(fake, configured(), FORBIDDEN_JUDGE).forFlavor("fake", true);
+        EvalReport r = eval(configured(), FORBIDDEN_JUDGE).forFlavor("fake", true);
 
         assertEquals(1, r.sessionCount());
         assertEquals(0, r.evaluatedSessions());
         assertEquals(0.0, r.avgScore());
         assertTrue(r.worstCases().isEmpty());
-        // Judge requested but nothing to judge.
         assertFalse(r.judge().ran());
         assertTrue(r.judge().note().contains("No analyzed sessions"));
     }
 
     @Test
-    void judgeRatesSampleAndClampsOutOfRangeScores() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s-good", "[]", GOOD_SUMMARY);
-        fake.add("s-poor", "[]", POOR_SUMMARY);
+    void judgeRatesSampleAndClampsOutOfRangeScores() {
+        seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
+        seedSession("fake", "s-poor", "[]", POOR_SUMMARY, 2L);
         // The model returns out-of-range values that must be clamped into [1, 5] before averaging.
         AnalysisJudgeService judge = (digest, analysis, lens) ->
             new JudgeScore(9, 0, 3, "looks fine");
 
-        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+        EvalReport r = eval(configured(), judge).forFlavor("fake", true);
 
         assertTrue(r.judge().ran());
         assertEquals(2, r.judge().judgedSessions());
@@ -176,14 +123,12 @@ class EvalServiceTest {
         assertEquals(1.0, r.judge().avgActionability()); // 0 -> 1
         assertEquals(3.0, r.judge().avgClarity());
         assertEquals(5.0, r.judge().cases().get(0).faithfulness());
-        // Each case is an ensemble of the whole lens panel.
         assertEquals(EvalService.JUDGE_LENSES.size(), r.judge().cases().get(0).samples());
     }
 
     @Test
-    void judgePanelAveragesDiverseLensVerdicts() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s1", "[]", GOOD_SUMMARY);
+    void judgePanelAveragesDiverseLensVerdicts() {
+        seedSession("fake", "s1", "[]", GOOD_SUMMARY, 1L);
         // Each lens returns a different faithfulness (strict 3 / balanced 4 / pragmatic 5); the panel
         // average is 4.0, so no single framing dominates. Actionability/clarity are constant.
         AnalysisJudgeService judge = (digest, analysis, lens) -> {
@@ -191,7 +136,7 @@ class EvalServiceTest {
             return new JudgeScore(faithfulness, 2, 5, "c");
         };
 
-        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+        EvalReport r = eval(configured(), judge).forFlavor("fake", true);
 
         JudgedCase c = r.judge().cases().get(0);
         assertEquals(4.0, c.faithfulness());
@@ -204,16 +149,15 @@ class EvalServiceTest {
     }
 
     @Test
-    void judgeEnsemblesSurvivingLensesWhenSomeFail() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s1", "[]", GOOD_SUMMARY);
+    void judgeEnsemblesSurvivingLensesWhenSomeFail() {
+        seedSession("fake", "s1", "[]", GOOD_SUMMARY, 1L);
         // The strict panelist errors; the other two still return verdicts, so the case survives.
         AnalysisJudgeService judge = (digest, analysis, lens) -> {
             if (lens.contains("strict")) throw new RuntimeException("boom");
             return new JudgeScore(4, 4, 4, "c");
         };
 
-        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+        EvalReport r = eval(configured(), judge).forFlavor("fake", true);
 
         assertTrue(r.judge().ran());
         JudgedCase c = r.judge().cases().get(0);
@@ -222,44 +166,39 @@ class EvalServiceTest {
     }
 
     @Test
-    void judgeSkippedWhenAiNotConfigured() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s-good", "[]", GOOD_SUMMARY);
+    void judgeSkippedWhenAiNotConfigured() {
+        seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
 
-        EvalReport r = eval(fake, notConfigured(), FORBIDDEN_JUDGE).forFlavor("fake", true);
+        EvalReport r = eval(notConfigured(), FORBIDDEN_JUDGE).forFlavor("fake", true);
 
         assertFalse(r.judge().ran());
         assertTrue(r.judge().note().contains("Configure an AI provider"));
-        // The deterministic pass still produced a score.
         assertEquals(1, r.evaluatedSessions());
     }
 
     @Test
-    void judgeDegradesGracefullyWhenModelFails() throws IOException {
-        FakeSource fake = new FakeSource();
-        fake.add("s-good", "[]", GOOD_SUMMARY);
+    void judgeDegradesGracefullyWhenModelFails() {
+        seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
         AnalysisJudgeService judge = (digest, analysis, lens) -> {
             throw new RuntimeException("model timeout");
         };
 
-        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+        EvalReport r = eval(configured(), judge).forFlavor("fake", true);
 
         assertFalse(r.judge().ran());
         assertTrue(r.judge().note().contains("unavailable"));
-        // Deterministic results are preserved despite the judge failure.
         assertEquals(1, r.evaluatedSessions());
     }
 
     @Test
-    void judgeSampleIsCappedAtMax() throws IOException {
-        FakeSource fake = new FakeSource();
+    void judgeSampleIsCappedAtMax() {
         int analyzed = EvalService.JUDGE_MAX_SESSIONS + 5;
         for (int i = 0; i < analyzed; i++) {
-            fake.add("s" + i, "[]", GOOD_SUMMARY);
+            seedSession("fake", "s" + i, "[]", GOOD_SUMMARY, i);
         }
         AnalysisJudgeService judge = (digest, analysis, lens) -> new JudgeScore(4, 4, 4, "ok");
 
-        EvalReport r = eval(fake, configured(), judge).forFlavor("fake", true);
+        EvalReport r = eval(configured(), judge).forFlavor("fake", true);
 
         assertEquals(analyzed, r.evaluatedSessions());
         assertEquals(EvalService.JUDGE_MAX_SESSIONS, r.judge().judgedSessions());

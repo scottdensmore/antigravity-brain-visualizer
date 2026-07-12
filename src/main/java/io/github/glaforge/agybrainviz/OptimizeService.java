@@ -21,7 +21,6 @@ import io.micronaut.scheduling.TaskExecutors;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,7 +74,7 @@ public class OptimizeService {
         int sampleSize,
         String instructionA,
         String instructionB
-    ) throws IOException {
+    ) {
         if (!aiConfig.isConfigured()) {
             return OptimizeReport.unavailable("Configure an AI provider to run the prompt lab.");
         }

@@ -1,0 +1,259 @@
+/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.github.glaforge.agybrainviz;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+/** Tests that pushed, tool-native transcripts are normalized and de-duplicated on the way in. */
+class IngestorTest extends PostgresTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private Ingestor ingestor;
+
+    private SummaryRepository summaries;
+
+    @BeforeEach
+    void setUp() throws SQLException {
+        SessionRepository sessions = new SessionRepository(dataSource());
+        summaries = new SummaryRepository(dataSource());
+        ingestor =
+            new Ingestor(
+                List.of(
+                    new AntigravityNormalizer(),
+                    new CodexNormalizer(),
+                    new ClaudeCodeNormalizer()
+                ),
+                sessions,
+                summaries
+            );
+        truncate("sessions");
+        truncate("summaries");
+    }
+
+    private static final String ANTIGRAVITY_RAW =
+        "{\"type\":\"USER_INPUT\",\"content\":\"<USER_REQUEST>\\nfix the build\\n</USER_REQUEST>\",\"created_at\":\"2026-06-19T10:00:00Z\"}\n" +
+        "{\"type\":\"MESSAGE\",\"source\":\"MODEL\",\"content\":\"done\",\"created_at\":\"2026-06-19T10:01:00Z\"}\n";
+
+    private static final String CLAUDE_RAW =
+        "{\"type\":\"user\",\"message\":{\"content\":\"add a test\"},\"timestamp\":\"2026-06-19T10:00:00Z\"}\n" +
+        "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"timestamp\":\"2026-06-19T10:01:00Z\"}\n";
+
+    private IngestSession push(String source, String id, String raw) {
+        return new IngestSession(source, id, null, 1_700_000_000_000L, raw, null);
+    }
+
+    @Test
+    void storesAPushedCachedSummaryAlongsideTheSession() {
+        ingestor.ingest(
+            List.of(
+                new IngestSession(
+                    "antigravity-cli",
+                    "s1",
+                    null,
+                    1L,
+                    ANTIGRAVITY_RAW,
+                    "{\"shortTitle\":\"t\",\"summary\":\"cached\"}"
+                )
+            )
+        );
+        assertTrue(summaries.find("antigravity-cli", "s1").orElse("").contains("cached"));
+    }
+
+    @Test
+    void aPushWithoutASummaryLeavesNoCachedAnalysis() {
+        ingestor.ingest(List.of(push("antigravity-cli", "s1", ANTIGRAVITY_RAW)));
+        assertTrue(summaries.find("antigravity-cli", "s1").isEmpty());
+    }
+
+    private String storedSteps(String source, String id) throws SQLException {
+        try (
+            Connection c = dataSource().getConnection();
+            PreparedStatement s = c.prepareStatement(
+                "SELECT steps FROM sessions WHERE source=? AND id=?"
+            )
+        ) {
+            s.setString(1, source);
+            s.setString(2, id);
+            try (ResultSet rs = s.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        }
+    }
+
+    private String storedTitle(String source, String id) throws SQLException {
+        try (
+            Connection c = dataSource().getConnection();
+            PreparedStatement s = c.prepareStatement(
+                "SELECT title FROM sessions WHERE source=? AND id=?"
+            )
+        ) {
+            s.setString(1, source);
+            s.setString(2, id);
+            try (ResultSet rs = s.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        }
+    }
+
+    @Test
+    void storesAntigravityTranscriptAsNormalizedSteps() throws Exception {
+        assertEquals(
+            new IngestResult(1, 0, 0),
+            ingestor.ingest(List.of(push("antigravity-cli", "s1", ANTIGRAVITY_RAW)))
+        );
+
+        JsonNode steps = MAPPER.readTree(storedSteps("antigravity-cli", "s1"));
+        assertTrue(steps.isArray());
+        assertEquals(2, steps.size());
+        assertEquals("USER_INPUT", steps.get(0).get("type").asText());
+    }
+
+    @Test
+    void convertsClaudeCodeTranscriptIntoTheSharedStepSchema() throws Exception {
+        ingestor.ingest(List.of(push("claude-code", "c1", CLAUDE_RAW)));
+
+        JsonNode steps = MAPPER.readTree(storedSteps("claude-code", "c1"));
+        // The client pushed Claude Code's own schema; the store holds the timeline schema.
+        assertEquals("USER_INPUT", steps.get(0).get("type").asText());
+        assertEquals("MESSAGE", steps.get(1).get("type").asText());
+        assertEquals("MODEL", steps.get(1).get("source").asText());
+    }
+
+    @Test
+    void derivesATitleFromTheTranscriptWhenTheClientSendsNone() throws Exception {
+        ingestor.ingest(List.of(push("antigravity-cli", "s1", ANTIGRAVITY_RAW)));
+        // The <USER_REQUEST> wrapper is stripped.
+        assertEquals("fix the build", storedTitle("antigravity-cli", "s1"));
+    }
+
+    @Test
+    void theClientsTitleWinsOverTheDerivedOne() throws Exception {
+        ingestor.ingest(
+            List.of(
+                new IngestSession(
+                    "antigravity-cli",
+                    "s1",
+                    "  Explicit  ",
+                    1L,
+                    ANTIGRAVITY_RAW,
+                    null
+                )
+            )
+        );
+        assertEquals("Explicit", storedTitle("antigravity-cli", "s1"));
+    }
+
+    @Test
+    void fallsBackToAStableTitleWhenTheTranscriptRevealsNone() throws Exception {
+        ingestor.ingest(List.of(push("antigravity-cli", "abcdef123456", "")));
+        assertEquals(
+            "antigravity-cli session abcdef12",
+            storedTitle("antigravity-cli", "abcdef123456")
+        );
+    }
+
+    @Test
+    void rePushingTheSameTrajectorySkipsRatherThanDuplicating() {
+        assertEquals(
+            new IngestResult(1, 0, 0),
+            ingestor.ingest(List.of(push("codex", "x", "{\"type\":\"session_meta\"}\n")))
+        );
+        // Idempotent: the CLI can be run on a cron without growing the table.
+        assertEquals(
+            new IngestResult(0, 1, 0),
+            ingestor.ingest(List.of(push("codex", "x", "{\"type\":\"session_meta\"}\n")))
+        );
+    }
+
+    @Test
+    void aChangedTranscriptIsIngestedAgain() {
+        ingestor.ingest(List.of(push("antigravity-cli", "s1", ANTIGRAVITY_RAW)));
+        // A session grows as the agent keeps working; the newer content must land.
+        String longer =
+            ANTIGRAVITY_RAW +
+            "{\"type\":\"MESSAGE\",\"source\":\"MODEL\",\"content\":\"more\",\"created_at\":\"2026-06-19T10:02:00Z\"}\n";
+        assertEquals(
+            new IngestResult(1, 0, 0),
+            ingestor.ingest(List.of(push("antigravity-cli", "s1", longer)))
+        );
+    }
+
+    @Test
+    void rejectsUnknownSourcesAndMissingIdsWithoutFailingTheBatch() {
+        IngestResult result = ingestor.ingest(
+            java.util.Arrays.asList(
+                push("borg", "s1", ANTIGRAVITY_RAW), // unknown source
+                push("antigravity-cli", "", ANTIGRAVITY_RAW), // no id
+                null,
+                push("antigravity-cli", "good", ANTIGRAVITY_RAW)
+            )
+        );
+        // One bad entry must not lose the rest of a batch.
+        assertEquals(new IngestResult(1, 0, 3), result);
+    }
+
+    @Test
+    void skipsMalformedTranscriptLinesRatherThanStoringUnparseableSteps() throws Exception {
+        String raw = "{\"type\":\"USER_INPUT\",\"content\":\"hi\"}\nnot json at all\n";
+        ingestor.ingest(List.of(push("antigravity-cli", "s1", raw)));
+
+        JsonNode steps = MAPPER.readTree(storedSteps("antigravity-cli", "s1"));
+        assertEquals(1, steps.size());
+    }
+
+    @Test
+    void hashesTheTranscriptTheServerReceivedRatherThanTrustingTheClient() {
+        // Same bytes hash the same; different bytes do not. The CLI reproduces this over the file.
+        assertEquals(Ingestor.sha256("abc"), Ingestor.sha256("abc"));
+        assertNotEquals(Ingestor.sha256("abc"), Ingestor.sha256("abd"));
+        assertEquals(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            Ingestor.sha256("abc")
+        );
+    }
+
+    @Test
+    void aZeroMtimeBecomesNowSoTheSessionStillSortsToTheTop() throws SQLException {
+        long before = System.currentTimeMillis();
+        ingestor.ingest(
+            List.of(new IngestSession("antigravity-cli", "s1", null, 0L, ANTIGRAVITY_RAW, null))
+        );
+        try (
+            Connection c = dataSource().getConnection();
+            PreparedStatement s = c.prepareStatement(
+                "SELECT source_mtime FROM sessions WHERE id='s1'"
+            )
+        ) {
+            try (ResultSet rs = s.executeQuery()) {
+                assertTrue(rs.next());
+                assertTrue(rs.getLong(1) >= before, "a 0 mtime must not sort to the epoch");
+            }
+        }
+    }
+}

@@ -17,7 +17,6 @@ package io.github.glaforge.agybrainviz;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -47,7 +46,7 @@ public class MinerService {
         this.aiConfig = aiConfig;
     }
 
-    public MiningReport forFlavor(String flavor) throws IOException {
+    public MiningReport forFlavor(String flavor) {
         SessionCollector.Collected collected = collector.collect(flavor);
         PatternMiner.Patterns p = PatternMiner.mine(collected.sessions());
 

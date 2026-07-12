@@ -17,7 +17,6 @@ package io.github.glaforge.agybrainviz;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -37,14 +36,13 @@ public class InsightsService {
     /** Cap the drilled-in session list so a very common item stays responsive to render. */
     static final int MAX_DRILLDOWN = 50;
 
-    public InsightsReport forFlavor(String flavor) throws IOException {
+    public InsightsReport forFlavor(String flavor) {
         SessionCollector.Collected collected = collector.collect(flavor);
         return FleetInsights.aggregate(flavor, collected.totalSessionCount(), collected.sessions());
     }
 
     /** The sessions behind one tally item (which tool/error/recommendation/issue it came from). */
-    public DrilldownResult drilldown(String flavor, String category, String key)
-        throws IOException {
+    public DrilldownResult drilldown(String flavor, String category, String key) {
         SessionCollector.Collected collected = collector.collect(flavor);
         List<SessionRef> all = FleetInsights.sessionsFor(category, key, collected.sessions());
         List<SessionRef> capped = all.stream().limit(MAX_DRILLDOWN).toList();
