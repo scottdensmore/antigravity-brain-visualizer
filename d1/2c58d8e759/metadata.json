@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "d12c58d8e759",
+  "strategy": "manual-commit",
+  "branch": "fix/ingest-large-payloads",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "cli/main.go",
+    "cli/main_test.go",
+    "src/main/resources/application.yml",
+    "src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d1/2c58d8e759/0/metadata.json",
+      "transcript": "/d1/2c58d8e759/0/full.jsonl",
+      "compact_transcript": "/d1/2c58d8e759/0/transcript.jsonl",
+      "content_hash": "/d1/2c58d8e759/0/content_hash.txt",
+      "prompt": "/d1/2c58d8e759/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 173156,
+    "cache_creation_tokens": 3100764,
+    "cache_read_tokens": 280988555,
+    "output_tokens": 588296,
+    "api_call_count": 548
+  }
+}
