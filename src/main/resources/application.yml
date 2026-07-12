@@ -1,6 +1,15 @@
 micronaut:
   application:
     name: visualizer
+  server:
+    # Agent transcripts routinely exceed Micronaut's 10 MB defaults, so a pushed session (or batch)
+    # would 413. Both limits apply to a fully-buffered body and both default to 10 MB. This is a
+    # ceiling for one very large session, not a target — the agent-ingest CLI keeps requests smaller.
+    # Because a buffered body pins this much heap per in-flight request, an instance exposed off
+    # localhost must set INGEST_TOKEN (and ideally a front-proxy body cap) so this can't be an
+    # unauthenticated OOM lever.
+    max-request-size: 134217728 # 128 MiB
+    max-request-buffer-size: 134217728 # 128 MiB
   router:
     static-resources:
       default:

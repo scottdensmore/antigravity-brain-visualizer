@@ -92,6 +92,17 @@ class IngestControllerTest implements TestPropertyProvider {
     }
 
     @Test
+    void acceptsALargeTranscriptOverTheDefaultRequestLimit() throws IOException {
+        // Real agent transcripts routinely exceed Micronaut's 10 MB default request size; the server
+        // must accept them rather than reject with a 413.
+        String bigTranscript =
+            "{\"type\":\"USER_INPUT\",\"content\":\"" + "x".repeat(11 * 1024 * 1024) + "\"}\n";
+        JsonNode result = push(batch("antigravity-cli", "big", bigTranscript));
+        assertEquals(1, result.get("ingested").asInt());
+        assertEquals(0, result.get("failed").asInt());
+    }
+
+    @Test
     void rePushingIsANoOpOverHttp() throws IOException {
         push(batch("antigravity-cli", "s1", RAW));
         JsonNode again = push(batch("antigravity-cli", "s1", RAW));
