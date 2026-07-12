@@ -28,7 +28,7 @@ import java.util.Optional;
  * alone.
  *
  * <p>Implementations are {@code @Singleton} beans, collected as a {@code List<SourceNormalizer>} and
- * selected by {@link #handles(String)}, mirroring how {@link SessionSource} is dispatched.
+ * selected by {@link #handles(String)}.
  */
 public interface SourceNormalizer {
     /**

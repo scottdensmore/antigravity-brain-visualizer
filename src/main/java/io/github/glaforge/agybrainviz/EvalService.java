@@ -21,7 +21,6 @@ import io.micronaut.scheduling.TaskExecutors;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -84,7 +83,7 @@ public class EvalService {
     /** One evaluated session with everything the judge needs, kept alongside its graded result. */
     private record Judgeable(String id, String title, List<JsonNode> steps, JsonNode analysis) {}
 
-    public EvalReport forFlavor(String flavor, boolean judge) throws IOException {
+    public EvalReport forFlavor(String flavor, boolean judge) {
         SessionCollector.Collected collected = collector.collect(flavor);
 
         List<EvalCaseResult> results = new ArrayList<>();

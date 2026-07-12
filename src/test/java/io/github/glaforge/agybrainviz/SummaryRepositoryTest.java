@@ -25,7 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Tests the cached-analysis store that replaces SummaryCache and the in-session summary files. */
+/** Tests the cached-analysis store that replaced the former in-session summary files. */
 class SummaryRepositoryTest extends PostgresTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

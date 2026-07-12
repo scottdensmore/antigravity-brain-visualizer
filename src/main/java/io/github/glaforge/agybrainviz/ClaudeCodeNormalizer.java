@@ -23,9 +23,12 @@ import java.util.Optional;
 @Singleton
 public class ClaudeCodeNormalizer implements SourceNormalizer {
 
+    // The source value this normalizer handles; the frontend and CLI use the same string.
+    private static final String FLAVOR = "claude-code";
+
     @Override
     public boolean handles(String source) {
-        return ClaudeCodeSessionReader.FLAVOR.equals(source);
+        return FLAVOR.equals(source);
     }
 
     @Override

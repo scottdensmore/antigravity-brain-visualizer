@@ -55,7 +55,7 @@ Additionally, it leverages Google's Gemini LLMs to automatically generate compre
 ## Technology Stack & Implementation
 This project prioritizes a lightweight, high-performance, and maintainable architecture:
 
-- **Backend**: Built with [Micronaut](https://micronaut.io/) (Java). It serves the frontend static assets and provides native REST APIs to securely read and parse the local file-system transcripts.
+- **Backend**: Built with [Micronaut](https://micronaut.io/) (Java). It serves the frontend static assets, receives pushed trajectories at its ingest API (normalizing each tool's format into a shared schema), and serves the session list, transcripts, and analyses from a Postgres store via plain JDBC.
 - **AI Integration**: Powered by [LangChain4j](https://github.com/langchain4j/langchain4j) connecting directly to [Google Gemini models](https://docs.langchain4j.dev/integrations/language-models/google-genai/). It uses chunking and recursive consolidation to process large transcript files that exceed standard token limits.
 - **Frontend**: A zero-build Vanilla JavaScript, HTML, and CSS single-page application. It avoids heavy framework overhead, relying instead on standard browser DOM APIs, customized CSS grid/flexbox layouts, and minimal dependencies (`marked.js` and `highlight.js`) for efficient rendering and responsiveness.
 

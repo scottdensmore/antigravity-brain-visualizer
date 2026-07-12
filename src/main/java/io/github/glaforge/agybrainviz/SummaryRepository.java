@@ -26,8 +26,8 @@ import javax.sql.DataSource;
 
 /**
  * Stores AI analysis summaries in the shared database, keyed by the session's {@code (source, id)}.
- * This replaces the file-backed {@code SummaryCache} and the per-session {@code summary.json}, so a
- * summary computed on one machine is available from another.
+ * This replaces the former file-backed cache (per-session {@code summary.json} on disk), so a summary
+ * computed on one machine is available from another.
  */
 @Singleton
 public class SummaryRepository {

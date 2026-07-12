@@ -22,52 +22,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
 
-/** Unit tests for the centralized Antigravity on-disk layout helper. */
+/** Unit tests for the small Antigravity layout helper that survives the move to the store. */
 class AntigravityPathsTest {
 
     @Test
-    void brainDirUsesGeminiRootFlavorAndBrain() {
-        assertTrue(
-            AntigravityPaths.brainDir("codex").endsWith(Paths.get(".gemini", "codex", "brain"))
-        );
-    }
-
-    @Test
-    void brainDirFallsBackToDefaultFlavorWhenBlank() {
-        Path expectedTail = Paths.get(".gemini", AntigravityPaths.DEFAULT_FLAVOR, "brain");
-        assertTrue(AntigravityPaths.brainDir(null).endsWith(expectedTail));
-        assertTrue(AntigravityPaths.brainDir("").endsWith(expectedTail));
+    void defaultFlavorIsTheAntigravityCli() {
         assertEquals("antigravity-cli", AntigravityPaths.DEFAULT_FLAVOR);
     }
 
     @Test
-    void logsDirResolvesGeneratedLogsUnderASession() {
-        Path logs = AntigravityPaths.logsDir(Paths.get("/root/brain/sess-1"));
-        assertTrue(logs.endsWith(Paths.get("sess-1", ".system_generated", "logs")));
-    }
-
-    @Test
-    void logsDirByFlavorAndIdSpansTheWholeLayout() {
-        Path logs = AntigravityPaths.logsDir("codex", "abc");
-        assertTrue(
-            logs.endsWith(
-                Paths.get(".gemini", "codex", "brain", "abc", ".system_generated", "logs")
-            )
-        );
-    }
-
-    @Test
-    void fileHelpersResolveTheExpectedNames() {
-        Path logs = Paths.get("/logs");
-        assertEquals(
-            "transcript.jsonl",
-            AntigravityPaths.transcript(logs).getFileName().toString()
-        );
-        assertEquals(
-            "transcript_full.jsonl",
-            AntigravityPaths.transcriptFull(logs).getFileName().toString()
-        );
-        assertEquals("summary.json", AntigravityPaths.summaryJson(logs).getFileName().toString());
-        assertEquals("short_title.txt", AntigravityPaths.shortTitle(logs).getFileName().toString());
+    void geminiRootIsDotGeminiUnderTheCurrentHome() {
+        Path root = AntigravityPaths.geminiRoot();
+        assertTrue(root.endsWith(".gemini"));
+        assertTrue(root.startsWith(Paths.get(System.getProperty("user.home"))));
     }
 }

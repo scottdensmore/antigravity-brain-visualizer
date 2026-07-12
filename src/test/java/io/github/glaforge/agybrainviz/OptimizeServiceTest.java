@@ -18,7 +18,6 @@ package io.github.glaforge.agybrainviz;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -83,7 +82,7 @@ class OptimizeServiceTest extends PostgresTest {
     }
 
     @Test
-    void scoresBothVariantsSoTheWinnerIsVisible() throws IOException {
+    void scoresBothVariantsSoTheWinnerIsVisible() {
         seedSessions(3);
         // Instruction A yields good analyses, B yields poor ones.
         VariantAnalyzerService analyzer = (instruction, transcript) ->
@@ -101,7 +100,7 @@ class OptimizeServiceTest extends PostgresTest {
     }
 
     @Test
-    void capsTheSampleSize() throws IOException {
+    void capsTheSampleSize() {
         seedSessions(20);
         VariantAnalyzerService analyzer = (instruction, transcript) -> good();
         OptimizeReport r = service(analyzer, configured()).compare("fake", 99, "a", "b");
@@ -109,7 +108,7 @@ class OptimizeServiceTest extends PostgresTest {
     }
 
     @Test
-    void degradesWhenAiNotConfigured() throws IOException {
+    void degradesWhenAiNotConfigured() {
         seedSessions(3);
         VariantAnalyzerService analyzer = (instruction, transcript) -> {
             throw new AssertionError("analyzer must not be called when AI is not configured");
@@ -120,7 +119,7 @@ class OptimizeServiceTest extends PostgresTest {
     }
 
     @Test
-    void reportsWhenThereAreNoSessions() throws IOException {
+    void reportsWhenThereAreNoSessions() {
         VariantAnalyzerService analyzer = (instruction, transcript) -> good();
         OptimizeReport r = service(analyzer, configured()).compare("fake", 3, "a", "b");
         assertEquals(0, r.sampleSize());
@@ -128,7 +127,7 @@ class OptimizeServiceTest extends PostgresTest {
     }
 
     @Test
-    void degradesGracefullyWhenAnAnalysisFails() throws IOException {
+    void degradesGracefullyWhenAnAnalysisFails() {
         seedSessions(2);
         // Variant B always throws; A always succeeds. B simply scores nothing rather than erroring.
         VariantAnalyzerService analyzer = (instruction, transcript) -> {

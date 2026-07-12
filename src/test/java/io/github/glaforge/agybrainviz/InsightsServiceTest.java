@@ -18,7 +18,6 @@ package io.github.glaforge.agybrainviz;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,7 @@ class InsightsServiceTest extends PostgresTest {
     }
 
     @Test
-    void aggregatesSessionsFromASource() throws IOException {
+    void aggregatesSessionsFromASource() {
         seedSession(
             "fake",
             "s1",
@@ -68,7 +67,7 @@ class InsightsServiceTest extends PostgresTest {
     }
 
     @Test
-    void capsScanAtMaxSessionsButReportsTrueTotal() throws IOException {
+    void capsScanAtMaxSessionsButReportsTrueTotal() {
         int total = SessionCollector.MAX_SESSIONS + 50;
         for (int i = 0; i < total; i++) {
             seedSession("fake", "s" + i, "[]", null, i);

@@ -24,7 +24,6 @@ import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,7 +45,7 @@ public class EvalController {
     public EvalReport eval(
         @QueryValue Optional<String> flavor,
         @QueryValue Optional<Boolean> judge
-    ) throws IOException {
+    ) {
         return evalService.forFlavor(flavor.orElse("antigravity-cli"), judge.orElse(false));
     }
 

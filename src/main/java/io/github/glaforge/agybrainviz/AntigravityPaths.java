@@ -19,10 +19,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * The single source of truth for Antigravity's on-disk layout under the user's home. Antigravity
- * stores each flavor's sessions in {@code ~/.gemini/<flavor>/brain/<id>/.system_generated/logs/},
- * and the previous scattering of these literals across the brain controller, analysis controller,
- * and session collector was the duplication this consolidates.
+ * The Antigravity locations the app still needs after sessions moved to the store: the default flavor
+ * and the {@code ~/.gemini} root that sandboxes the inline file-preview endpoint.
  *
  * <p>{@code user.home} is read on every call (not cached) so tests that redirect it are honoured.
  */
@@ -33,47 +31,11 @@ final class AntigravityPaths {
     /** The flavor used when none is supplied. */
     static final String DEFAULT_FLAVOR = "antigravity-cli";
 
-    private static final String LOGS_DIR = ".system_generated";
-    private static final String LOGS_SUBDIR = "logs";
-    private static final String TRANSCRIPT = "transcript.jsonl";
-    private static final String TRANSCRIPT_FULL = "transcript_full.jsonl";
-    private static final String SUMMARY_JSON = "summary.json";
-    private static final String SHORT_TITLE = "short_title.txt";
-
-    /** The {@code ~/.gemini} root (used both for brain lookups and file-access sandboxing). */
+    /**
+     * The {@code ~/.gemini} root, used to sandbox the inline file-preview endpoint. Sessions are read
+     * from the store now, so this is the only reason the app still touches the Antigravity layout.
+     */
     static Path geminiRoot() {
         return Paths.get(System.getProperty("user.home"), ".gemini");
-    }
-
-    /** The {@code brain} directory for a flavor; a null/blank flavor falls back to the default. */
-    static Path brainDir(String flavor) {
-        String dir = (flavor == null || flavor.isEmpty()) ? DEFAULT_FLAVOR : flavor;
-        return geminiRoot().resolve(dir).resolve("brain");
-    }
-
-    /** The generated-logs directory inside a given session directory. */
-    static Path logsDir(Path sessionDir) {
-        return sessionDir.resolve(LOGS_DIR).resolve(LOGS_SUBDIR);
-    }
-
-    /** The generated-logs directory for a session id under a flavor's brain. */
-    static Path logsDir(String flavor, String id) {
-        return logsDir(brainDir(flavor).resolve(id));
-    }
-
-    static Path transcript(Path logsDir) {
-        return logsDir.resolve(TRANSCRIPT);
-    }
-
-    static Path transcriptFull(Path logsDir) {
-        return logsDir.resolve(TRANSCRIPT_FULL);
-    }
-
-    static Path summaryJson(Path logsDir) {
-        return logsDir.resolve(SUMMARY_JSON);
-    }
-
-    static Path shortTitle(Path logsDir) {
-        return logsDir.resolve(SHORT_TITLE);
     }
 }

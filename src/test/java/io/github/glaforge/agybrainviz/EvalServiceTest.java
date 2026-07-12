@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,7 +69,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void scoresOnlyCachedAnalysesAndAggregates() throws IOException {
+    void scoresOnlyCachedAnalysesAndAggregates() {
         seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
         seedSession("fake", "s-poor", "[]", POOR_SUMMARY, 2L);
         seedSession("fake", "s-none", "[]", null, 3L); // no cached analysis => not evaluated
@@ -94,7 +93,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void reportsZeroWhenNothingHasBeenAnalyzed() throws IOException {
+    void reportsZeroWhenNothingHasBeenAnalyzed() {
         seedSession("fake", "s1", "[]", null, 1L);
 
         EvalReport r = eval(configured(), FORBIDDEN_JUDGE).forFlavor("fake", true);
@@ -108,7 +107,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void judgeRatesSampleAndClampsOutOfRangeScores() throws IOException {
+    void judgeRatesSampleAndClampsOutOfRangeScores() {
         seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
         seedSession("fake", "s-poor", "[]", POOR_SUMMARY, 2L);
         // The model returns out-of-range values that must be clamped into [1, 5] before averaging.
@@ -128,7 +127,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void judgePanelAveragesDiverseLensVerdicts() throws IOException {
+    void judgePanelAveragesDiverseLensVerdicts() {
         seedSession("fake", "s1", "[]", GOOD_SUMMARY, 1L);
         // Each lens returns a different faithfulness (strict 3 / balanced 4 / pragmatic 5); the panel
         // average is 4.0, so no single framing dominates. Actionability/clarity are constant.
@@ -150,7 +149,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void judgeEnsemblesSurvivingLensesWhenSomeFail() throws IOException {
+    void judgeEnsemblesSurvivingLensesWhenSomeFail() {
         seedSession("fake", "s1", "[]", GOOD_SUMMARY, 1L);
         // The strict panelist errors; the other two still return verdicts, so the case survives.
         AnalysisJudgeService judge = (digest, analysis, lens) -> {
@@ -167,7 +166,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void judgeSkippedWhenAiNotConfigured() throws IOException {
+    void judgeSkippedWhenAiNotConfigured() {
         seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
 
         EvalReport r = eval(notConfigured(), FORBIDDEN_JUDGE).forFlavor("fake", true);
@@ -178,7 +177,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void judgeDegradesGracefullyWhenModelFails() throws IOException {
+    void judgeDegradesGracefullyWhenModelFails() {
         seedSession("fake", "s-good", "[]", GOOD_SUMMARY, 1L);
         AnalysisJudgeService judge = (digest, analysis, lens) -> {
             throw new RuntimeException("model timeout");
@@ -192,7 +191,7 @@ class EvalServiceTest extends PostgresTest {
     }
 
     @Test
-    void judgeSampleIsCappedAtMax() throws IOException {
+    void judgeSampleIsCappedAtMax() {
         int analyzed = EvalService.JUDGE_MAX_SESSIONS + 5;
         for (int i = 0; i < analyzed; i++) {
             seedSession("fake", "s" + i, "[]", GOOD_SUMMARY, i);

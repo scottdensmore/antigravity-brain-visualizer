@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,7 +62,7 @@ class MinerServiceTest extends PostgresTest {
     }
 
     @Test
-    void minesEvidenceAndProposalsWhenAiConfigured() throws IOException {
+    void minesEvidenceAndProposalsWhenAiConfigured() {
         seedEvidence();
         MinerAdvisorService advisor = evidence ->
             new MiningProposal(
@@ -94,7 +93,7 @@ class MinerServiceTest extends PostgresTest {
     }
 
     @Test
-    void returnsEvidenceOnlyWhenAiNotConfigured() throws IOException {
+    void returnsEvidenceOnlyWhenAiNotConfigured() {
         seedEvidence();
         MinerAdvisorService advisor = evidence -> {
             throw new AssertionError("advisor must not be called when AI is not configured");
@@ -110,7 +109,7 @@ class MinerServiceTest extends PostgresTest {
     }
 
     @Test
-    void degradesGracefullyWhenAdvisorFails() throws IOException {
+    void degradesGracefullyWhenAdvisorFails() {
         seedEvidence();
         MinerAdvisorService advisor = evidence -> {
             throw new RuntimeException("model timeout");
@@ -125,7 +124,7 @@ class MinerServiceTest extends PostgresTest {
     }
 
     @Test
-    void reportsWhenThereIsNotEnoughEvidence() throws IOException {
+    void reportsWhenThereIsNotEnoughEvidence() {
         // A single session with no recurring sequence and no cached analysis: nothing to mine.
         seedSession("fake", "s1", "[{\"tool_calls\":[{\"name\":\"Read\"}]}]", null, 1L);
         MinerAdvisorService advisor = evidence -> {

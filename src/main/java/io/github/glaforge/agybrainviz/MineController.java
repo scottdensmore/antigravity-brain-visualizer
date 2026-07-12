@@ -21,7 +21,6 @@ import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
-import java.io.IOException;
 import java.util.Optional;
 
 /** Mines reusable skills and AGENTS.md rules from a source's sessions. */
@@ -37,7 +36,7 @@ public class MineController {
 
     @ExecuteOn(TaskExecutors.IO)
     @Get(produces = "application/json")
-    public MiningReport mine(@QueryValue Optional<String> flavor) throws IOException {
+    public MiningReport mine(@QueryValue Optional<String> flavor) {
         return minerService.forFlavor(flavor.orElse("antigravity-cli"));
     }
 }

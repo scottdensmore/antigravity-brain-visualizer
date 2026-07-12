@@ -132,7 +132,9 @@ review-gated; the sub-agents named below live in `.claude/agents/`.
 
 ## Project Structure
 - `src/main/java/io/github/glaforge/agybrainviz/` - Backend source code
-  - `AnalysisController.java` - REST API for LangChain4j/Gemini processing and local file serving
+  - `AnalysisController.java` - REST API for LangChain4j/Gemini analysis, reading transcripts and caching summaries in the store
+  - `IngestController.java` / `Ingestor.java` - receive pushed trajectories, normalize, and upsert them
+  - `SessionRepository.java` / `SummaryRepository.java` - JDBC access to the Postgres store
   - `ChatModelFactory.java` - Configuration for the Gemini LLM
   - `Application.java` - Application entry point (`main`, Micronaut bootstrap)
 - `src/main/resources/public/` - Frontend assets

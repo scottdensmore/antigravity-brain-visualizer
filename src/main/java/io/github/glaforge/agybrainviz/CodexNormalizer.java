@@ -23,9 +23,12 @@ import java.util.Optional;
 @Singleton
 public class CodexNormalizer implements SourceNormalizer {
 
+    // The source value this normalizer handles; the frontend and CLI use the same string.
+    private static final String FLAVOR = "codex";
+
     @Override
     public boolean handles(String source) {
-        return CodexSessionReader.FLAVOR.equals(source);
+        return FLAVOR.equals(source);
     }
 
     @Override
