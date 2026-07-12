@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "07e00103b81e",
+  "strategy": "manual-commit",
+  "branch": "feat/health-endpoint",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "README.md",
+    "docker-compose.yml",
+    "src/main/java/io/github/glaforge/agybrainviz/HealthController.java",
+    "src/test/java/io/github/glaforge/agybrainviz/HealthControllerTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/07/e00103b81e/0/metadata.json",
+      "transcript": "/07/e00103b81e/0/full.jsonl",
+      "compact_transcript": "/07/e00103b81e/0/transcript.jsonl",
+      "content_hash": "/07/e00103b81e/0/content_hash.txt",
+      "prompt": "/07/e00103b81e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 211922,
+    "cache_creation_tokens": 4363043,
+    "cache_read_tokens": 379215679,
+    "output_tokens": 851470,
+    "api_call_count": 863
+  }
+}
