@@ -27,6 +27,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/scottdensmore/antigravity-brain-visualizer/cli/internal/client"
 	"github.com/scottdensmore/antigravity-brain-visualizer/cli/internal/scan"
 )
 
@@ -360,6 +361,46 @@ func TestNonUTF8TranscriptIsIngestedOnceThenSkipped(t *testing.T) {
 	if pushes != 1 {
 		t.Fatalf("pushed %d times; a non-UTF-8 transcript must upload once then skip", pushes)
 	}
+}
+
+func TestChunkSplitsByByteBudgetNotJustCount(t *testing.T) {
+	// Transcripts are large, so a batch is capped by cumulative bytes as well as count, to stay under
+	// the server's request-size limit.
+	s := func(raw string) client.PushSession { return client.PushSession{Raw: raw} }
+	batches := chunk([]client.PushSession{s("aaaa"), s("bbbb"), s("cccc")}, 100, 10)
+	// aaaa(4)+bbbb(4)=8 ≤ 10; +cccc would be 12 > 10 → flush, then cccc alone.
+	if len(batches) != 2 || len(batches[0]) != 2 || len(batches[1]) != 1 {
+		t.Fatalf("got %d batches with sizes %v; want [2,1]", len(batches), sizesOf(batches))
+	}
+}
+
+func TestChunkSendsAnOversizedSessionInItsOwnRequest(t *testing.T) {
+	s := func(raw string) client.PushSession { return client.PushSession{Raw: raw} }
+	// The middle session alone exceeds the budget; it must still be sent (in its own request) rather
+	// than dropped.
+	batches := chunk([]client.PushSession{s("aa"), s("xxxxxxxxxx"), s("bb")}, 100, 5)
+	if len(batches) != 3 {
+		t.Fatalf("got %d batches %v; an oversized session must go alone", len(batches), sizesOf(batches))
+	}
+	if batches[1][0].Raw != "xxxxxxxxxx" {
+		t.Errorf("the oversized session should be the lone middle batch")
+	}
+}
+
+func TestChunkStillRespectsTheCountCap(t *testing.T) {
+	s := func(raw string) client.PushSession { return client.PushSession{Raw: raw} }
+	batches := chunk([]client.PushSession{s("a"), s("b"), s("c")}, 2, 1<<30)
+	if len(batches) != 2 || len(batches[0]) != 2 || len(batches[1]) != 1 {
+		t.Fatalf("count cap ignored: got sizes %v", sizesOf(batches))
+	}
+}
+
+func sizesOf(batches [][]client.PushSession) []int {
+	out := make([]int, len(batches))
+	for i, b := range batches {
+		out[i] = len(b)
+	}
+	return out
 }
 
 func TestBatchSizeSplitsIntoSeparateRequests(t *testing.T) {

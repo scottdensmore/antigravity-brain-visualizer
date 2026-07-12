@@ -180,7 +180,7 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 			continue
 		}
 
-		for _, batch := range chunk(changed, cfg.batchSize) {
+		for _, batch := range chunk(changed, cfg.batchSize, maxBatchBytes) {
 			r, err := cl.Push(ctx, batch)
 			if err != nil {
 				fmt.Fprintf(stderr, "agent-ingest: %s\n", err)
@@ -227,11 +227,30 @@ func groupBySource(sessions []scan.Session) map[string][]scan.Session {
 	return out
 }
 
-func chunk(sessions []client.PushSession, size int) [][]client.PushSession {
+// Transcripts can be large, so a request is bounded by cumulative raw bytes, not just a session
+// count that could easily blow past the server's request-size limit. The budget leaves generous
+// headroom under that limit (JSON escaping can inflate raw bytes on the wire).
+const maxBatchBytes = 16 << 20 // 16 MiB
+
+// chunk groups sessions into requests, flushing when the next session would exceed either the count
+// cap or the byte budget. A session larger than the budget is sent alone rather than dropped or
+// split; one that large is on its own the only request that can exceed the budget.
+func chunk(sessions []client.PushSession, maxCount, maxBytes int) [][]client.PushSession {
 	var batches [][]client.PushSession
-	for i := 0; i < len(sessions); i += size {
-		end := min(i+size, len(sessions))
-		batches = append(batches, sessions[i:end])
+	var current []client.PushSession
+	currentBytes := 0
+	for _, s := range sessions {
+		size := len(s.Raw)
+		if len(current) > 0 && (len(current) >= maxCount || currentBytes+size > maxBytes) {
+			batches = append(batches, current)
+			current = nil
+			currentBytes = 0
+		}
+		current = append(current, s)
+		currentBytes += size
+	}
+	if len(current) > 0 {
+		batches = append(batches, current)
 	}
 	return batches
 }
@@ -286,7 +305,9 @@ Flags:
   --source NAME     source to sync; repeatable (default: all). One of:
                     %s
   --home DIR        home directory to scan (default: the current user's)
-  --batch-size N    sessions per push request (default %d)
+  --batch-size N    max sessions per push request (default %d; a request is also
+                    capped at ~16 MiB of transcript, and one larger session is
+                    sent on its own)
   --dry-run         report what would be pushed, without pushing (still queries
                     the server's manifest to compute the diff)
   --json            write a machine-readable summary to stdout
