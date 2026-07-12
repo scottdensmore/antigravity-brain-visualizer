@@ -822,3 +822,59 @@ Relevant files:
 - /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/README.md</result>
 <usage><subagent_tokens>18447</subagent_tokens><tool_uses>6</tool_uses><duration_ms>94931</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a2b6f701c2ab0e3f5</task-id>
+<tool-use-id>toolu_018hHaYFanxejCJWZg6uno99</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a2b6f701c2ab0e3f5.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify health endpoint" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The app process exited (code 144 = SIGTERM from my pkill, expected) and port 8080 is no longer listening. Postgres is healthy and left running. Nothing left behind.
+
+## Verdict: GREEN
+
+All appropriate checks ran and passed. No source was modified.
+
+### Commands run and outcomes
+
+**1. `docker compose up -d postgres`** — exit 0. Container `agent-brain-viz-db` (postgres:17-alpine) up and healthy on 5432.
+
+**2. `mise exec -- ./gradlew build` (repo root)** — `BUILD SUCCESSFUL`. Full suite + Spotless (`spotlessJavaCheck`, `spotlessJavascriptCheck`, `spotlessCheck`) all passed. Tasks were up-to-date since the tree was already built, so I forced the Health test next to prove real execution.
+
+**3. `mise exec -- ./gradlew test --tests '…HealthControllerTest' --rerun`** — `BUILD SUCCESSFUL`, `:test` executed (not up-to-date). Fresh XML `build/test-results/test/TEST-io.github.glaforge.agybrainviz.HealthControllerTest.xml` (timestamped 11:29) shows `tests="3" skipped="0" failures="0" errors="0"`, all three named cases present and passing:
+- `livenessIsUpWhenTheProcessIsServing()`
+- `readinessIsUpWhenTheStoreIsReachable()`
+- `readinessIsA503WhenTheStoreIsUnreachable()`
+
+**4. `mise exec -- ./gradlew shadowJar`** — `BUILD SUCCESSFUL`; jar at `build/libs/agybrainviz-0.1-SNAPSHOT-all.jar` (~40 MB).
+
+**5. Booted the jar** (`java -Ddotenv.enabled=false -jar …`) against running Postgres — `Startup completed in 490ms. Server Running: http://localhost:8080`, Hikari pool started, schema up to date.
+
+Live probes with Postgres UP:
+- `GET /health` → `{"status":"UP"} [200]`
+- `GET /health/ready` → `{"db":"UP","status":"UP"} [200]`
+- Exact compose healthcheck (`bash /dev/tcp … grep "200 OK"`) → `exit=0`
+
+Probes with Postgres STOPPED (`docker compose stop postgres`, exit 0):
+- `GET /health` → `{"status":"UP"} [200]` (liveness stays up, DB-independent — correct)
+- `GET /health/ready` → `{"db":"DOWN","status":"DOWN"} [503]` (correct)
+
+After `docker compose up -d postgres` (healthy again):
+- `GET /health/ready` → `{"db":"UP","status":"UP"} [200]` (readiness recovers)
+
+**Cleanup:** app killed via `pkill` (exit 144 = SIGTERM, expected), no `agybrainviz` process remains, port 8080 not listening, Postgres left healthy. The app is NOT left running.
+
+### Notes
+- JSON key ordering differs from the task's literal expectation (`{"db":"UP","status":"UP"}` vs `{"status":"UP","db":"UP"}`) — this is just `Map.of` iteration order and is semantically identical; not a defect.
+- `git diff main` only covers README.md and docker-compose.yml; `HealthController.java` and `HealthControllerTest.java` are new untracked files (as expected, not yet added). All exercised.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/HealthController.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/HealthControllerTest.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/build/test-results/test/TEST-io.github.glaforge.agybrainviz.HealthControllerTest.xml`</result>
+<usage><subagent_tokens>18081</subagent_tokens><tool_uses>17</tool_uses><duration_ms>131652</duration_ms></usage>
+</task-notification>
