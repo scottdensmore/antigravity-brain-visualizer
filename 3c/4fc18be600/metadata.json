@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "3c4fc18be600",
+  "strategy": "manual-commit",
+  "branch": "feat/postgres-store",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "src/main/java/io/github/glaforge/agybrainviz/AntigravityPaths.java",
+    "src/main/java/io/github/glaforge/agybrainviz/ClaudeCodeNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/ClaudeCodeSessionReader.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/CodexSessionReader.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/EvalService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/InsightsService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MineController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/MinerService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/OptimizeController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/OptimizeService.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SessionSource.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SourceNormalizer.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SummaryCache.java",
+    "src/main/java/io/github/glaforge/agybrainviz/SummaryRepository.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AntigravityPathsTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/EvalServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/InsightsServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/MinerServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/OptimizeServiceTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/SummaryRepositoryTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/4fc18be600/0/metadata.json",
+      "transcript": "/3c/4fc18be600/0/full.jsonl",
+      "compact_transcript": "/3c/4fc18be600/0/transcript.jsonl",
+      "content_hash": "/3c/4fc18be600/0/content_hash.txt",
+      "prompt": "/3c/4fc18be600/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 145626,
+    "cache_creation_tokens": 2950587,
+    "cache_read_tokens": 210055329,
+    "output_tokens": 508175,
+    "api_call_count": 464
+  }
+}
