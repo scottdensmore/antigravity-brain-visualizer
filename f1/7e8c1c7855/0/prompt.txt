@@ -417,3 +417,57 @@ Relevant files:
 - `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestorTest.java`</result>
 <usage><subagent_tokens>13046</subagent_tokens><tool_uses>12</tool_uses><duration_ms>90360</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a18458779f3e85e26</task-id>
+<tool-use-id>toolu_015KAKJogQATCELDq1g58pND</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a18458779f3e85e26.output</output-file>
+<status>completed</status>
+<summary>Agent "Review summary sync change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have enough to assess. Tests pass, `gofmt`/`vet` clean. Here are my findings, ranked.
+
+## Findings
+
+### 1. Dedup strands post-hoc summaries indefinitely — README understates it (actionable — verify intent)
+`cli/main.go:209` (`changedSessions`) skips any session whose transcript hash already matches the manifest, and the summary only rides along inside such a push. The README (`cli/README.md`) frames the gap optimistically: *"a summary that appears after the transcript was already ingested syncs on the next push that carries the transcript."*
+
+The problem: a push only *carries* the transcript when its hash differs from the manifest. A completed session's transcript typically never changes again — and an AI `summary.json` is by nature computed *after* the session finishes. So the common ordering is: final transcript pushed (manifest records hash) → `summary.json` written moments later → no further transcript change → the summary is **stranded permanently**, never syncing. This isn't a rare edge case; for post-hoc summaries it may be the dominant case.
+
+Concrete scenario: run a session to completion, `agent-ingest` pushes the transcript, Antigravity then writes `summary.json`. Every subsequent `agent-ingest` run skips the session (hash unchanged) and the summary never reaches Postgres.
+
+The mtime is already available and `scan.Session` already carries `Summary`. Either factor summary presence/hash into the manifest comparison so a newly-appeared summary forces a re-push, or reword the README to state plainly that a summary appearing after the transcript is final will not sync unless the transcript itself changes. As written the doc implies a sync that in practice won't happen.
+
+### 2. `catch (RuntimeException)` conflates a transient outage with permanently-bad data (nit)
+`Ingestor.java:112-121`. `summaries.upsert` funnels *every* failure — malformed jsonb, DB outage, pool exhaustion — through one `StoreUnavailableException` (a `RuntimeException`, mapped elsewhere to 503). The new catch swallows all of them and returns `INGESTED`.
+
+Reporting `INGESTED` is actually correct: `sessions.upsert` ran first on its own autocommit connection, so the session is durably stored regardless. And a genuine outage still surfaces — the *next* batch item's `sessions.upsert` (uncaught) throws and propagates a 503. So this is not a correctness bug.
+
+The residual concern is data loss, not misreporting: a *transient* outage striking exactly in the window between the session upsert and the summary upsert silently drops a *valid* summary, and because of finding #1 that summary is then never retried. Low probability, but the broad catch can't distinguish "drop forever, it's malformed" from "retry, the DB blipped." Acceptable as-is given the autocommit-durability design; noting it because the two failure modes genuinely differ.
+
+### 3. `readSummary` is correct; the coerce-then-validate order is right (no action)
+`cli/internal/scan/scan.go:176-186`. Coercing to valid UTF-8 before `json.Valid` matches how the transcript is hashed/sent (`readSession`, line 208), so the client validates the exact bytes it will transmit — correct order. No case sends structurally invalid JSON or drops good JSON.
+
+Worth recording for the record: `json.Valid` does **not** guarantee Postgres will accept the value as `jsonb`. A `\u0000` escape inside a JSON string passes `json.Valid` but Postgres rejects it on the `?::jsonb` cast (`SummaryRepository.java:37,80`). This is exactly why the server-side try/catch in finding #2 is load-bearing rather than paranoia — the two layers are complementary and both justified.
+
+### 4. `readSummary` silently swallows genuine read errors (nit)
+`cli/internal/scan/scan.go:177` treats a real I/O/permission error the same as file-absent (`err != nil` → `return ""`). This mirrors the "skip an unreadable transcript rather than fail" philosophy and is defensible for a best-effort summary, but unlike `readSession` (which returns the error) it discards it without distinguishing `os.IsNotExist`. Optional.
+
+### 5. Test gaps — mostly fine (nit)
+- Java `IngestorTest.aMalformedSummaryDoesNotCrashTheBatch...` genuinely fails without the change: without the catch, `s1`'s bad-jsonb `StoreUnavailableException` propagates out of `ingest`, so `s2` is never processed and no `IngestResult(2,0,0)` is returned. Good regression guard.
+- Go `TestScanReadsAntigravitySummaryJSON` fails without the change (`Summary` would be `""`); `TestScanIgnoresMalformedSummaryJSON` meaningfully guards the `json.Valid` line. Both fine.
+- Not tested: a summary that is valid JSON but a bare scalar (`null`, `123`) — `readSummary` returns it and the server stores jsonb `null`. Harmless, but no test pins the intended behavior. Optional.
+
+## Summary
+The change is clean, well-tested, `gofmt`/`vet`-clean, and the client/server validation layers are correctly complementary. The one finding worth resolving before commit is #1: confirm whether stranding a post-hoc summary until the next transcript change is the intended contract, and if so, tighten the README wording so it doesn't promise a sync that often won't occur.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/scan/scan.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/Ingestor.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/SummaryRepository.java`</result>
+<usage><subagent_tokens>29748</subagent_tokens><tool_uses>12</tool_uses><duration_ms>165836</duration_ms></usage>
+</task-notification>
