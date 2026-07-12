@@ -214,6 +214,7 @@ func changedSessions(list []scan.Session, manifest map[string]string) []client.P
 			ID:          s.ID,
 			SourceMtime: s.Mtime,
 			Raw:         s.Raw,
+			Summary:     s.Summary,
 		})
 	}
 	return changed
@@ -298,7 +299,9 @@ Usage:
 
 It scans this machine for Antigravity, OpenAI Codex, and Claude Code sessions and
 uploads them to the visualizer's ingest API. Sessions already stored with the same
-content are skipped, so running it repeatedly (e.g. on a schedule) is safe.
+content are skipped, so running it repeatedly (e.g. on a schedule) is safe. For a source
+that keeps its own AI summary on disk (Antigravity), that summary is uploaded with the
+transcript.
 
 Flags:
   --server URL      base URL of the visualizer (default %q; or $AGENT_INGEST_SERVER)

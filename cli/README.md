@@ -10,6 +10,16 @@ HTTP client for its `/api/ingest` endpoints. It stays deliberately thin — it l
 files, reads them, and uploads them verbatim. **The server parses them**, so the CLI
 never has to understand any tool's transcript format.
 
+When a source keeps its own AI analysis on disk (Antigravity's per-session
+`summary.json`), the CLI uploads it alongside the transcript so a summary computed on
+one machine reaches the shared store without a recompute. The summary is not part of the
+change-detection hash — it rides along only when its transcript is pushed. In the common
+case that works: a completed session's `summary.json` already exists by the time you run
+`agent-ingest`, so it uploads with the transcript on the first push. But a summary that
+appears **after** its transcript was already ingested will not sync on its own; it waits
+for the transcript to change, which for a finished session may never happen. Re-syncing a
+post-hoc summary is a known limitation (the change-detection manifest is transcript-only).
+
 ## Build
 
 ```bash

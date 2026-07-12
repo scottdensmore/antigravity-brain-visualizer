@@ -21,6 +21,7 @@ package scan
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -48,11 +49,12 @@ const cacheDir = ".agybrainviz"
 // Session is one local trajectory, ready to push. Title is intentionally left
 // empty: the server derives a consistent title from the transcript.
 type Session struct {
-	Source string
-	ID     string
-	Mtime  int64 // file modification time, epoch milliseconds
-	Raw    string
-	Hash   string // hex SHA-256 of Raw, matching the server's content hash
+	Source  string
+	ID      string
+	Mtime   int64 // file modification time, epoch milliseconds
+	Raw     string
+	Hash    string // hex SHA-256 of Raw, matching the server's content hash
+	Summary string // the tool's own AI analysis JSON, or "" when there is none
 }
 
 // Sha256Hex returns the lowercase hex SHA-256 of s, byte-for-byte identical to
@@ -159,10 +161,28 @@ func scanAntigravity(source, brain string) ([]Session, error) {
 			continue // skip an unreadable transcript rather than failing the source
 		}
 		if ok {
+			// Antigravity caches its own AI analysis beside the transcript; carry it so a
+			// summary generated on this machine reaches the store without a recompute.
+			session.Summary = readSummary(filepath.Join(logs, "summary.json"))
 			sessions = append(sessions, session)
 		}
 	}
 	return sessions, nil
+}
+
+// readSummary returns the tool's on-disk summary JSON, or "" when it is absent,
+// empty, or not valid JSON. The server stores it in a jsonb column, so sending
+// anything but valid JSON would fail the whole push — drop it rather than risk that.
+func readSummary(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil || len(raw) == 0 {
+		return ""
+	}
+	content := strings.ToValidUTF8(string(raw), "�")
+	if !json.Valid([]byte(content)) {
+		return ""
+	}
+	return content
 }
 
 // readSession reads one transcript into a hashed Session, reporting ok=false for

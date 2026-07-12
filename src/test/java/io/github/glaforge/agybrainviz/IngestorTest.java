@@ -91,6 +91,21 @@ class IngestorTest extends PostgresTest {
         assertTrue(summaries.find("antigravity-cli", "s1").isEmpty());
     }
 
+    @Test
+    void aMalformedSummaryDoesNotCrashTheBatchAndTheSessionStillIngests() {
+        // The summary lands in a jsonb column, so non-JSON would fail the insert. One bad summary
+        // must not take down the session it rode in with, nor the rest of the batch.
+        IngestResult result = ingestor.ingest(
+            List.of(
+                new IngestSession("antigravity-cli", "s1", null, 1L, ANTIGRAVITY_RAW, "not json"),
+                new IngestSession("antigravity-cli", "s2", null, 1L, ANTIGRAVITY_RAW, null)
+            )
+        );
+
+        assertEquals(new IngestResult(2, 0, 0), result);
+        assertTrue(summaries.find("antigravity-cli", "s1").isEmpty()); // the bad summary was dropped
+    }
+
     private String storedSteps(String source, String id) throws SQLException {
         try (
             Connection c = dataSource().getConnection();
