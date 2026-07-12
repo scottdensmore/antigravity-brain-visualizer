@@ -11,14 +11,13 @@ files, reads them, and uploads them verbatim. **The server parses them**, so the
 never has to understand any tool's transcript format.
 
 When a source keeps its own AI analysis on disk (Antigravity's per-session
-`summary.json`), the CLI uploads it alongside the transcript so a summary computed on
-one machine reaches the shared store without a recompute. The summary is not part of the
-change-detection hash — it rides along only when its transcript is pushed. In the common
-case that works: a completed session's `summary.json` already exists by the time you run
-`agent-ingest`, so it uploads with the transcript on the first push. But a summary that
-appears **after** its transcript was already ingested will not sync on its own; it waits
-for the transcript to change, which for a finished session may never happen. Re-syncing a
-post-hoc summary is a known limitation (the change-detection manifest is transcript-only).
+`summary.json`), the CLI uploads it so a summary computed on one machine reaches the
+shared store without a recompute. A summary rides along with its transcript when the
+transcript is pushed; a summary that appears **after** its transcript was already ingested
+(a common case, since it's written when the session ends) is synced on its own. The CLI
+diffs local summaries against a separate summary manifest and sends only the ones the store
+is missing or that changed — without re-uploading the transcript — so a post-hoc summary
+still lands.
 
 ## Build
 

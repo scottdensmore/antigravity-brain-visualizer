@@ -21,6 +21,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import javax.sql.DataSource;
 
@@ -33,16 +35,22 @@ import javax.sql.DataSource;
 public class SummaryRepository {
 
     private static final String UPSERT_SQL = """
-        INSERT INTO summaries (source, session_id, summary, short_title, updated_at)
-        VALUES (?, ?, ?::jsonb, ?, now())
+        INSERT INTO summaries (source, session_id, summary, short_title, content_hash, updated_at)
+        VALUES (?, ?, ?::jsonb, ?, ?, now())
         ON CONFLICT (source, session_id) DO UPDATE
            SET summary = excluded.summary,
-               short_title = excluded.short_title,
+               -- A summary-only push carries no title; keep the one we have rather than wipe it.
+               short_title = COALESCE(excluded.short_title, summaries.short_title),
+               content_hash = excluded.content_hash,
                updated_at = now()
+           WHERE summaries.content_hash IS DISTINCT FROM excluded.content_hash
         """;
 
     private static final String FIND_SQL =
         "SELECT summary FROM summaries WHERE source = ? AND session_id = ?";
+
+    private static final String MANIFEST_SQL =
+        "SELECT session_id, content_hash FROM summaries WHERE source = ? AND content_hash IS NOT NULL";
 
     private static final String DELETE_SQL =
         "DELETE FROM summaries WHERE source = ? AND session_id = ?";
@@ -69,8 +77,13 @@ public class SummaryRepository {
         }
     }
 
-    /** Stores (or replaces) the analysis JSON and short title for a session. */
-    public void upsert(String source, String id, String summaryJson, String title) {
+    /**
+     * Stores (or replaces) the analysis JSON and short title for a session.
+     *
+     * @return {@code true} if a row was written, {@code false} if the content was already stored (an
+     *     unchanged re-push is a no-op, so a summary manifest lets a client skip it).
+     */
+    public boolean upsert(String source, String id, String summaryJson, String title) {
         try (
             Connection connection = dataSource.getConnection();
             PreparedStatement stmt = connection.prepareStatement(UPSERT_SQL)
@@ -83,10 +96,37 @@ public class SummaryRepository {
             } else {
                 stmt.setString(4, title.trim());
             }
-            stmt.executeUpdate();
+            stmt.setString(5, Hashing.sha256Hex(summaryJson));
+            return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new StoreUnavailableException("Could not store the summary for " + id, e);
         }
+    }
+
+    /**
+     * Every stored {@code session_id -> contentHash} for a source, so an ingest client can push only
+     * the summaries the store is missing or that changed since it last synced.
+     */
+    public Map<String, String> manifest(String source) {
+        Map<String, String> manifest = new LinkedHashMap<>();
+        try (
+            Connection connection = dataSource.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(MANIFEST_SQL)
+        ) {
+            stmt.setString(1, source);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) manifest.put(
+                    rs.getString("session_id"),
+                    rs.getString("content_hash")
+                );
+            }
+        } catch (SQLException e) {
+            throw new StoreUnavailableException(
+                "Could not read the summary manifest for " + source,
+                e
+            );
+        }
+        return manifest;
     }
 
     /** Removes any cached summary for a session (used on a forced recompute). */

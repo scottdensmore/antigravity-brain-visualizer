@@ -92,6 +92,54 @@ class IngestorTest extends PostgresTest {
     }
 
     @Test
+    void ingestsASummaryOnItsOwnForAnAlreadyStoredSession() {
+        // The post-hoc case: the transcript is already in the store, and a summary shows up later.
+        ingestor.ingest(List.of(push("antigravity-cli", "s1", ANTIGRAVITY_RAW)));
+        assertTrue(summaries.find("antigravity-cli", "s1").isEmpty());
+
+        IngestResult result = ingestor.ingestSummaries(
+            List.of(new IngestSummary("antigravity-cli", "s1", "{\"summary\":\"late\"}"))
+        );
+
+        assertEquals(new IngestResult(1, 0, 0), result);
+        assertTrue(summaries.find("antigravity-cli", "s1").orElse("").contains("late"));
+    }
+
+    @Test
+    void reIngestingAnUnchangedSummaryIsSkipped() {
+        IngestSummary s = new IngestSummary("antigravity-cli", "s1", "{\"summary\":\"same\"}");
+        assertEquals(new IngestResult(1, 0, 0), ingestor.ingestSummaries(List.of(s)));
+        assertEquals(new IngestResult(0, 1, 0), ingestor.ingestSummaries(List.of(s)));
+    }
+
+    @Test
+    void aSummaryForAnUnknownSourceOrWithNoBodyIsCountedAsFailed() {
+        assertEquals(
+            new IngestResult(0, 0, 1),
+            ingestor.ingestSummaries(List.of(new IngestSummary("borg", "s1", "{}")))
+        );
+        assertEquals(
+            new IngestResult(0, 0, 1),
+            ingestor.ingestSummaries(List.of(new IngestSummary("antigravity-cli", "s1", "  ")))
+        );
+    }
+
+    @Test
+    void aNonJsonSummaryBodyIsFailedWithoutCrashingTheBatch() {
+        // A non-JSON body can't go in the jsonb column; reject it as this item's failure (caught up
+        // front, so a genuine store outage still propagates rather than looking like a per-item fail).
+        IngestResult result = ingestor.ingestSummaries(
+            List.of(
+                new IngestSummary("antigravity-cli", "s1", "not json"),
+                new IngestSummary("antigravity-cli", "s2", "{\"summary\":\"ok\"}")
+            )
+        );
+        assertEquals(new IngestResult(1, 0, 1), result);
+        assertTrue(summaries.find("antigravity-cli", "s2").isPresent());
+        assertTrue(summaries.find("antigravity-cli", "s1").isEmpty());
+    }
+
+    @Test
     void aMalformedSummaryDoesNotCrashTheBatchAndTheSessionStillIngests() {
         // The summary lands in a jsonb column, so non-JSON would fail the insert. One bad summary
         // must not take down the session it rode in with, nor the rest of the batch.

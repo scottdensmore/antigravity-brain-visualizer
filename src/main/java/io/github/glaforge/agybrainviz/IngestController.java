@@ -38,11 +38,17 @@ public class IngestController {
 
     private final Ingestor ingestor;
     private final SessionRepository sessions;
+    private final SummaryRepository summaries;
 
     @Inject
-    public IngestController(Ingestor ingestor, SessionRepository sessions) {
+    public IngestController(
+        Ingestor ingestor,
+        SessionRepository sessions,
+        SummaryRepository summaries
+    ) {
         this.ingestor = ingestor;
         this.sessions = sessions;
+        this.summaries = summaries;
     }
 
     /**
@@ -62,5 +68,25 @@ public class IngestController {
     @Post(value = "/sessions", produces = "application/json")
     public IngestResult push(@Body List<IngestSession> sessions) {
         return ingestor.ingest(sessions);
+    }
+
+    /**
+     * Every stored {@code id -> summaryContentHash} for a source.
+     *
+     * <p>A summary usually rides along with its transcript, but one written after the transcript is
+     * final would otherwise never sync. A client diffs against this and pushes only the summaries the
+     * store is missing or that changed.
+     */
+    @ExecuteOn(TaskExecutors.IO)
+    @Get(value = "/summaries/manifest", produces = "application/json")
+    public Map<String, String> summaryManifest(@QueryValue String source) {
+        return summaries.manifest(source);
+    }
+
+    /** Stores a batch of summaries pushed on their own, for sessions whose transcript is already stored. */
+    @ExecuteOn(TaskExecutors.IO)
+    @Post(value = "/summaries", produces = "application/json")
+    public IngestResult pushSummaries(@Body List<IngestSummary> summaries) {
+        return ingestor.ingestSummaries(summaries);
     }
 }

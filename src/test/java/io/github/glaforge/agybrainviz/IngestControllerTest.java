@@ -103,6 +103,40 @@ class IngestControllerTest implements TestPropertyProvider {
     }
 
     @Test
+    void pushesASummaryOnItsOwnAndReportsItInTheSummaryManifest() throws IOException {
+        // The transcript is already stored; a post-hoc summary syncs on its own.
+        push(batch("antigravity-cli", "s1", RAW));
+        String summaryJson = "{\"summary\":\"post hoc\"}";
+        String body = MAPPER.writeValueAsString(
+            java.util.List.of(new IngestSummary("antigravity-cli", "s1", summaryJson))
+        );
+
+        JsonNode result = MAPPER.readTree(
+            client
+                .toBlocking()
+                .retrieve(
+                    HttpRequest
+                        .POST("/api/ingest/summaries", body)
+                        .contentType(MediaType.APPLICATION_JSON)
+                )
+        );
+        assertEquals(1, result.get("ingested").asInt());
+
+        JsonNode manifest = MAPPER.readTree(
+            client.toBlocking().retrieve("/api/ingest/summaries/manifest?source=antigravity-cli")
+        );
+        assertEquals(Ingestor.sha256(summaryJson), manifest.get("s1").asText());
+    }
+
+    @Test
+    void theSummaryManifestOfAnUnknownSourceIsEmpty() throws IOException {
+        JsonNode manifest = MAPPER.readTree(
+            client.toBlocking().retrieve("/api/ingest/summaries/manifest?source=nothing-here")
+        );
+        assertTrue(manifest.isEmpty());
+    }
+
+    @Test
     void rePushingIsANoOpOverHttp() throws IOException {
         push(batch("antigravity-cli", "s1", RAW));
         JsonNode again = push(batch("antigravity-cli", "s1", RAW));

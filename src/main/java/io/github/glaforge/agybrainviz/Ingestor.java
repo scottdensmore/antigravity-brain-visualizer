@@ -15,12 +15,10 @@
  */
 package io.github.glaforge.agybrainviz;
 
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -38,6 +36,8 @@ import org.slf4j.LoggerFactory;
 public class Ingestor {
 
     private static final Logger LOG = LoggerFactory.getLogger(Ingestor.class);
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final List<SourceNormalizer> normalizers;
     private final SessionRepository sessions;
@@ -67,6 +67,61 @@ public class Ingestor {
             }
         }
         return new IngestResult(ingested, skipped, failed);
+    }
+
+    /**
+     * Stores a batch of summaries pushed on their own (for sessions already in the store), counting
+     * each as ingested, skipped (unchanged), or failed. Used for a summary that appeared after its
+     * transcript was already ingested.
+     */
+    public IngestResult ingestSummaries(List<IngestSummary> batch) {
+        int ingested = 0;
+        int skipped = 0;
+        int failed = 0;
+        for (IngestSummary pushed : batch == null ? List.<IngestSummary>of() : batch) {
+            switch (storeSummary(pushed)) {
+                case INGESTED -> ingested++;
+                case SKIPPED -> skipped++;
+                case FAILED -> failed++;
+            }
+        }
+        return new IngestResult(ingested, skipped, failed);
+    }
+
+    private Outcome storeSummary(IngestSummary pushed) {
+        if (
+            pushed == null ||
+            isBlank(pushed.id()) ||
+            isBlank(pushed.source()) ||
+            isBlank(pushed.summary())
+        ) {
+            LOG.warn("Rejecting a pushed summary with no source, id, or body");
+            return Outcome.FAILED;
+        }
+        // Only accept summaries for sources the server knows, matching the trajectory push.
+        if (normalizerFor(pushed.source()).isEmpty()) {
+            LOG.warn("Rejecting summary for {}: unknown source '{}'", pushed.id(), pushed.source());
+            return Outcome.FAILED;
+        }
+        // Reject a non-JSON body up front (it can't go in the jsonb column) as this one item's
+        // failure. Doing the check here, rather than catching the store's exception, keeps a genuine
+        // store outage propagating out of the batch — a 503, exactly as a pushed trajectory behaves —
+        // instead of being masked as a per-item failure inside a 200 response.
+        if (!isValidJson(pushed.summary())) {
+            LOG.warn("Rejecting summary for {}: body is not valid JSON", pushed.id());
+            return Outcome.FAILED;
+        }
+        boolean written = summaries.upsert(pushed.source(), pushed.id(), pushed.summary(), null);
+        return written ? Outcome.INGESTED : Outcome.SKIPPED;
+    }
+
+    private static boolean isValidJson(String value) {
+        try {
+            MAPPER.readTree(value);
+            return true;
+        } catch (JacksonException e) {
+            return false;
+        }
     }
 
     private enum Outcome {
@@ -143,12 +198,7 @@ public class Ingestor {
 
     /** Hex SHA-256 of the transcript's UTF-8 bytes. Clients hash the file the same way. */
     static String sha256(String raw) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(raw.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is required by every JVM", e);
-        }
+        return Hashing.sha256Hex(raw);
     }
 
     private static boolean isBlank(String value) {

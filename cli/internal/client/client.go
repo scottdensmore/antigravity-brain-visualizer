@@ -57,6 +57,14 @@ type PushSession struct {
 	Summary     string `json:"summary,omitempty"`
 }
 
+// PushSummary mirrors the server's IngestSummary record: a cached analysis pushed
+// on its own for a session whose transcript is already stored.
+type PushSummary struct {
+	Source  string `json:"source"`
+	ID      string `json:"id"`
+	Summary string `json:"summary"`
+}
+
 // Result mirrors the server's IngestResult.
 type Result struct {
 	Ingested int `json:"ingested"`
@@ -94,6 +102,40 @@ func (c *Client) Push(ctx context.Context, sessions []PushSession) (Result, erro
 	var result Result
 	if err := c.do(req, &result); err != nil {
 		return Result{}, fmt.Errorf("pushing %d session(s): %w", len(sessions), err)
+	}
+	return result, nil
+}
+
+// SummaryManifest returns the server's id -> summaryContentHash map for a source,
+// so the caller can push only the summaries the store is missing or that changed.
+func (c *Client) SummaryManifest(ctx context.Context, source string) (map[string]string, error) {
+	u := c.baseURL + "/api/ingest/summaries/manifest?source=" + url.QueryEscape(source)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	var manifest map[string]string
+	if err := c.do(req, &manifest); err != nil {
+		return nil, fmt.Errorf("fetching summary manifest for %s: %w", source, err)
+	}
+	return manifest, nil
+}
+
+// PushSummaries uploads a batch of standalone summaries and returns the server's tally.
+func (c *Client) PushSummaries(ctx context.Context, summaries []PushSummary) (Result, error) {
+	payload, err := json.Marshal(summaries)
+	if err != nil {
+		return Result{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/ingest/summaries", bytes.NewReader(payload))
+	if err != nil {
+		return Result{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	var result Result
+	if err := c.do(req, &result); err != nil {
+		return Result{}, fmt.Errorf("pushing %d summary(ies): %w", len(summaries), err)
 	}
 	return result, nil
 }
