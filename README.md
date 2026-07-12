@@ -92,8 +92,8 @@ You also need **Docker**, for the Postgres store described next.
 
 ### The trajectory store — Postgres
 
-Saved eval runs are kept in a Postgres database rather than on local disk, so they can be shared
-across the machines you work on. Start one with the checked-in compose file:
+Sessions, their AI analyses, and eval-run history live in a Postgres database rather than on local
+disk, so they're shared across the machines you work on. Start one with the checked-in compose file:
 
 ```bash
 docker compose up -d      # data persists in a named volume across restarts
@@ -105,6 +105,60 @@ SQL, …) by setting `DATABASE_URL`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` �
 
 The app still starts if the database is down; it logs a warning, serves the UI, and answers the
 endpoints that need the store with a `503`.
+
+#### Run the whole stack in Docker
+
+To run the **app and the database together** in Docker — no Java or Gradle needed on the host — use
+the `full` profile. The app image is built from the checked-in `Dockerfile` (a two-stage build that
+compiles the fat jar and runs it on a slim JRE):
+
+```bash
+docker compose --profile full up -d --build   # build the app image and start app + Postgres
+```
+
+(The build needs Docker with BuildKit — the default since Docker 23.0.) Then open
+[http://localhost:8080](http://localhost:8080). The app connects to Postgres over the
+compose network, so no extra configuration is needed. To use AI summarization, pass a key through —
+`GEMINI_API_KEY=… docker compose --profile full up -d` (or put it in `.env`).
+
+**The database is persistent.** Postgres stores its data in the named `pgdata` volume, which is
+independent of the containers, so it survives restarts, `docker compose down`, and rebuilding the app
+image. It is removed only when you ask:
+
+```bash
+docker compose down        # stop everything, KEEP the database
+docker compose --profile full up -d --build   # rebuild the app after code changes; data is intact
+docker compose down -v     # stop everything and WIPE the database
+```
+
+Everyday commands:
+
+```bash
+docker compose ps                          # status + health of both services
+docker compose logs -f app                 # follow the app's logs
+docker compose exec postgres psql -U agentviz agentbrainviz   # a psql shell into the store
+docker compose exec postgres pg_dump -U agentviz agentbrainviz > backup.sql   # back the store up
+```
+
+Pushing trajectories still runs on the **host**, because that's where your agent transcripts live —
+point [`agent-ingest`](cli/README.md) at the containerized app:
+
+```bash
+agent-ingest --server http://localhost:8080
+```
+
+> [!NOTE]
+> One feature can't work from inside the container: the inline **file preview** (`/api/brain/file`)
+> serves real files under the host's `~/.gemini`, which the container can't see. Everything served
+> from the store — sessions, transcripts, analyses, insights — works normally.
+
+For **database-only** development (running the app on the host with `./gradlew run` against a
+containerized Postgres), start just the database — that's the default, so the `app` service stays
+out of the way:
+
+```bash
+docker compose up -d postgres              # or just `docker compose up -d`
+```
 
 #### Pushing trajectories into the store
 

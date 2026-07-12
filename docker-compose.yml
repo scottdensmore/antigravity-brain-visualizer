@@ -1,11 +1,18 @@
-# Local Postgres for the Agent Brain Visualizer.
+# Docker Compose for the Agent Brain Visualizer.
 #
-#     docker compose up -d      # start (data survives restarts in the named volume)
-#     docker compose down       # stop, keeping the data
-#     docker compose down -v    # stop and wipe the data
+#   Database only (for local development / tests — the default):
+#     docker compose up -d                       # start Postgres; data persists in the pgdata volume
+#     docker compose up -d postgres              # same, explicit
 #
-# The credentials below match the defaults in `.env.example`, so `./gradlew run`
-# works against this container with no extra configuration.
+#   Whole stack (app + database) in Docker:
+#     docker compose --profile full up -d --build   # build the app image and run it against Postgres
+#
+#   Stop:
+#     docker compose down        # stop, keeping the database volume
+#     docker compose down -v     # stop and WIPE the database
+#
+# The credentials below match the defaults in `.env.example`, so `./gradlew run` (or the app
+# container) works against this database with no extra configuration.
 services:
   postgres:
     image: postgres:17-alpine
@@ -18,12 +25,46 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      # Named volume: the data survives `docker compose down`, restarts, and app-image rebuilds.
+      # It is removed only by `docker compose down -v`.
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agentviz -d agentbrainviz"]
       interval: 5s
       timeout: 5s
       retries: 10
+
+  app:
+    build: .
+    image: agent-brain-viz:local
+    container_name: agent-brain-viz-app
+    restart: unless-stopped
+    # Only starts with `--profile full`, so the default `docker compose up` stays database-only for
+    # local development (where you run the app with `./gradlew run` on the host).
+    profiles: ["full"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Reach Postgres over the compose network by service name, not localhost.
+      DATABASE_URL: jdbc:postgresql://postgres:5432/agentbrainviz
+      POSTGRES_USER: agentviz
+      POSTGRES_PASSWORD: agentviz
+      # Optional. Passed through from the host shell or the project's .env if set; otherwise blank,
+      # and AI summarization is simply unavailable.
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Set this once the app is reachable off localhost, and pass the same value to agent-ingest.
+      INGEST_TOKEN: ${INGEST_TOKEN:-}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      # bash (present in the temurin image) can open a raw TCP socket, so no curl needed.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
 
 volumes:
   pgdata:

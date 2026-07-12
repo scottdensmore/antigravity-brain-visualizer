@@ -1,0 +1,36 @@
+# Keep the build context small and clean: exclude VCS, build outputs, local caches, the Go
+# CLI (not part of the app image), and secrets. What's left is the Gradle project the image builds.
+.git
+.github
+.gradle
+build
+bin
+out
+target
+
+# Node / e2e (the app image doesn't build the frontend tests)
+node_modules
+test-results
+playwright-report
+blob-report
+playwright/.cache
+
+# The Go CLI is a separate artifact, not part of the app image
+cli
+
+# Local tooling / editor state
+.idea
+.vscode
+.entire
+.codex
+.cursor
+
+# Secrets and local config — never bake these into an image
+.env
+.env.*
+!.env.example
+
+# Docs and images aren't needed to build the jar
+*.md
+screenshot.png
+logo.svg
