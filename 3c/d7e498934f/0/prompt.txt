@@ -142,3 +142,7 @@ CI COMPLETE</event>
 ---
 
 Ok lets do step 5
+
+---
+
+Ok 1password is unlocked
