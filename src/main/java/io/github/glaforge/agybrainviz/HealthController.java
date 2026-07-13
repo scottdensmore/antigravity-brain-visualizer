@@ -55,10 +55,15 @@ public class HealthController {
         this.dataSource = dataSource;
     }
 
-    /** Liveness: the process is up and serving HTTP. Never touches the database. */
+    /**
+     * Liveness: the process is up and serving HTTP. Never touches the database.
+     *
+     * <p>Carries the build version so a deployed instance's version is one {@code curl /health} away —
+     * handy for debugging which build is running (the CLI reports its own via {@code --version}).
+     */
     @Get(produces = "application/json")
     public Map<String, String> liveness() {
-        return Map.of("status", "UP");
+        return Map.of("status", "UP", "version", Version.VERSION);
     }
 
     /** Readiness: UP only when the store answers, so traffic isn't routed to an app that can't serve. */

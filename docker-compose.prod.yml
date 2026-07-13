@@ -1,0 +1,26 @@
+# Production override for running the stack on a server reachable off localhost.
+#
+# It closes the local-dev conveniences the base compose leaves open: Postgres is no longer published
+# to the host network (the app still reaches it over the compose network), and the app binds to
+# localhost so a reverse proxy terminating TLS is the only public entrypoint. Layer it on the base:
+#
+#   APP_VERSION=$(git describe --tags --always) \
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile full up -d --build
+#
+# Put your secrets (INGEST_TOKEN, INGEST_REQUIRE_AUTH=true, GEMINI_API_KEY) in a .env next to these
+# files — see "Securing an exposed deployment" and "Remote deployment" in the README.
+#
+# Requires Docker Compose v2.24+ (Jan 2024) for the `!reset` / `!override` merge tags below — on an
+# older Compose they're ignored and the base ports would leak through, defeating the point.
+services:
+  postgres:
+    # Don't expose the database to the network; only the app needs it, over the compose network.
+    # `!reset` replaces the base list (a plain `ports: []` would be *appended*, leaving 5432 published).
+    ports: !reset []
+
+  app:
+    # `!override` replaces the base list rather than appending to it, so 8080 isn't also left published
+    # on all interfaces. Bind to localhost only — a reverse proxy (nginx / Caddy / a cloud LB) fronts
+    # it and terminates TLS.
+    ports: !override
+      - "127.0.0.1:8080:8080"
