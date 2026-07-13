@@ -1281,3 +1281,44 @@ All appropriate checks ran and passed.
 **Not executed (by design):** the cross-compiled non-darwin/non-host binaries were not run — they can't execute on this arm64 macOS host; only the native builds were run to confirm `--version` output.</result>
 <usage><subagent_tokens>9896</subagent_tokens><tool_uses>7</tool_uses><duration_ms>49613</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a3c88f8050ffff152</task-id>
+<tool-use-id>toolu_01J933868a9tJMf6RGH7TPrC</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a3c88f8050ffff152.output</output-file>
+<status>completed</status>
+<summary>Agent "Review CLI release workflow" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I verified the build, version stamping, and the test end-to-end. Here are my findings.
+
+## Verdict: clean
+
+The release workflow, version stamping, test, and docs are all correct. I cross-compiled darwin/arm64 with the exact ldflags from the workflow and confirmed `agent-ingest --version` prints the injected value; the version test passes; `go vet` is clean; `go.mod` (`go 1.23`) matches the `setup-go` pin.
+
+Point-by-point confirmation of the things you asked about:
+
+1. **`${{ github.ref_name }}` on a `release: published` event** — correct. On a release event `GITHUB_REF` is `refs/tags/&lt;tag&gt;` and `ref_name` is the bare tag, so the binary is stamped with the release tag (e.g. `v1.2.3`), not a branch.
+2. **`permissions: contents: write`** — both sufficient and necessary; release assets fall under the `contents` scope, and `GITHUB_TOKEN` is passed to the action.
+3. **5 parallel matrix jobs → same release** — no clobber. Each job writes a distinct filename (`agent-ingest-&lt;os&gt;-&lt;arch&gt;[.exe]`) and `action-gh-release` appends assets rather than replacing the asset set; same-name replacement is the only clobber path and names never collide. This is also the established pattern already used by `release-native-binaries.yml` (3 parallel uploads to the same release).
+4. **`-X main.version=` vs `var version = "dev"` at package `main`** — correct package/symbol; verified the stamp overrides `dev`.
+5. **`fail-fast: false`** — present, so one target failing won't cancel the other four. Good.
+6. **`matrix.ext` empty for non-windows** — Actions expands an undefined matrix key to the empty string, so `${out}${{ matrix.ext }}` is just the base name on non-windows and `.exe` only on windows. Correct.
+7. **No asset-name collision** with `release-native-binaries.yml` — CLI assets are `agent-ingest-*`, native assets are `agy-brain-viz-*.zip`. Disjoint. Confirmed.
+8. **`--version` test** (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go:157`) — sound: it drives the real `cli()` entry point, asserts `exitOK` and exact stdout `"agent-ingest " + version + "\n"`. Exercises the actual flag path, and `version` is `"dev"` in the un-stamped test build so the assertion is real, not tautological.
+9. **README install docs** (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md:22-43`) — the `releases/latest/download/agent-ingest-&lt;os&gt;-&lt;arch&gt;` URL pattern matches exactly what the workflow uploads; the `go build -ldflags "-X main.version=$(git describe --tags --always)"` line is correct and copy-pasteable; the `\` continuation sits in a real `bash` block (unlike the crontab caveat, which the docs correctly call out at line 112).
+
+## Nits (optional, none block the release)
+
+- **OS-name inconsistency across the two release workflows** — the CLI names macOS assets `darwin` (`.github/workflows/release-cli.yml:23-24`) while `release-native-binaries.yml:21` names them `macos`. Not a collision (different prefixes), but a user grabbing both binaries sees two different words for the same OS. Cosmetic.
+- **No `go test` gate before release build** (`.github/workflows/release-cli.yml`) — a release cut from a red commit would still ship binaries. `release-native-binaries.yml` has the same gap, so this is consistent with existing practice, not a regression.
+- **`go-version: "1.23"` is pinned exactly to `go.mod`'s `go 1.23`** — fine today, but a future `go.mod` bump requires remembering to bump the workflow too. Using `go-version-file: cli/go.mod` would keep them in lockstep.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/release-cli.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/release-native-binaries.yml`</result>
+<usage><subagent_tokens>37793</subagent_tokens><tool_uses>10</tool_uses><duration_ms>85491</duration_ms></usage>
+</task-notification>
