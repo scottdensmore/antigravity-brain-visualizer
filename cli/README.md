@@ -78,6 +78,101 @@ so the tool composes cleanly in scripts and pipelines. The `--json` object carri
 message for any source that could not be synced, so a script can detect failure without
 parsing the exit code.
 
+## Scheduling
+
+Because a re-run uploads only what changed and exits `0` when there's nothing to do,
+`agent-ingest` is meant to run unattended on a timer. A few things make it well-behaved in a
+scheduler:
+
+- The final summary always prints to **stdout** — redirect it to a log file (as below) or to
+  `/dev/null`. The per-source progress chatter is silenced automatically whenever output isn't
+  a terminal (i.e. under any scheduler), so `--quiet` is optional; it just forces the same on a
+  terminal.
+- Errors go to **stderr** and set a non-zero **exit code** — wire those to your alerting.
+- Keep `AGENT_INGEST_TOKEN` out of the job definition where you can (an env file with tight
+  permissions), since it grants write access to the store.
+
+**cron** (Linux/macOS) — every 30 minutes, token sourced from a private file, output logged.
+A crontab entry is a single line (cron has no `\` continuation), and because the file is
+_sourced_ it must `export` the token so the child process inherits it — so `token.env` here
+holds `export AGENT_INGEST_TOKEN=...`:
+
+```cron
+*/30 * * * * . "$HOME/.config/agent-ingest/token.env" && /usr/local/bin/agent-ingest --server https://viz.example.com >> "$HOME/.local/state/agent-ingest.log" 2>&1
+```
+
+**systemd timer** (Linux) — a `oneshot` service plus a timer, as user units:
+
+```ini
+# ~/.config/systemd/user/agent-ingest.service
+[Unit]
+Description=Push local agent transcripts to the Agent Brain Visualizer
+
+[Service]
+Type=oneshot
+Environment=AGENT_INGEST_SERVER=https://viz.example.com
+# EnvironmentFile wants a bare KEY=VALUE line (no "export"): AGENT_INGEST_TOKEN=...
+# (so it's NOT the same file as the cron token.env above, which is sourced and exports).
+EnvironmentFile=%h/.config/agent-ingest/token.env
+ExecStart=/usr/local/bin/agent-ingest
+```
+
+```ini
+# ~/.config/systemd/user/agent-ingest.timer
+[Unit]
+Description=Sync agent transcripts every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+systemctl --user enable --now agent-ingest.timer
+# For runs while you're logged out: sudo loginctl enable-linger "$USER"
+```
+
+A failed sync marks the service failed (`systemctl --user status agent-ingest`), which your
+usual unit monitoring can pick up.
+
+**launchd** (macOS) — a LaunchAgent that runs every 30 minutes:
+
+```xml
+<!-- ~/Library/LaunchAgents/com.example.agent-ingest.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.example.agent-ingest</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/agent-ingest</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>AGENT_INGEST_SERVER</key><string>https://viz.example.com</string>
+    <key>AGENT_INGEST_TOKEN</key><string>REPLACE_ME</string>
+  </dict>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardErrorPath</key><string>/tmp/agent-ingest.log</string>
+</dict>
+</plist>
+```
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.agent-ingest.plist
+# (older macOS: launchctl load ~/Library/LaunchAgents/com.example.agent-ingest.plist)
+```
+
+launchd has no env file, so the token lives in the plist — keep it readable only by you
+(`chmod 600`; note its value is still visible to anything running as you, e.g. via
+`launchctl print`).
+
 ## Test
 
 ```bash
