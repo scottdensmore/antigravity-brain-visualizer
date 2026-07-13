@@ -40,6 +40,21 @@ test.describe("session browsing", () => {
     );
   });
 
+  test("an empty source shows first-run onboarding", async ({ page }) => {
+    await page.goto("/");
+    // "Antigravity Agent" (antigravity) has no seeded sessions.
+    await page.selectOption("#flavor-select", "antigravity");
+
+    // The copy is scoped to the selected source.
+    await expect(page.locator("#conversations-list")).toContainText(
+      "No Antigravity Agent sessions yet"
+    );
+    const main = page.locator("#transcript-container");
+    await expect(main).toContainText("No Antigravity Agent sessions yet");
+    await expect(main).toContainText("agent-ingest --server");
+    await expect(main.locator("#onboarding-copy")).toBeVisible();
+  });
+
   test("the conversations API pages with limit/offset and reports the total", async ({
     request,
   }) => {
