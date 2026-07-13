@@ -1370,3 +1370,51 @@ Relevant files:
 - `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/HealthControllerTest.java`</result>
 <usage><subagent_tokens>16652</subagent_tokens><tool_uses>14</tool_uses><duration_ms>120685</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>a954612c3773a2188</task-id>
+<tool-use-id>toolu_013XZcqsDZEuVZGVEj26occC</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a954612c3773a2188.output</output-file>
+<status>completed</status>
+<summary>Agent "Review versioned deployment" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Confirmed. Here are my findings, ranked by severity.
+
+## Findings
+
+### 1. ACTIONABLE — README's `INGEST_REQUIRE_AUTH=true` in `.env` is silently ineffective in the container (security-relevant)
+
+`README.md` (new "Remote / production deployment", step 1) tells operators to put `INGEST_REQUIRE_AUTH=true` in `.env` with the comment "refuse ingest until the token is set (fail closed)." But that variable never reaches the app container:
+
+- The app reads it via `System.getenv("INGEST_REQUIRE_AUTH")` (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java:45,81-85`), falling back to `DotEnv.get` only when the env var is absent.
+- The container runs with `-Ddotenv.enabled=false` (`Dockerfile:38`), so the `.env` fallback is dead.
+- `docker-compose.yml` (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml:53-63`) passes `GEMINI_API_KEY` and `INGEST_TOKEN` through the `environment:` block but **not** `INGEST_REQUIRE_AUTH`. Compose does not auto-inject `.env` into containers (no `env_file:`); `.env` is only used for `${...}` interpolation, and nothing interpolates this key.
+
+Concrete failure: an operator sets `INGEST_REQUIRE_AUTH=true` in `.env` (with or without a token) believing ingest is now fail-closed. The container never sees the flag, so `IngestConfig.requireAuth()` is `false` and the write endpoints run in OPEN posture — the exact scenario the fail-closed switch exists to prevent. Note `INGEST_TOKEN` in `.env` *does* work (it's interpolated at line 63), so only the fail-closed guard is broken, which is the worse half to lose silently.
+
+Fix: add `INGEST_REQUIRE_AUTH: ${INGEST_REQUIRE_AUTH:-}` to the app `environment:` block in `docker-compose.yml`, mirroring `INGEST_TOKEN`. (Pre-existing omission, but this README change is what newly instructs users to depend on it.)
+
+### 2. NIT — Minimum Compose version for `!reset`/`!override` is undocumented
+
+`docker-compose.prod.yml` correctly uses `!reset []` (postgres) and `!override [...]` (app) — these *are* the right directives to replace rather than append list values, and a plain `ports: []` would indeed leave the base ports published. The merge is complete: the base exposes only `5432` (postgres) and `8080` (app), and both are neutralized; the Dockerfile's `EXPOSE 8080` is metadata only and publishes nothing. Good.
+
+However, `!reset`/`!override` require Docker Compose **v2.24.0+** (Jan 2024). On an older Compose the tags are not honored, and the security benefit (unpublished Postgres, localhost-only app) is silently lost — precisely on a production server. Worth a one-line note in the README/compose header stating the minimum Compose version.
+
+### 3. NIT — A slash or space in `APP_VERSION` breaks the Docker build
+
+`Dockerfile:11-12` sets `ENV GITHUB_REF_NAME=$APP_VERSION`, and `build.gradle:8,16` bakes that verbatim into `project.version`, which becomes the shadow-jar filename. The `RUN` step does `cp build/libs/*-all.jar` (non-recursive glob). A version containing `/` (e.g. a branch name like `feat/versioned-deployment`) makes Gradle write into a nested path, so the glob misses and `cp` fails; a space would similarly break it. The documented inputs (`git describe --tags --always`, release tags, default `docker`) never contain these characters, so this is an edge case only — but it's a foot-gun if someone passes `APP_VERSION=$(git rev-parse --abbrev-ref HEAD)`. Default `docker` is sensible.
+
+## Confirmed clean (your specific questions)
+
+- **Version.VERSION safety (Q2):** `generateVersionClass` runs before `compileJava` (`build.gradle:20`), and `VERSION` is a `public static final String` compile-time constant, so javac inlines the literal into `HealthController`'s bytecode. No NPE, no runtime lookup, no reflection — native-image safe. Clean.
+- **`ENV` leak (Q4):** The runtime stage is a separate `FROM eclipse-temurin:25-jre`, so `GITHUB_REF_NAME` stays in the build stage and never reaches the running app. Clean.
+- **build-mapping compatibility (Q5):** `docker compose --profile full up -d --build` with no `APP_VERSION` resolves `${APP_VERSION:-docker}` to `docker`; the `image: agent-brain-viz:local` tag is unaffected (rebuild overwrites the same tag, which is intended here). Clean.
+- **Info disclosure on `/health` (Q1):** Acceptable. It's the app's own version, the endpoint must stay unauthenticated for probes, and the user explicitly wants it for debugging. No meaningful escalation; no need to gate.
+- **Micronaut idiom + test (Q7):** Returning `Map&lt;String,String&gt;` matches the existing endpoint (already proven under serde/native), constructor injection unchanged, `@Get` unchanged — idiomatic. The updated test (`HealthControllerTest.java`) fails without the change: `body.get("version")` would be `null` and `.asText()` NPEs. Good.
+- **README (Q6):** The layered `-f` command, the Caddy snippet, `git describe --tags --always` (with `--always` falling back to a commit hash when no tags exist), and `AGENT_INGEST_TOKEN` for the CLI (`cli/main.go:127`) are all correct and copy-pasteable. `&lt;openssl rand -hex 32&gt;` is a clear-enough placeholder. Only the `INGEST_REQUIRE_AUTH` line (finding #1) is wrong.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/README.md`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.prod.yml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/Dockerfile`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java`.</result>
+<usage><subagent_tokens>25685</subagent_tokens><tool_uses>13</tool_uses><duration_ms>143076</duration_ms></usage>
+</task-notification>
