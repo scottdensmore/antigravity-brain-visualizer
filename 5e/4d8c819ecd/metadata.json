@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "5e4d8c819ecd",
+  "strategy": "manual-commit",
+  "branch": "feat/empty-store-onboarding",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "e2e/sessions.spec.js",
+    "src/main/resources/public/app.js",
+    "src/main/resources/public/style.css",
+    "src/test/js/app.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5e/4d8c819ecd/0/metadata.json",
+      "transcript": "/5e/4d8c819ecd/0/full.jsonl",
+      "compact_transcript": "/5e/4d8c819ecd/0/transcript.jsonl",
+      "content_hash": "/5e/4d8c819ecd/0/content_hash.txt",
+      "prompt": "/5e/4d8c819ecd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 219332,
+    "cache_creation_tokens": 5582644,
+    "cache_read_tokens": 453872888,
+    "output_tokens": 984317,
+    "api_call_count": 994
+  }
+}
