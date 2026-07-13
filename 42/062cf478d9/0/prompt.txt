@@ -1042,3 +1042,53 @@ Relevant files:
 ---
 
 ok 1password is unlocked
+
+---
+
+<task-notification>
+<task-id>a5d93378994656a6a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a5d93378994656a6a.output</output-file>
+<status>completed</status>
+<summary>Agent "Review CLI scheduling docs" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have the full CLI source and the diff. Let me verify the behavioral claims and check the scheduler syntax points.
+
+The behavioral claims all check out against `cli/main.go`:
+- `report.write(stdout, …)` at the end of `run` is called unconditionally — the summary always goes to stdout regardless of `--quiet`. Accurate.
+- `progress()` gates on `cfg.quiet || !isTerminal(stderr)`, and `isTerminal` checks for `os.ModeCharDevice` — so under any scheduler (stderr is a file/pipe) progress is silenced and `--quiet` is indeed optional. Accurate.
+- Error prints use `fmt.Fprintf(stderr, …)` and are not gated by `progress`; exit codes are `exitOK=0`, `exitFailed=1`, `exitUsage=2`. Matches "0 success, 1 sync failure, 2 misuse." Accurate.
+- `AGENT_INGEST_SERVER`, `AGENT_INGEST_TOKEN`, `--server`, `--quiet`, `--source` all exist and are named as the doc uses them. Accurate.
+
+Now the scheduler findings, ranked most severe first.
+
+## Findings
+
+### 1. actionable — cron example: `\` line-continuation does not work in a crontab
+`cli/README.md`, the cron code block:
+```
+*/30 * * * * . "$HOME/.config/agent-ingest/token.env" &amp;&amp; /usr/local/bin/agent-ingest \
+  --server https://viz.example.com --quiet &gt;&gt; "$HOME/.local/state/agent-ingest.log" 2&gt;&amp;1
+```
+Classic Vixie/ISC cron (crontab(5)) treats the command field as everything up to the newline; there is **no** backslash-newline continuation (backslash is only special before `%`). Copy-pasted verbatim, cron reads the first physical line as one entry ending in a literal trailing `\` (a broken `sh -c` command), and then tries to parse the second line `--server …` as a *new* crontab entry — where `--server` is not a valid minute field, so cron rejects it / logs an error. The whole schedule fails to install as intended. This must be collapsed onto a single physical line (or the reader warned explicitly). This is the highest-risk copy-paste failure in the change.
+
+### 2. actionable — systemd `EnvironmentFile` line has an inline comment, which systemd does not support
+`cli/README.md`, the `.service` block:
+```
+EnvironmentFile=%h/.config/agent-ingest/token.env   # holds AGENT_INGEST_TOKEN=...
+```
+systemd unit files do not support trailing inline comments; a `#` comment must be on its own line. The entire remainder of the line — including `   # holds AGENT_INGEST_TOKEN=...` — becomes the file path. That path doesn't exist, and because it isn't prefixed with `-`, a missing `EnvironmentFile` makes the unit fail to start. The `Type=oneshot` service will report failed on every trigger. Move the comment to its own line (or drop it). Everything else in both units is correct: `%h` is valid in user units, `Type=oneshot`, `Environment=`, `OnBootSec`/`OnUnitActiveSec`/`Persistent=true`, `WantedBy=timers.target`, `systemctl --user enable --now …`, and the `loginctl enable-linger` note for logged-out runs are all accurate.
+
+### 3. actionable — cron: sourcing the env file won't pass the token unless it uses `export`
+`cli/README.md`, cron line `. "$HOME/.config/agent-ingest/token.env" &amp;&amp; agent-ingest …`. Under `/bin/sh`, `. file` where the file contains `AGENT_INGEST_TOKEN=…` sets a *shell* variable that is **not exported**, so the child `agent-ingest` process never sees it and runs unauthenticated (401 → exit 1) against a token-protected server. The file must contain `export AGENT_INGEST_TOKEN=…` for the cron case. Note this also means the *same* `token.env` cannot be shared verbatim with the systemd `EnvironmentFile` (which wants `KEY=VALUE` **without** `export`), even though the doc points both at `.config/agent-ingest/token.env`. Worth calling out the format difference or using two files.
+
+### 4. nit — launchd: `launchctl load` is the deprecated interface
+`cli/README.md`, `launchctl load ~/Library/LaunchAgents/com.example.agent-ingest.plist`. This still works on current macOS but is deprecated in favor of `launchctl bootstrap gui/$(id -u) &lt;plist&gt;` (and `bootout` to unload). Not broken — optional to modernize or add a one-line note. The plist itself is correct: `StartInterval` integer `1800` = 30 min, `RunAtLoad`, `EnvironmentVariables`, `StandardErrorPath`, and `Label` matching the filename are all fine.
+
+### 5. nit — security guidance is sound, one small caveat
+Keeping the token in an env file with tight perms and `chmod 600` on the plist is correct advice. Minor: the launchd plist stores the token in cleartext with world-readable default perms until the user runs `chmod 600`, and `EnvironmentVariables` values are visible via `launchctl print`; the guidance is directionally right but you could note the token is also readable by anything running as that user. Also a cosmetic inconsistency: the systemd `ExecStart` uses `%h/bin/agent-ingest` while cron and launchd use `/usr/local/bin/agent-ingest` — harmless but readers may not have the binary in `~/bin`.
+
+## Summary
+The behavioral prose (stdout summary always printed, auto-silenced progress off a terminal, stderr + non-zero exit, env/flag names) is technically accurate against `cli/main.go`. The defects are all in the pasteable config: findings 1 and 2 will hard-fail on copy-paste and should be fixed before commit; finding 3 will silently drop auth in the cron path. File: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`.</result>
+<usage><subagent_tokens>17792</subagent_tokens><tool_uses>2</tool_uses><duration_ms>89293</duration_ms></usage>
+</task-notification>
