@@ -7,6 +7,12 @@
 # --- build stage -----------------------------------------------------------
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /src
+# Stamp the image with a version. build.gradle reads GITHUB_REF_NAME for the app version (surfaced
+# at GET /health and `--version`); compose passes a release tag or `git describe` as APP_VERSION.
+# Defaults to "docker" for an unlabelled local build. Use a tag or `git describe` — a value with a
+# slash or space (e.g. a branch name) becomes the jar filename and breaks the `cp` glob below.
+ARG APP_VERSION=docker
+ENV GITHUB_REF_NAME=$APP_VERSION
 COPY . .
 # The cache mount keeps Gradle's downloaded dependencies across builds, so a code
 # change rebuilds the jar without re-fetching the world.

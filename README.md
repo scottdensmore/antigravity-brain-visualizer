@@ -223,6 +223,58 @@ you need to restrict who can view trajectories.
 > read, so a history saved before this change won't appear. Nothing deletes it — you can remove it
 > by hand once you're happy.
 
+#### Remote / production deployment
+
+To run the stack on a **server** that other machines reach over the network, layer the checked-in
+production override (`docker-compose.prod.yml`) on the base compose. It closes the local-dev
+conveniences: Postgres is no longer published to the network, and the app binds to localhost so a
+reverse proxy is the only public entrypoint.
+
+1. **Put your secrets in a `.env`** next to the compose files (compose reads it automatically), then
+   `chmod 600 .env`:
+
+   ```dotenv
+   INGEST_TOKEN=<openssl rand -hex 32>
+   INGEST_REQUIRE_AUTH=true         # refuse ingest until the token is set (fail closed)
+   GEMINI_API_KEY=<optional, for AI summaries>
+   ```
+
+2. **Bring up the stack**, stamping the image with a version so you can tell builds apart:
+
+   ```bash
+   APP_VERSION=$(git describe --tags --always) \
+     docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile full up -d --build
+   curl -s localhost:8080/health        # {"status":"UP","version":"<your version>"}
+   ```
+
+   `GET /health` reports the running build's version, so you can confirm what's deployed at a glance
+   (the CLI reports its own with `agent-ingest --version`).
+
+3. **Terminate TLS at a reverse proxy** — Caddy gets you HTTPS with almost no config:
+
+   ```
+   # Caddyfile
+   viz.example.com {
+       reverse_proxy 127.0.0.1:8080
+   }
+   ```
+
+   See **Securing an exposed deployment** above for the full checklist (token, fail-closed, don't
+   publish Postgres — the override already handles that last one).
+
+4. **Push from each machine that has agent transcripts** — the transcripts live on your dev machines,
+   not the server:
+
+   ```bash
+   export AGENT_INGEST_TOKEN=<the same token>
+   agent-ingest --server https://viz.example.com
+   ```
+
+   Install `agent-ingest` from a [release](cli/README.md#install), or build it from source.
+
+The `pgdata` volume keeps the store across restarts and rebuilds. To update: `git pull` and re-run the
+same `up -d --build` command; the data is untouched.
+
 ### Configuration — the `.env` file
 
 The easiest way to configure the app is to copy the checked-in sample and edit it:

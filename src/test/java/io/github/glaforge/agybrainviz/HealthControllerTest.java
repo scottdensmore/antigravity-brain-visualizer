@@ -53,9 +53,11 @@ class HealthControllerTest implements TestPropertyProvider {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
-    void livenessIsUpWhenTheProcessIsServing() throws IOException {
+    void livenessIsUpAndReportsTheBuildVersion() throws IOException {
         JsonNode body = MAPPER.readTree(client.toBlocking().retrieve("/health"));
         assertEquals("UP", body.get("status").asText());
+        // The build version is exposed so a running instance's version is one `curl /health` away.
+        assertEquals(Version.VERSION, body.get("version").asText());
     }
 
     @Test
