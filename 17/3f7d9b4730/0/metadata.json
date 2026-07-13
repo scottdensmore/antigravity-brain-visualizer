@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "173f7d9b4730",
+  "session_id": "99320939-d56d-4c7e-b3e4-213a40305e7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-13T04:16:01.750383Z",
+  "branch": "ci/release-cli-no-cache",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    ".github/workflows/release-cli.yml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8",
+  "turn_id": "e1b4ff3cc10b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 222879,
+    "cache_creation_tokens": 6314353,
+    "cache_read_tokens": 520630217,
+    "output_tokens": 1075833,
+    "api_call_count": 1091
+  },
+  "session_metrics": {
+    "turn_count": 59
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-13T04:16:01.195458Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 4,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4,
+    "total_lines_changed": 4,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 7
+      }
+    }
+  ]
+}

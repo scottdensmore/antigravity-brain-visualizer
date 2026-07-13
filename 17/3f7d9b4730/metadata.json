@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "173f7d9b4730",
+  "strategy": "manual-commit",
+  "branch": "ci/release-cli-no-cache",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".github/workflows/release-cli.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/17/3f7d9b4730/0/metadata.json",
+      "transcript": "/17/3f7d9b4730/0/full.jsonl",
+      "compact_transcript": "/17/3f7d9b4730/0/transcript.jsonl",
+      "content_hash": "/17/3f7d9b4730/0/content_hash.txt",
+      "prompt": "/17/3f7d9b4730/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 222879,
+    "cache_creation_tokens": 6314353,
+    "cache_read_tokens": 520630217,
+    "output_tokens": 1075833,
+    "api_call_count": 1091
+  }
+}
