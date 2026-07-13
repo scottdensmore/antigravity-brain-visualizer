@@ -199,6 +199,67 @@ describe("session browsing and selection (integration)", () => {
     expect(document.getElementById("load-more-btn")).not.toBeNull();
   });
 
+  it("shows first-run onboarding in the main pane when the source is empty", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ items: [], total: 0, limit: 200, offset: 0 }),
+      })
+    );
+
+    await loadConversations();
+    await flush();
+
+    // Sidebar: no items, a friendly empty note naming the source (option text is "cli").
+    expect(document.querySelectorAll("#conversations-list .conv-item")).toHaveLength(0);
+    expect(document.getElementById("conversations-list").textContent).toContain(
+      "No cli sessions yet — import with agent-ingest."
+    );
+    // Main pane: the import guide, scoped to the source, with a copyable command and a Copy button.
+    const main = document.getElementById("transcript-container").textContent;
+    expect(main).toContain("No cli sessions yet");
+    expect(main).toContain("agent-ingest --server");
+    expect(document.getElementById("onboarding-copy")).not.toBeNull();
+    // Header no longer says "select a session" when there are none to select.
+    expect(document.getElementById("current-session-title").textContent).toBe("Getting started");
+  });
+
+  it("replaces the onboarding with a transcript once the source has sessions on reload", async () => {
+    let empty = true;
+    global.fetch = vi.fn((url) => {
+      if (url.includes("/transcript")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              { type: "USER_INPUT", content: "hi", created_at: "2026-06-19T10:00:00Z" },
+            ]),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            empty
+              ? { items: [], total: 0 }
+              : { items: [{ id: "aaa111", summary: "First", updatedAt: "2" }], total: 1 }
+          ),
+      });
+    });
+
+    await loadConversations();
+    await flush();
+    expect(document.getElementById("transcript-container").textContent).toContain("sessions yet");
+
+    // The user imports sessions and refreshes.
+    empty = false;
+    await loadConversations();
+    await flush();
+
+    expect(document.getElementById("transcript-container").textContent).not.toContain("sessions yet");
+    expect(document.querySelector("#transcript-container .step-card")).not.toBeNull();
+  });
+
   it("shows a failure message when the transcript request errors", async () => {
     global.fetch = vi.fn((url) => {
       if (url.includes("/transcript")) {

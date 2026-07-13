@@ -255,10 +255,62 @@ export async function loadConversations() {
     announceConversations();
     // Only the first load auto-selects (deep-link or newest session); re-renders must not.
     renderConversationsList(true);
+    // A reachable-but-empty store is the first-run case: guide the user to import instead of
+    // leaving the main pane on the "select a session" prompt when there are none to select.
+    if (convTotal === 0) showEmptyStoreOnboarding();
   } catch (e) {
     list.innerHTML =
       '<div class="loading-state" style="padding:16px;">Error loading sessions. Is the backend running?</div>';
   }
+}
+
+// The human-readable label of the selected source, e.g. "OpenAI Codex".
+function sourceLabel() {
+  const sel = document.getElementById("flavor-select");
+  return sel?.selectedOptions?.[0]?.text?.trim() || "agent";
+}
+
+// Writes a message to the sidebar's polite live region (screen-reader announcement).
+function announce(message) {
+  const status = document.getElementById("conv-status");
+  if (status) status.textContent = message;
+}
+
+// Guidance shown in the main pane when the selected source has no sessions yet. Scoped to the source
+// (the picker has no "all" option), so it reads correctly whether this is a true first run or just a
+// source the user hasn't imported.
+function showEmptyStoreOnboarding() {
+  const container = document.getElementById("transcript-container");
+  if (!container) return;
+  const source = escapeHtml(sourceLabel());
+  const cmd = `agent-ingest --server ${window.location.origin}`;
+  container.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon" aria-hidden="true">📭</div>
+      <h2>No ${source} sessions yet</h2>
+      <p>Run the <strong>agent-ingest</strong> CLI on a machine that has ${source} sessions — it
+        scans for Antigravity, OpenAI Codex, and Claude Code transcripts and pushes them here.</p>
+      <div class="onboarding-cmd-row">
+        <pre class="onboarding-cmd">${escapeHtml(cmd)}</pre>
+        <button type="button" class="onboarding-copy" id="onboarding-copy">Copy</button>
+      </div>
+      <p>Run it again any time (or on a schedule) — it only uploads what changed.</p>
+    </div>`;
+
+  const copyBtn = document.getElementById("onboarding-copy");
+  copyBtn?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      copyBtn.textContent = "Copied";
+      announce("Command copied to clipboard.");
+    } catch {
+      announce("Copy failed — select the command and copy it manually.");
+    }
+  });
+
+  // The header prompts "Select a session", which makes no sense with none to select.
+  const title = document.getElementById("current-session-title");
+  if (title) title.textContent = "Getting started";
 }
 
 // Appends the next page to what's already loaded. The offset is the count we hold; on a stable list
@@ -323,11 +375,17 @@ export function renderConversationsList(autoSelect = false) {
   if (filtered.length === 0) {
     const empty = document.createElement("div");
     empty.className = "loading-state";
-    // Distinguish "the store is empty" from "no match in what's loaded, but more pages exist".
-    empty.textContent =
-      searchTerm && allConversations.length < convTotal
-        ? "No matches in the loaded sessions — load more to keep searching."
-        : "No sessions found";
+    // Three empty cases: a genuinely empty source (first run — wins even mid-search, since there's
+    // nothing to search); an active search with more pages to pull; and a search that matched
+    // nothing in a non-empty source.
+    if (convTotal === 0) {
+      empty.textContent = `No ${sourceLabel()} sessions yet — import with agent-ingest.`;
+    } else if (searchTerm && allConversations.length < convTotal) {
+      empty.textContent =
+        "No matches in the loaded sessions — load more to keep searching.";
+    } else {
+      empty.textContent = "No sessions found";
+    }
     list.appendChild(empty);
   } else {
     filtered.forEach((conv) => {
