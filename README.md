@@ -301,8 +301,18 @@ Every variable below can live in `.env` or be exported as an environment variabl
 | `POSTGRES_PASSWORD` | `agentviz`                                     | Store password                       |
 | `INGEST_TOKEN`      | _(unset — ingest is open)_                     | Bearer token required by `/api/ingest` |
 | `INGEST_REQUIRE_AUTH` | `false`                                      | When `true`, refuse all ingest until `INGEST_TOKEN` is set (fail closed) |
+| `LOG_APPENDER`      | `CONSOLE_TEXT` (the container defaults to `CONSOLE_JSON`) | Exactly `CONSOLE_TEXT` (readable colorized logs) or `CONSOLE_JSON` (one structured JSON object per line) |
 
 Once the server starts, open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to interact with the visualizer.
+
+**Logs.** By default the server prints human-readable, colorized logs — right for a dev terminal.
+Set `LOG_APPENDER=CONSOLE_JSON` for structured logs — one JSON object per line, in logback's native
+schema (a numeric epoch-millis `timestamp`, `level`, `loggerName`, `formattedMessage`, `mdc`, and a
+`throwable` with the stack trace on errors; not ECS/Logstash field names) — that a log aggregator can
+parse. The Docker `full` profile turns this on automatically; set `LOG_APPENDER=CONSOLE_TEXT` there to
+get readable container logs back. The value must be exactly one of those two names — a typo leaves the
+root logger with no appender, so logging goes silent. This runtime switch applies to the JVM (the
+Docker image and `./gradlew run`); the native binary bakes its config at build time and logs in text.
 
 ### Customizing the Port
 

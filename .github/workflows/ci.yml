@@ -214,4 +214,10 @@ jobs:
           transcript=$(curl -fsS "http://localhost:8080/api/brain/conversations/native-smoke/transcript?flavor=antigravity-cli"); echo "  $transcript"
           grep -q 'USER_INPUT' <<<"$transcript"
 
+          # The native image bakes logback.xml at build time (replaceLogbackXml), so runtime log-format
+          # switching is a JVM/Docker feature — but confirm the binary still logs at all (guards against
+          # a bad appender wiring silently producing zero logs).
+          echo "Native binary emits startup logs:"
+          grep -q 'Startup completed' native-app.log
+
           echo "Native smoke test passed."
