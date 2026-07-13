@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "42062cf478d9",
+  "strategy": "manual-commit",
+  "branch": "docs/cli-scheduling",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cli/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/42/062cf478d9/0/metadata.json",
+      "transcript": "/42/062cf478d9/0/full.jsonl",
+      "compact_transcript": "/42/062cf478d9/0/transcript.jsonl",
+      "content_hash": "/42/062cf478d9/0/content_hash.txt",
+      "prompt": "/42/062cf478d9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 218347,
+    "cache_creation_tokens": 5528778,
+    "cache_read_tokens": 429324455,
+    "output_tokens": 948785,
+    "api_call_count": 953
+  }
+}
