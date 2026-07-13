@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: cli/go.mod
+          # Stdlib-only, so there's no go.sum for setup-go to key a module cache on.
+          cache: false
       - run: go test ./...
         working-directory: cli
 
@@ -43,6 +45,8 @@ jobs:
         with:
           # Track cli/go.mod so a future Go bump doesn't need a second edit here.
           go-version-file: cli/go.mod
+          # Stdlib-only, so there's no go.sum for setup-go to key a module cache on.
+          cache: false
 
       - name: Build
         working-directory: cli
