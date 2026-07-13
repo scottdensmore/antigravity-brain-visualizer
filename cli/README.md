@@ -19,12 +19,28 @@ diffs local summaries against a separate summary manifest and sends only the one
 is missing or that changed — without re-uploading the transcript — so a post-hoc summary
 still lands.
 
-## Build
+## Install
+
+Download the binary for your platform from the
+[latest release](https://github.com/scottdensmore/antigravity-brain-visualizer/releases/latest) —
+assets are named `agent-ingest-<os>-<arch>` (`linux`/`macos`/`windows`, `amd64`/`arm64`):
+
+```bash
+# Linux/macOS — pick your platform, e.g. macos-arm64 for Apple silicon:
+curl -sSL -o agent-ingest \
+  https://github.com/scottdensmore/antigravity-brain-visualizer/releases/latest/download/agent-ingest-macos-arm64
+chmod +x agent-ingest
+./agent-ingest --version
+```
+
+Or build from source (Go 1.23+). Stamp the version so `--version` reports which build you're running:
 
 ```bash
 cd cli
-go build -o agent-ingest .
+go build -ldflags "-X main.version=$(git describe --tags --always)" -o agent-ingest .
 ```
+
+(A plain `go build -o agent-ingest .` works too; it just reports `dev` as the version.)
 
 ## Use
 

@@ -154,6 +154,19 @@ func runCLI(t *testing.T, args []string, getenv func(string) string) (int, strin
 	return code, out.String(), errBuf.String()
 }
 
+func TestVersionFlagPrintsTheVersionToStdout(t *testing.T) {
+	// version defaults to "dev" and is overridden at release build time via -ldflags; the flag must
+	// print whatever it is, so a released binary reports its build.
+	code, stdout, _ := runCLI(t, []string{"--version"}, nil)
+	if code != exitOK {
+		t.Fatalf("exit = %d, want %d", code, exitOK)
+	}
+	want := "agent-ingest " + version + "\n"
+	if stdout != want {
+		t.Errorf("version output = %q, want %q", stdout, want)
+	}
+}
+
 func TestPushesEveryDiscoveredSessionWhenManifestIsEmpty(t *testing.T) {
 	f := newFakeServer()
 	defer f.srv.Close()
