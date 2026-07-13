@@ -1,0 +1,1372 @@
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<summary>Monitor event: "CI checks on PR #40 after ingest API"</summary>
+<event>Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<summary>Monitor event: "CI checks on PR #40 after ingest API"</summary>
+<event>End-to-end (Playwright): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<summary>Monitor event: "CI checks on PR #40 after ingest API"</summary>
+<event>Backend (JUnit + Spotless): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b5luwkft9</task-id>
+<tool-use-id>toolu_01QUQg8nHenxcPekvdDVCvvw</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/b5luwkft9.output</output-file>
+<status>completed</status>
+<summary>Monitor "CI checks on PR #40 after ingest API" stream ended</summary>
+</task-notification>
+
+---
+
+before going lets review the current workflow for this app
+
+---
+
+Lets update the workflow to build the app to be:
+1. Before making changes, inspect the repository, the current Git state, and
+   all applicable instruction files. Preserve unrelated staged, unstaged, and
+   untracked work.
+2. Create a branch before making code changes.
+3. Use test-driven development whenever behavior or structure is testable:
+   - Add or update a focused test before implementation.
+   - Run it and confirm that it fails for the expected reason.
+   - Implement the smallest appropriate change.
+   - Run focused tests while iterating.
+4. Inspect the complete diff and remove accidental or unrelated changes.
+5. After the main agent completes an implementation pass, run a `ui-review`
+   sub-agent before verification. The `ui-review` sub-agent is an expert in
+   command-line utilities and websites who examines the project and branch diff for CLI
+   design, usability, discoverability, flags and arguments, help and error
+   messages, exit codes, stdin/stdout/stderr behavior, scripting and
+   composability, compatibility, consistency, and user experience issues. For websites, follows standards, accessibility and other areas.
+   Address every actionable finding before running the `verifier` sub-agent.
+6. Run a `verifier` sub-agent to perform the builds and tests appropriate for
+   the change. The verifier must report failures, flakes, missing coverage, and
+   environment issues. Fix or explicitly resolve every actionable finding
+   before starting code review. If a verifier finding requires a code change,
+   rerun the verifier after addressing it.
+7. Before every commit, run a `code-review` sub-agent against the current branch
+   diff and all staged, unstaged, and untracked files. Address every actionable
+   finding before committing.
+8. After verification and code review are complete, commit using Conventional
+   Commits format.
+9. Before creating a pull request:
+   - Confirm that local verification remains valid.
+   - Rerun the `code-review` sub-agent only if the reviewed state changed after
+     the pre-commit review. A changed state includes code, tests,
+     documentation, generated files, conflict resolution, or any other staged,
+     unstaged, or untracked content.
+   - Do not repeat code review when the already-reviewed diff and worktree are
+     unchanged.
+   - Push and create the pull request only after local verification and any
+     required code review are complete.
+10. Merge a pull request only after GitHub reports a clean merge state and all
+    configured checks pass. Self-merges are allowed when those conditions are
+    met.
+
+---
+
+Update the UI review subagent to follow cli and the web bestpractices since this project includes both
+
+---
+
+Also update the code review agent to follow all the best practices of the languages and frameworks we are using in this project
+
+---
+
+do I need to restart you to actually starting using this new workflow with all sub agents?
+
+---
+
+Before step 4 lets update the tech stack in agents.md
+
+---
+
+Yes fix those two before step 4
+
+---
+
+Ok lets start step 4
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<summary>Monitor event: "CI checks on PR #40 after CLI"</summary>
+<event>CLI (Go): pass
+Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<summary>Monitor event: "CI checks on PR #40 after CLI"</summary>
+<event>End-to-end (Playwright): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<summary>Monitor event: "CI checks on PR #40 after CLI"</summary>
+<event>Backend (JUnit + Spotless): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bm8iiwfwu</task-id>
+<tool-use-id>toolu_01LmmQd1YZXjJGd2Fg8FVKwo</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/bm8iiwfwu.output</output-file>
+<status>completed</status>
+<summary>Monitor "CI checks on PR #40 after CLI" stream ended</summary>
+</task-notification>
+
+---
+
+Ok lets do step 5
+
+---
+
+Ok 1password is unlocked
+
+---
+
+<task-notification>
+<task-id>bfoz13ujo</task-id>
+<summary>Monitor event: "CI checks on PR #40 after read cutover"</summary>
+<event>CLI (Go): pass
+Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfoz13ujo</task-id>
+<summary>Monitor event: "CI checks on PR #40 after read cutover"</summary>
+<event>Backend (JUnit + Spotless): pass
+End-to-end (Playwright): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfoz13ujo</task-id>
+<tool-use-id>toolu_01GC61Xg59KS8it7ynxVonge</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/bfoz13ujo.output</output-file>
+<status>completed</status>
+<summary>Monitor "CI checks on PR #40 after read cutover" stream ended</summary>
+</task-notification>
+
+---
+
+Ok lets move on to step 6
+
+---
+
+<task-notification>
+<task-id>bbg8aagnb</task-id>
+<summary>Monitor event: "CI checks on PR #40 after cleanup"</summary>
+<event>CLI (Go): pass
+Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbg8aagnb</task-id>
+<summary>Monitor event: "CI checks on PR #40 after cleanup"</summary>
+<event>Backend (JUnit + Spotless): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bbg8aagnb</task-id>
+<summary>Monitor event: "CI checks on PR #40 after cleanup"</summary>
+<event>End-to-end (Playwright): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+Setup a docker compose file so that site and the database can be run in docker. The database should have a volume attached so when docker shuts down or a new image is created the database can be reattached. Also add instructions on what to do / how do to everything. Tell me if there is a better way than what I suggested
+
+---
+
+<task-notification>
+<task-id>bs1cnpjh0</task-id>
+<summary>Monitor event: "CI checks on PR #41 (docker setup)"</summary>
+<event>Frontend unit (Vitest): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bs1cnpjh0</task-id>
+<summary>Monitor event: "CI checks on PR #41 (docker setup)"</summary>
+<event>CLI (Go): pass</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bs1cnpjh0</task-id>
+<summary>Monitor event: "CI checks on PR #41 (docker setup)"</summary>
+<event>Backend (JUnit + Spotless): pass
+End-to-end (Playwright): pass
+CI COMPLETE</event>
+</task-notification>
+
+---
+
+Take a look at the app as it sits today. and go through and suggest anything we are missing.
+
+---
+
+Ok lets start with 1 then we will do the rest
+
+---
+
+<task-notification>
+<task-id>a3c12249237d9f97d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a3c12249237d9f97d.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify large-payload fix" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All checks are complete. Here is the verdict.
+
+## Verdict: GREEN
+
+Every appropriate check ran and passed. The new tests genuinely executed (not cached/skipped, verified by forcing reruns).
+
+### Commands run and outcomes
+
+**CLI** (`cli/`):
+- `gofmt -l .` → clean (no files listed)
+- `go vet ./...` → clean
+- `go test -count=1 ./...` → all 3 packages `ok` (uncached)
+- `go test -count=1 -run 'TestChunk' -v .` → the 3 new chunk tests all PASS:
+  - `TestChunkSplitsByByteBudgetNotJustCount` PASS
+  - `TestChunkSendsAnOversizedSessionInItsOwnRequest` PASS
+  - `TestChunkStillRespectsTheCountCap` PASS
+
+**Backend**:
+- `docker compose up -d postgres` → container `agent-brain-viz-db` healthy
+- `mise exec -- ./gradlew build` → BUILD SUCCESSFUL (Java 25 / temurin-25.0.3, Spotless checks passed) — but test task was UP-TO-DATE/cached
+- `mise exec -- ./gradlew test --tests 'io.github.glaforge.agybrainviz.IngestControllerTest' --rerun --info` → BUILD SUCCESSFUL, forced actual execution. Log confirms Testcontainers really started Postgres (`postgres:17-alpine`, JDBC URL `jdbc:postgresql://localhost:65296/test`), so the test was not stubbed or skipped.
+
+### New backend test confirmed executed and passed
+From `build/test-results/test/TEST-io.github.glaforge.agybrainviz.IngestControllerTest.xml`:
+- Suite: `tests="5" skipped="0" failures="0" errors="0"`
+- `&lt;testcase name="acceptsALargeTranscriptOverTheDefaultRequestLimit()" ... time="0.322"/&gt;` — passed, not skipped. The ~11 MB payload was ingested against a Micronaut server carrying the raised 128 MiB limits from `application.yml`.
+
+### Notes
+- No failures, no flakes observed.
+- Coverage matches the change: the byte-aware `chunk` refactor is covered by three unit tests (byte budget, oversized-lone-session, count cap), and the 413/large-payload fix is covered by the new integration test that posts an 11 MiB body over HTTP.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/application.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java`</result>
+<usage><subagent_tokens>18797</subagent_tokens><tool_uses>14</tool_uses><duration_ms>102136</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8b9a80477ad5e2d6</task-id>
+<tool-use-id>toolu_01MyoEEJy9fYQeaogVN38aui</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a8b9a80477ad5e2d6.output</output-file>
+<status>completed</status>
+<summary>Agent "Review large-payload fix" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have completed my review. Both properties, the chunk logic, and both test suites check out; findings below.
+
+## Verification performed
+- Confirmed against `micronaut-http-server-5.0.2` sources that `micronaut.server.max-request-size` and `micronaut.server.max-request-buffer-size` are both real properties, both default to 10 MB, both apply to a fully-buffered `@Body` (the controller uses `@Body List&lt;IngestSession&gt;`, `@ExecuteOn(IO)` — `IngestController.java:62-63`). The value form is `@ReadableBytes`, so the raw `134217728` is valid, and it is below the property's own `&lt; Integer.MAX_VALUE` guard. Config is correct.
+- `gofmt -l` clean, `go vet` clean, `go test -run TestChunk` passes.
+- Traced the chunk flush logic: no empty batches (append guarded by `len(current) &gt; 0`), oversized-session-alone works (first session always appended when `current` is empty, then the next iteration flushes it), count cap honored with no off-by-one (flush at `len(current) &gt;= maxCount` before appending → batches of exactly `maxCount`). A normal batch can never exceed both caps at once; the only over-budget batch is a lone oversized session, which by construction has count 1. Logic is sound.
+
+## Findings
+
+**1. Memory/DoS angle from the 13x buffer increase combined with optional auth — nit (worth documenting)**
+`src/main/resources/application.yml:8-11`. Raising `max-request-buffer-size` to 128 MiB means each in-flight ingest request can pin up to 128 MiB of heap (the `@Body` is fully buffered, per the Micronaut javadoc: "the maximum number of request bytes that will be buffered"). Auth is applied only when `INGEST_TOKEN` is set (`IngestController.java:34`; unauthenticated otherwise), the container has no explicit heap cap, and requests run concurrently on the IO pool. Concrete failure: on an exposed instance with `INGEST_TOKEN` unset, a handful of concurrent 128 MiB POSTs to `/api/ingest/sessions` exhausts heap → OOM. The change is reasonable for a trusted CLI, but the ceiling should be paired with a note/requirement that exposed deployments set `INGEST_TOKEN` (and ideally a front-proxy body cap). Not a code defect — a deployment risk the diff introduces.
+
+**2. The "oversized session sent alone" contract can still 413 — nit**
+`cli/main.go` (chunk comment + `--batch-size` help) and `application.yml` comment both frame a lone large session as guaranteed to get through. The 16 MiB byte budget bounds only multi-session batches; a single session larger than the budget is passed through unbounded. Byte accounting uses `len(s.Raw)` and ignores JSON string-escaping expansion. For *bounded* batches this is safe — worst-case escaping (control bytes → `\uXXXX`, 6x) on a 16 MiB budget is ~96 MiB, comfortably under the 128 MiB ceiling with framing overhead negligible; the 8x headroom is a good choice. But a lone session whose raw exceeds ~21 MiB of escape-heavy content, or ~128 MiB of plain text, will still 413 despite going "alone." Real transcripts are mostly plain text so the practical limit is a single ~128 MiB transcript — rare, but the comment/help text overpromises. Consider softening the wording or noting the residual cap.
+
+**3. `TestChunkStillRespectsTheCountCap` does not fail without the change — nit**
+`cli/main_test.go`. The pre-change `chunk` (count-only) already produced `[2,1]` for this input, so this test passes against the old implementation. It's a useful regression guard, but unlike the other two new tests (which genuinely fail without the change), it does not cover new behavior. Fine to keep; just noting it isn't change-proving.
+
+## Clean
+- `chunk` logic is correct: no empty batches, correct oversized-alone handling, count cap with no off-by-one, and no batch can exceed both caps simultaneously.
+- The Java test (`IngestControllerTest.acceptsALargeTranscriptOverTheDefaultRequestLimit`) drives real HTTP through the embedded server with an 11 MiB body of `x` (no escaping), so it genuinely 413s and fails without the config change.
+- Config property names, namespace, and raw-byte value form are all correct for Micronaut 5.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/application.yml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestController.java`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java`.</result>
+<usage><subagent_tokens>22789</subagent_tokens><tool_uses>10</tool_uses><duration_ms>165903</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8e9182d1a3a124ad</task-id>
+<tool-use-id>toolu_01PeXioZGNFKmjrmyZN4YAjp</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a8e9182d1a3a124ad.output</output-file>
+<status>completed</status>
+<summary>Agent "Review CLI summary sync UX" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have everything I need. Build succeeds, tests pass, and I've reviewed `--help`, the report writer, the diff logic, and the README.
+
+## Findings
+
+### 1. `--help` never mentions that summaries are uploaded (nit, leaning actionable)
+`cli/main.go` help text (lines ~295–315, verified by running `agent-ingest --help`) describes the tool as scanning sessions and uploading transcripts, and it carefully documents every other behavior — batching, the manifest diff, even why the token is env-only. The new behavior (uploading each Antigravity session's on-disk `summary.json` alongside the transcript) is documented in `cli/README.md` but is absent from `--help`.
+
+- **Standard:** clig.dev "help is comprehensive" and "principle of least surprise"; 12-Factor CLI discoverability. `--help` is the authoritative inventory of what the tool does and reads; the README is not always at hand.
+- **Impact:** A user reading only `--help` has no idea that AI summaries (potentially containing session content) leave the machine automatically. The uploaded transcript already covers that data, so this isn't a new privacy surface — but the silent, undocumented-in-help behavior is the surprise.
+- **Fix:** Add one line to the help body, e.g. under the intro paragraph: "For sources that keep their own AI summary on disk (Antigravity), that summary is uploaded with the transcript." No new flag needed.
+
+### 2. `--dry-run` and `--json` don't surface the ride-along summary (nit)
+`report.write` (`cli/main.go:384–419`) emits only `ingested/skipped/failed` counts per source in both text and `--json` modes (`sourceReport` at lines 348–353 has no summary field). A user running `--dry-run` to preview "what would be pushed" cannot tell that a session also carries a summary.
+
+- **Standard:** clig.dev — `--dry-run` should show what will actually happen; `--json` should expose the machine-relevant facts.
+- **Impact:** Low. The summary is derived data tied 1:1 to a changed session, so the count already implies it. This is purely informational polish.
+- **Fix:** Optional. If desired, add a per-source `withSummary` count to `sourceReport`. Not required.
+
+### 3. README ride-along wording is slightly optimistic (nit)
+`cli/README.md` new paragraph: "…a summary that appears after the transcript was already ingested syncs on the next push that carries the transcript." The diff gate (`changedSessions`, `cli/main.go:206–212`) hashes `Raw` (the transcript) only — the summary is not part of the hash. So a push carries a transcript **only when the transcript's content changes**. For a completed Antigravity session whose `summary.json` is written at the end and whose transcript then never changes again, there is no "next push that carries the transcript," so the summary never syncs.
+
+- **Standard:** documentation accuracy / least surprise.
+- **Impact:** The sentence is technically true but reads as "it'll catch up later," when for the common case (summary generated at session end) it may never catch up unless the transcript is later touched.
+- **Fix:** Tighten to state the dependency plainly, e.g. "…syncs only if that transcript later changes; a completed session whose transcript never changes again will not re-push its summary." The parent already flagged this as the "honest limitation" — this just makes the honesty explicit.
+
+## Categories that are clean
+- **Composability (stdio, exit codes):** Clean. The summary travels only in the push JSON body via `PushSession.Summary` (`client.go:57`); it never touches stdout/stderr. Report shape, `--json` payload, and exit codes (`0/1/2`) are unchanged. Verified `go test ./...` passes and `--help` still lists exit codes.
+- **omitempty correctness:** Correct — `json:"summary,omitempty"` plus the `readSummary` drop-on-invalid guard (`scan.go:169–182`) means non-Antigravity sources and malformed summaries emit no `summary` key, confirmed by `TestPushSummaryFieldIsSentWhenSetAndOmittedWhenEmpty` and `TestPushOmitsSummaryWhenAbsent`.
+- **README paragraph clarity (what's synced):** Accurate on the core mechanic — Antigravity-only, validates non-empty valid JSON, rides with the transcript. Only the future-tense limitation phrasing (finding 3) is soft.
+
+## Verdict
+Solid, well-tested change that stays composable and preserves exit codes; the one thing worth fixing is adding a line to `--help` (finding 1) so the automatic upload isn't discoverable only from the README.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/scan/scan.go`.</result>
+<usage><subagent_tokens>24060</subagent_tokens><tool_uses>8</tool_uses><duration_ms>80114</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2d1b758541c5d5be</task-id>
+<tool-use-id>toolu_0162a5QvpkHS8nv66xQayJQY</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a2d1b758541c5d5be.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify summary sync change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All checks passed. Here is the verdict.
+
+## Verdict: GREEN
+
+All appropriate checks ran and passed. No fixes made.
+
+### CLI (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli`)
+- `gofmt -l .` → no output, exit 0 (clean)
+- `go vet ./...` → exit 0 (clean)
+- `go test -count=1 ./...` → all 3 packages `ok` (uncached, `-count=1`)
+- New tests run by name with `-v` (proved executed, all PASS):
+  - scan (4): `TestScanReadsAntigravitySummaryJSON`, `TestScanHasNoSummaryWhenNoneOnDisk`, `TestScanIgnoresMalformedSummaryJSON`, `TestScanFlatSourcesCarryNoSummary`
+  - client (1): `TestPushSummaryFieldIsSentWhenSetAndOmittedWhenEmpty`
+  - main (2): `TestPushCarriesAntigravitySummary`, `TestPushOmitsSummaryWhenAbsent`
+
+### Backend (repo root, via `mise exec -- ./gradlew`)
+- `docker compose up -d postgres` → container `agent-brain-viz-db` Up (healthy), 5432 exposed
+- `./gradlew test --tests 'io.github.glaforge.agybrainviz.IngestorTest' --rerun` → BUILD SUCCESSFUL; `:test` task **executed** (not up-to-date), confirming the rerun.
+- Verified against `build/test-results/test/TEST-io.github.glaforge.agybrainviz.IngestorTest.xml`: fresh timestamp `2026-07-12T05:34:45Z`, `tests="14" failures="0" errors="0"`. The new `aMalformedSummaryDoesNotCrashTheBatchAndTheSessionStillIngests()` testcase is present and passed. Related summary tests (`storesAPushedCachedSummaryAlongsideTheSession()`, `aPushWithoutASummaryLeavesNoCachedAnalysis()`) also present and green, exercising against Testcontainers Postgres.
+- `./gradlew spotlessJavaCheck` → BUILD SUCCESSFUL
+
+### Notes
+- No flakes observed. No reruns needed.
+- Coverage matches the diff: CLI summary read/drop/thread and the server malformed-summary hardening are each exercised by a named, executed test.
+- Environment: Docker/Postgres was already healthy; Testcontainers-backed backend tests ran for real (not skipped).
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/scan/scan_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/client/client_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/Ingestor.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestorTest.java`</result>
+<usage><subagent_tokens>13046</subagent_tokens><tool_uses>12</tool_uses><duration_ms>90360</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a18458779f3e85e26</task-id>
+<tool-use-id>toolu_015KAKJogQATCELDq1g58pND</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a18458779f3e85e26.output</output-file>
+<status>completed</status>
+<summary>Agent "Review summary sync change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have enough to assess. Tests pass, `gofmt`/`vet` clean. Here are my findings, ranked.
+
+## Findings
+
+### 1. Dedup strands post-hoc summaries indefinitely — README understates it (actionable — verify intent)
+`cli/main.go:209` (`changedSessions`) skips any session whose transcript hash already matches the manifest, and the summary only rides along inside such a push. The README (`cli/README.md`) frames the gap optimistically: *"a summary that appears after the transcript was already ingested syncs on the next push that carries the transcript."*
+
+The problem: a push only *carries* the transcript when its hash differs from the manifest. A completed session's transcript typically never changes again — and an AI `summary.json` is by nature computed *after* the session finishes. So the common ordering is: final transcript pushed (manifest records hash) → `summary.json` written moments later → no further transcript change → the summary is **stranded permanently**, never syncing. This isn't a rare edge case; for post-hoc summaries it may be the dominant case.
+
+Concrete scenario: run a session to completion, `agent-ingest` pushes the transcript, Antigravity then writes `summary.json`. Every subsequent `agent-ingest` run skips the session (hash unchanged) and the summary never reaches Postgres.
+
+The mtime is already available and `scan.Session` already carries `Summary`. Either factor summary presence/hash into the manifest comparison so a newly-appeared summary forces a re-push, or reword the README to state plainly that a summary appearing after the transcript is final will not sync unless the transcript itself changes. As written the doc implies a sync that in practice won't happen.
+
+### 2. `catch (RuntimeException)` conflates a transient outage with permanently-bad data (nit)
+`Ingestor.java:112-121`. `summaries.upsert` funnels *every* failure — malformed jsonb, DB outage, pool exhaustion — through one `StoreUnavailableException` (a `RuntimeException`, mapped elsewhere to 503). The new catch swallows all of them and returns `INGESTED`.
+
+Reporting `INGESTED` is actually correct: `sessions.upsert` ran first on its own autocommit connection, so the session is durably stored regardless. And a genuine outage still surfaces — the *next* batch item's `sessions.upsert` (uncaught) throws and propagates a 503. So this is not a correctness bug.
+
+The residual concern is data loss, not misreporting: a *transient* outage striking exactly in the window between the session upsert and the summary upsert silently drops a *valid* summary, and because of finding #1 that summary is then never retried. Low probability, but the broad catch can't distinguish "drop forever, it's malformed" from "retry, the DB blipped." Acceptable as-is given the autocommit-durability design; noting it because the two failure modes genuinely differ.
+
+### 3. `readSummary` is correct; the coerce-then-validate order is right (no action)
+`cli/internal/scan/scan.go:176-186`. Coercing to valid UTF-8 before `json.Valid` matches how the transcript is hashed/sent (`readSession`, line 208), so the client validates the exact bytes it will transmit — correct order. No case sends structurally invalid JSON or drops good JSON.
+
+Worth recording for the record: `json.Valid` does **not** guarantee Postgres will accept the value as `jsonb`. A `\u0000` escape inside a JSON string passes `json.Valid` but Postgres rejects it on the `?::jsonb` cast (`SummaryRepository.java:37,80`). This is exactly why the server-side try/catch in finding #2 is load-bearing rather than paranoia — the two layers are complementary and both justified.
+
+### 4. `readSummary` silently swallows genuine read errors (nit)
+`cli/internal/scan/scan.go:177` treats a real I/O/permission error the same as file-absent (`err != nil` → `return ""`). This mirrors the "skip an unreadable transcript rather than fail" philosophy and is defensible for a best-effort summary, but unlike `readSession` (which returns the error) it discards it without distinguishing `os.IsNotExist`. Optional.
+
+### 5. Test gaps — mostly fine (nit)
+- Java `IngestorTest.aMalformedSummaryDoesNotCrashTheBatch...` genuinely fails without the change: without the catch, `s1`'s bad-jsonb `StoreUnavailableException` propagates out of `ingest`, so `s2` is never processed and no `IngestResult(2,0,0)` is returned. Good regression guard.
+- Go `TestScanReadsAntigravitySummaryJSON` fails without the change (`Summary` would be `""`); `TestScanIgnoresMalformedSummaryJSON` meaningfully guards the `json.Valid` line. Both fine.
+- Not tested: a summary that is valid JSON but a bare scalar (`null`, `123`) — `readSummary` returns it and the server stores jsonb `null`. Harmless, but no test pins the intended behavior. Optional.
+
+## Summary
+The change is clean, well-tested, `gofmt`/`vet`-clean, and the client/server validation layers are correctly complementary. The one finding worth resolving before commit is #1: confirm whether stranding a post-hoc summary until the next transcript change is the intended contract, and if so, tighten the README wording so it doesn't promise a sync that often won't occur.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/scan/scan.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/Ingestor.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/SummaryRepository.java`</result>
+<usage><subagent_tokens>29748</subagent_tokens><tool_uses>12</tool_uses><duration_ms>165836</duration_ms></usage>
+</task-notification>
+
+---
+
+In the agent-brain-visualizer repo, the agent-ingest CLI now uploads a source's on-disk AI summary (Antigravity's per-session summary.json) alongside the transcript (see cli/internal/scan/scan.go readSummary, cli/main.go changedSessions, cli/internal/client/client.go PushSession.Summary). But change-detection dedups on the transcript hash only: GET /api/ingest/manifest returns {id: transcriptContentHash}, and changedSessions skips any session whose transcript hash matches. So a summary that appears AFTER its transcript was already ingested (the transcript never changes again) is stranded and never syncs.
+
+Make post-hoc summaries sync. Likely approach: extend the ingest manifest so the server reports summary state per id (e.g. whether a summary exists / its hash), and have the CLI push a session when either the transcript hash differs OR a local summary is missing/changed on the server — without re-sending the full transcript when only the summary is new (consider a lightweight summary-only push path so bandwidth stays low). Update IngestControllerTest / IngestorTest and the CLI tests accordingly, and tighten cli/README.md (which currently documents this as a known limitation). Follow the repo's test-first workflow in AGENTS.md.
+
+---
+
+<task-notification>
+<task-id>a1ceb4f43dc09ba3a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a1ceb4f43dc09ba3a.output</output-file>
+<status>completed</status>
+<summary>Agent "Review auth hardening" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have everything I need. Here's my review.
+
+## Review: `feat/ingest-auth-hardening`
+
+This is a clean, well-reasoned change. The security logic is correct, fail-closed coverage is complete, and it follows the codebase's existing patterns. One real convention violation, the rest are nits and confirmations.
+
+### Actionable
+
+**1. Fully-qualified name instead of an import** — `IngestConfig.java:74`
+```java
+return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
+```
+`AGENTS.md:116` is explicit: "Do not use fully-qualified names (FQN) for classes in the code; always add the appropriate `import` statements." Add `import java.util.Locale;` and use `Locale.ROOT`. (Rule: AGENTS.md explicit-imports.) The `Locale.ROOT` *choice* itself is correct — it avoids the Turkish dotless-i `toLowerCase` trap, so there is no locale pitfall in the parsing.
+
+### Nits / discussion (your specific questions)
+
+**Q1 — 503 is defensible; the message is a minor info-leak.** 503 is better than 401 (which would mislead a client into retrying with a credential that can never work) and arguably better than 500 (this isn't an unexpected fault; it's a deliberate refusal). The one caveat: the body — `"...the server has no INGEST_TOKEN configured."` — tells an *unauthenticated remote caller* the exact env var and that the server is misconfigured. Low severity (operator tool, not a secret), but the client-facing string could be generic ("Ingest is unavailable") while the specific diagnosis stays in the startup log where the advisory already puts it. Also note 503 conventionally invites retries/`Retry-After`; a proxy may auto-retry a permanent misconfiguration — harmless but wasteful. Both nits.
+
+**Q2 — `parseFlag` fails *open* on a typo, which is the wrong direction for a security switch, but it's adequately mitigated.** `INGEST_REQUIRE_AUTH=ture` or `=2` silently becomes `false`, so an operator who *intended* to harden gets the open default. Because this only matters when no token is set, the `OPEN` startup warning (advisory) will fire and surface the mistake, so the blast radius is small. Still, surfacing an unrecognized value (log a warning for anything that is neither a recognized truthy nor a recognized falsey like `false/0/no/off`) would catch the typo directly. Nit — worth considering given this is the "make me more secure" knob.
+
+**Q3 — Fail-closed coverage is complete.** Both routes (`GET /api/ingest/manifest`, `POST /api/ingest/sessions`) sit under `@ServerFilter("/api/ingest/**")`, and `guard` never inspects the HTTP method, so both are rejected identically. No route exists at bare `/api/ingest`. No bypass path.
+
+**Q4 — Advisory design is correct and native-image-safe.** Log-only (no boot refusal) matches the "always boot" principle — it mirrors `SchemaBootstrap` exactly (`@Singleton implements ApplicationEventListener&lt;StartupEvent&gt;`, logs `error`/`warn`/`info`, boots regardless). Micronaut registers `ApplicationEventListener` beans at compile time via bean introspection, not reflection, so no `reachability-metadata.json` entry is needed — `SchemaBootstrap` is the proof it works under `nativeCompile`.
+
+**Q5 — Trimming the token in `token()` is desirable and actually fixes a latent bug.** Previously `token()` returned the value untrimmed while `matches()` trims the *presented* header. So `INGEST_TOKEN="abc "` produced expected=`"abc "` vs presented=`"abc"` → no client could ever authenticate. Trimming both sides makes them consistent. It cannot cause a new mismatch: a token whose real value is surrounding whitespace could never have matched anyway (presented side is already trimmed). Good change.
+
+**Q6 — Tests fail without the change and are well-targeted, with one small gap.** `failsClosedWhen...` returns `null` (open) instead of 503 if the filter change were reverted, so it genuinely guards the new behavior; `requiringAuthDoesNotChangeTheValidTokenPath` pins the token path. `parseFlag` coverage (affirmatives + `false/0/no/off/maybe/null/""`) is thorough. Gap (nit): **whitespace-only token + `requireAuth=true`** is untested at both the filter and `classify` level — `new IngestConfig("   ", true)` should yield `MISCONFIGURED`/503 (it does, since `token()` treats `"   "` as empty), but nothing asserts it. One assertion in `IngestSecurityAdvisoryTest` or `IngestAuthFilterTest` would close it.
+
+**Q7 — Micronaut idioms are clean.** Constructor injection throughout, `@Singleton` beans are stateless/immutable (`final` fields), no event-loop blocking. Read endpoints staying open is consistent with the documented single-user model, and the README now states that explicitly and points operators at the reverse-proxy option.
+
+### Relevant files
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java` (FQN fix)
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java` (503 message wording)
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisory.java` (clean)
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestAuthFilterTest.java` and `IngestSecurityAdvisoryTest.java` (whitespace-token gap)
+
+Bottom line: ship-ready once the `Locale` import is added; the rest are optional.</result>
+<usage><subagent_tokens>25411</subagent_tokens><tool_uses>13</tool_uses><duration_ms>113017</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a570b29ccf22f697c</task-id>
+<tool-use-id>toolu_014TogZRX5hoYuXs77azrTBn</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a570b29ccf22f697c.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify auth hardening" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Verdict: **GREEN**
+
+All appropriate checks ran and passed. Nothing fixed or modified.
+
+## Commands run and outcomes
+
+1. `docker compose up -d postgres` → `Container agent-brain-viz-db Running` (Postgres available).
+
+2. `mise exec -- ./gradlew build` (repo root) → **BUILD SUCCESSFUL in 530ms**. Every task, including `spotlessCheck`/`spotlessJavaCheck`/`spotlessJavascriptCheck` and `test`, reported **UP-TO-DATE** — i.e. cached, nothing actually re-executed this invocation. Green, but on its own it did not run tests. I forced fresh runs below to prove execution.
+
+3. `mise exec -- ./gradlew test --tests IngestAuthFilterTest --tests IngestConfigTest --tests IngestSecurityAdvisoryTest --rerun` → **BUILD SUCCESSFUL**, `test` task `1 executed` (not cached). Verified in `build/test-results/test/` (fresh timestamps 2026-07-12T05:56):
+   - `IngestAuthFilterTest`: 8 tests, 0 failures — includes `failsClosedWhenAuthIsRequiredButNoTokenIsConfigured()` and `requiringAuthDoesNotChangeTheValidTokenPath()`.
+   - `IngestConfigTest`: 5 tests, 0 failures — `requireAuthAcceptsCommonAffirmatives()`, `requireAuthTreatsAnythingElseAsFalse()`, `aTokenIsTrimmedAndExposed()`, etc.
+   - `IngestSecurityAdvisoryTest`: 3 tests, 0 failures — includes `requiringAuthWithoutATokenIsAMisconfiguration()`.
+
+4. `mise exec -- ./gradlew test --rerun` (whole suite) → **BUILD SUCCESSFUL**, `test` executed fresh. Aggregated `build/test-results/test/`: **35 classes, 237 tests, 0 failures, 0 errors.** The Testcontainers-backed `SessionRepositoryTest` executed and passed, confirming Docker/Postgres works in this environment.
+
+5. Boot checks (optional) — ran the shadow jar `build/libs/agybrainviz-0.1-SNAPSHOT-all.jar` under `mise exec`, `AI_PROVIDER=ollama`, `-Ddotenv.enabled=false`:
+   - No `INGEST_TOKEN` → startup log emits the expected **WARN** from `i.g.g.a.IngestSecurityAdvisory`: "Ingest endpoints are UNAUTHENTICATED …", server reached `Startup completed`.
+   - `INGEST_REQUIRE_AUTH=true`, no token → startup log emits the expected **ERROR**: "INGEST_REQUIRE_AUTH is set but INGEST_TOKEN is empty — all ingest will be refused …", server started.
+   Both app processes were stopped afterward; none left running.
+
+## Notes
+- Tests that didn't execute: none of concern — the initial `./gradlew build` was fully cached, but I re-ran the entire suite with `--rerun` (237 tests fresh) and the three target classes fresh, all passing.
+- Flakes: none observed. Tests are deterministic unit tests plus one Testcontainers class; no pass/fail variation across the runs.
+- Coverage: the new fail-closed 503 path, the `parseFlag`/trim behavior, and all three `classify` postures (AUTHENTICATED/OPEN/MISCONFIGURED) are directly unit-tested, and both runtime log branches (WARN/ERROR) were confirmed live at boot. No gaps identified.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestConfig.java`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestSecurityAdvisory.java` and their tests under `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/`.</result>
+<usage><subagent_tokens>26146</subagent_tokens><tool_uses>16</tool_uses><duration_ms>179835</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a70c1480b5d245821</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a70c1480b5d245821.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify summary-sync change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All checks executed and passed. Here is the verdict.
+
+## Verdict: GREEN
+
+Branch `feat/summary-sync` verified. Every appropriate check ran and passed; nothing was cached-away without a forced rerun proving execution.
+
+### Commands run and outcomes
+
+**Backend**
+- `docker compose up -d postgres` → container `agent-brain-viz-db` already running (Docker available).
+- `mise exec -- ./gradlew build` (repo root) → **BUILD SUCCESSFUL**. Note: all tasks were `UP-TO-DATE` (including `spotlessCheck` and `test`), so this pass confirms Spotless/compile are clean but did not re-execute the suite. Coverage of the suite is proven by the forced rerun below.
+- `mise exec -- ./gradlew test --tests SummaryRepositoryTest --tests IngestorTest --tests IngestControllerTest --rerun` → **BUILD SUCCESSFUL**, `:test` actually executed (1 executed, not cached).
+
+Result XML (`build/test-results/test/`) confirms all three suites at 0 failures / 0 errors, and every required new testcase is present and passed:
+- SummaryRepositoryTest (8 tests): `manifestPublishesTheContentHashPerSession`, `upsertReportsWhetherItWroteAndSkipsUnchangedContent`, `aNullTitleDoesNotWipeAnExistingShortTitle` — all present, passed.
+- IngestorTest (17 tests): `ingestsASummaryOnItsOwnForAnAlreadyStoredSession`, `reIngestingAnUnchangedSummaryIsSkipped` — present, passed.
+- IngestControllerTest (7 tests): `pushesASummaryOnItsOwnAndReportsItInTheSummaryManifest` — present, passed.
+
+**CLI** (`cli/`)
+- `gofmt -l .` → no output (clean).
+- `go vet ./...` → clean.
+- `go test -count=1 ./...` → all three packages `ok` (cli, internal/client, internal/scan).
+- Named tests forced with `-run -v`, all `--- PASS`: `TestSyncsAPostHocSummaryForAnUnchangedTranscript`, `TestDoesNotResyncASummaryTheStoreAlreadyHas`, `TestAChangedTranscriptCarriesItsSummaryAndDoesNotAlsoSyncItSeparately` (main), and `TestSummaryManifestParsesTheIdToHashMap`, `TestPushSummariesSendsTheBatchWithTheServersFieldNames` (client).
+
+**Idempotent ALTER**
+- `src/main/resources/db/schema.sql:40` contains `ALTER TABLE summaries ADD COLUMN IF NOT EXISTS content_hash text;` (and `content_hash` is also declared in the base table at lines 14/31). `SummaryRepositoryTest` runs against a fresh Testcontainers Postgres (`PostgresTest` base) that applies the full `schema.sql`; its 8 tests passed with zero errors, so the whole schema — including the redundant-but-harmless ALTER — applied cleanly with no error.
+
+### Notes
+- No failures, no flakes observed (each named suite run once; forced reruns were deterministic passes).
+- Did not run frontend/Vitest or Playwright e2e — the diff touches only Java backend and Go CLI (plus READMEs), no JS/frontend or booted-server behavior, so those are not warranted.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/db/schema.sql`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/SummaryRepositoryTest.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestorTest.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/IngestControllerTest.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/client/client_test.go`</result>
+<usage><subagent_tokens>15055</subagent_tokens><tool_uses>9</tool_uses><duration_ms>114521</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a78af2df9e6a2f13f</task-id>
+<tool-use-id>toolu_01JmX9uvbtE7o36BkBuCQkyV</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a78af2df9e6a2f13f.output</output-file>
+<status>completed</status>
+<summary>Agent "Review CLI summary-sync UX" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Scope confirmed: branch `feat/summary-sync`, `git diff main -- cli/` touches `cli/README.md`, `cli/internal/client/client.go`, `cli/main.go`, and the two test files. Builds clean (`go build`/`go vet`/`go test` all pass). Findings below, most actionable first.
+
+## Findings
+
+### 1. ACTIONABLE — A summary-manifest fetch failure blocks transcript ingestion entirely
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go:173-178`
+
+The new `SummaryManifest` GET runs *before* the transcript push (push is at line 191), and on error does `report.add(source, {Error})` + `continue`, skipping the whole source.
+
+Evidence — I ran the built binary against a mock whose transcript manifest is empty (so the local transcript is *new* and would ingest) but whose `/api/ingest/summaries/manifest` returns 404:
+```
+agent-ingest: fetching summary manifest for antigravity-cli: /api/ingest/summaries/manifest returned 404: not found
+antigravity-cli  error: fetching summary manifest ... returned 404 ...
+total            0 ingested, 0 skipped, 0 failed
+EXIT=1
+```
+The new transcript was never POSTed (no request reached `/api/ingest/sessions`), and the run exited 1.
+
+Impact: the summary sync is an *enhancement*, but it now hard-couples the primary transcript ingest to a new secondary endpoint. A transient 5xx on the summary manifest — or simply an older/mismatched server that doesn't yet expose `/api/ingest/summaries/manifest` — stops transcripts from syncing at all. That's a robustness/backward-compat regression versus the prior behavior where transcripts synced independently (clig.dev "be robust… degrade gracefully"; 12-factor CLI graceful-degradation). This is exactly the "should a transcript sync… not be undone by a summary-manifest failure" concern — and here it's worse than "undone," it's *prevented*.
+
+Fix: on `SummaryManifest` error, write the diagnostic to stderr and skip only the summary sync for that source (leave `pendingSummaries` empty), then still run the transcript push. Decide deliberately whether an unfetchable summary manifest should even flip the exit code; treating it as a soft warning keeps a fully-successful transcript run at exit 0.
+
+Related, same design question at `main.go:204-211`: if `PushSummaries` fails *after* the transcript batch already pushed, `sr.Error` is set and the source is reported errored (exit 1) even though every transcript ingested successfully. So a best-effort summary push can turn a fully-synced transcript run into a failure exit. Whatever you choose, make the pre-push (manifest) and post-push (push) paths consistent about whether summary sync is best-effort or required.
+
+### 2. ACTIONABLE — `--json` `total` omits `summariesSynced`, but the text total shows it
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go:440` (JSON `total` is `r.total`, a `client.Result` with no summaries field) vs `main.go:469` (text total includes `summarySuffix(r.totalSummaries, …)`).
+
+Evidence — same dry-run, two renderers disagree:
+```
+# --json
+"total": { "ingested": 0, "skipped": 1, "failed": 0 }   # no summariesSynced
+# text
+total   0 would ingest, 1 skipped, 0 failed, 1 summary(ies) would sync
+```
+Per-source JSON objects *do* carry `summariesSynced`, so a script that reads `.total.summariesSynced` gets nothing while `.sources.*.summariesSynced` and the human total both report it. Inconsistent machine output undermines the `--json` composability contract. Fix: include `r.totalSummaries` in the JSON `total` (add the field to the total payload so it matches per-source and the text total).
+
+### 3. NIT — "summary(ies)" plural wording
+`main.go:479,481`. Awkward to read ("1 summary(ies) synced"), but it is consistent with the tool's existing parenthetical-plural house style (`"%d local session(s)"` at `main.go:163`). Acceptable as-is for consistency. If you want it cleaner, add a small pluralize helper yielding "1 summary synced" / "2 summaries synced" — but then apply the same treatment to `session(s)` so the surface stays uniform; don't fix only this string.
+
+### 4. NIT — `--help` still describes summaries as transcript-only
+`--help` reads "that summary is uploaded with the transcript" and doesn't mention that post-hoc summaries now sync on their own. The README is now accurate (see below), but `--help` is the more-discoverable surface and is now slightly stale. Consider adding a clause noting a summary written after its transcript syncs on the next run.
+
+## Clean categories
+- **README accuracy (point 3):** Accurate. `cli/README.md` now states post-hoc summaries "diff… against a separate summary manifest and sends only the ones the store is missing or that changed — without re-uploading the transcript," which matches `changedSummaries` at `main.go:286-302` exactly. The old "known limitation" language is correctly removed.
+- **stdio/exit composability (point 4):** Unchanged on the success path — machine summary to stdout, diagnostics to stderr, exit 0 on success, 2 on misuse. The only exit-code concern is finding #1 (a summary-side failure yielding exit 1); nothing else regressed.
+- **Batching/`chunkBy` generalization:** Sound — the transcript path routes through the same generic `chunkBy` with `len(s.Raw)`, preserving the count/byte-budget behavior; summaries size by `len(s.Summary)`.
+
+Verdict: two actionable issues — the summary-manifest failure blocking transcript ingest (robustness regression) and the `--json` total missing `summariesSynced` (machine-output inconsistency) — should be fixed before merge; wording and help-text items are optional.</result>
+<usage><subagent_tokens>30712</subagent_tokens><tool_uses>13</tool_uses><duration_ms>206454</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a98832b18c4ac1bb9</task-id>
+<tool-use-id>toolu_01EPeTqEDixJHnPRcY7aFFio</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a98832b18c4ac1bb9.output</output-file>
+<status>completed</status>
+<summary>Agent "Review summary-sync change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Review complete. The change is well-structured and the hash contract is sound. I found one actionable observability gap (with a server-side counterpart) and a couple of minor items.
+
+## Findings (most severe first)
+
+### 1. Actionable — CLI silently drops summary-push failures
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go` (~line 205, the `pendingSummaries` push loop)
+
+The loop only does `sr.SummariesSynced += r.Ingested` and ignores `r.Skipped` and `r.Failed` from `PushSummaries`. The transcript loop right above it accumulates `r.Failed` into `sr.Failed`, which drives `sourceReport.errored()` and the non-zero exit code. So a summary batch that the server returns as `{"ingested":0,"failed":5}` (HTTP 200) produces: `SummariesSynced += 0`, no `Error`, `errored()==false`, exit 0, and — because `summarySuffix` returns `""` when `n==0` — no line in the report at all.
+
+Concrete failure: the store is up enough to answer the manifest but the summary INSERTs fail (e.g. a transient DB fault mid-run). The user sees a clean success report while nothing synced, and the run exits 0. This directly violates `sourceReport`'s own doc contract ("a failure is never silently dropped from the summary"). Fix: surface `r.Failed` (and it will keep re-pushing each run until it clears, which is fine, but the failure must be visible).
+
+### 2. Actionable (paired with #1) — server converts a store outage into a per-item FAILED + 200
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/Ingestor.java` `storeSummary`, line 110
+
+The `catch (RuntimeException e)` catches `StoreUnavailableException` (which `SummaryRepository.upsert` throws for *any* `SQLException` — both a bad-jsonb data error and a dead connection). The comment says it "mirror[s] the trajectory path," but the trajectory `store()` does **not** wrap `sessions.upsert` in a per-item catch — a store outage there propagates out of `ingest()` and becomes an HTTP 500, which the CLI surfaces as an error. Here, an outage is swallowed into `Outcome.FAILED` and returned as HTTP 200 with `failed&gt;0`. Combined with finding #1, a genuine outage during the summary-only phase is completely invisible. Consider only catching the data-shape failure per-item (or letting `StoreUnavailableException` propagate as it does for trajectories). Note: the code does correctly return `FAILED` (not `INGESTED`) for the swallowed case, so the Q5 "reports as ingested" concern does not apply — the item is FAILED, the gap is only that the batch reports 200.
+
+### 3. Nit — WHERE clause can freeze a stale `short_title` on ride-along
+`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/SummaryRepository.java` line 43-46
+
+`... WHERE summaries.content_hash IS DISTINCT FROM excluded.content_hash` gates the *entire* `DO UPDATE`, including `short_title`. Previously the ride-along upsert always refreshed `short_title` to the transcript-derived title. Now, if a transcript changes (triggering a ride-along) but the accompanying `summary.json` is byte-identical, the title update is skipped and `summaries.short_title` stays stale — and `SessionRepository.LIST_SQL` prefers `m.short_title` over `s.title`, so the list would keep showing the old label. Narrow and low-impact (derived titles are usually stable, and this only bites when summary content is frozen while the transcript moves). Not covered by a test. Leaving as a nit.
+
+## Assessment of the specific questions
+
+1. **Hash contract — holds.** The CLI hashes the UTF-8-coerced summary string (`scan.readSummary` → `strings.ToValidUTF8` → `Sha256Hex`) and sends that exact string; the server hashes `pushed.summary()` via `Hashing.sha256Hex` **before** the `?::jsonb` cast (`SummaryRepository.upsert` binds param 5 from the raw string). No re-serialization path exists — `manifest()` returns the stored `content_hash` column, never a value re-derived from jsonb. `SummaryRepositoryTest.manifestPublishesTheContentHashPerSession` pins this (`manifest.get("a") == Hashing.sha256Hex(rawInput)`). Identical to the transcript contract.
+
+2. **`changedSummaries` — correct, no double-sync.** The changed-transcript set (full push) and the unchanged-transcript-summary set are disjoint by construction, so nothing is both ridden-along and separately pushed (verified by `TestAChangedTranscriptCarriesItsSummaryAndDoesNotAlsoSyncItSeparately`). The NEW-transcript-push-fails case leaves the summary neither synced nor stored *for that run*, but the transcript stays absent from the manifest, so next run it rides along again — deferred, not lost.
+
+3. **Legacy NULL-hash self-healing — correct, non-looping.** `MANIFEST_SQL` filters `content_hash IS NOT NULL`, so a pre-migration row is unadvertised → CLI re-pushes once → `NULL IS DISTINCT FROM 'hash'` is true → row written and hash set (`executeUpdate()` returns 1 → INGESTED). Next run the manifest carries it and the CLI skips. The only perpetual re-push is if two machines hold differently-formatted copies of the same summary — inherent to raw-content hashing and identical to the transcript behavior.
+
+4. **COALESCE — no regression to existing callers.** Both existing callers pass a non-blank title (ride-along: `titleFor`, never blank; `AnalysisController`: `responseObj.shortTitle()`), so `COALESCE(excluded.short_title, existing)` returns the incoming title exactly as before. AI-computed summaries live under `source = flavorName`, a separate keyspace from the ingest sources, and their title is embedded in the content, so title change ⟺ content change ⟺ WHERE passes. Confirmed no regression (aside from the ride-along edge in finding #3).
+
+6. **`chunkBy` refactor — behavior-preserving.** `chunk` now delegates with `sizeOf = len(s.Raw)`; the loop body is line-for-line the same, so existing chunk tests hold. Summary budgeting via `len(s.Summary)` is correct and idiomatic Go generics. New tests are hermetic and would fail without the change (e.g. `TestSyncsAPostHocSummaryForAnUnchangedTranscript` asserts a summary-only push happens with the transcript unchanged; `TestDoesNotResyncASummaryTheStoreAlreadyHas` asserts the skip).
+
+7. **Schema — the additive ALTER is the right call** for this repo's established `SchemaBootstrap` pattern; CREATE-plus-ALTER is redundant-but-safe (fresh DB gets the column from CREATE, existing DB from `ADD COLUMN IF NOT EXISTS`). **No new index needed:** `MANIFEST_SQL` filters `source = ? AND content_hash IS NOT NULL`, and the PK `(source, session_id)` already has `source` as its leading column, so the source filter is index-served; `content_hash IS NOT NULL` is a cheap residual predicate.
+
+Findings #1 and #2 are worth fixing before commit; #3 is optional.</result>
+<usage><subagent_tokens>49759</subagent_tokens><tool_uses>22</tool_uses><duration_ms>283370</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a32c3fac7403d0410</task-id>
+<tool-use-id>toolu_018kQA1k9i9qwdFr5Di9S9Mj</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a32c3fac7403d0410.output</output-file>
+<status>completed</status>
+<summary>Agent "Review pagination change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>This is a clean, well-constructed change. I found no actionable defects — the pagination logic, clamp, and API/frontend contract are all correct and tested. Details below, ranked by severity.
+
+## Assessment against your specific questions
+
+**1. Pagination ordering &amp; the offset-by-count anomaly — correct, but the comment overstates it (nit)**
+
+`ORDER BY s.updated_at DESC, s.id` is a total order: `id` is part of the primary key `(source, id)` (schema.sql:18), so the tiebreak is unique per source. On a *stable* dataset consecutive pages never overlap or skip — verified by `SessionRepositoryTest.listConversationsHonoursLimitAndOffsetForStablePaging`.
+
+Under concurrent ingest the classic offset anomaly is real: a client holding N rows requests `offset = N`; if a newer session was inserted meanwhile, everything shifts down one slot, so the row previously at index N-1 (already shown) reappears at index N — a **duplicate**. In the frontend that surfaces as two `.conv-item` nodes with the same `data-id` in the sidebar. A deletion causes the mirror-image skip.
+
+The `app.js:261` comment ("The offset is how many we hold, so pages don't overlap") is only true for a static list, so it's slightly misleading. This is an acceptable tradeoff for a sidebar, but it isn't documented as a limitation. A keyset alternative is worth noting and is essentially free here: the `sessions_source_updated (source, updated_at DESC, id)` index already supports `WHERE source = ? AND (updated_at, id) &lt; (?, ?)` with the last row's cursor, which is both drift-free and avoids deep-offset scans. Nit / informational.
+
+**2. The clamp — correct.** `clamp(limit, 1, MAX_LIMIT)` maps `limit&lt;=0` and negatives to 1 and oversized to 1000; `Math.max(0, offset)` floors offset at 0. No negative or zero LIMIT and no negative OFFSET can reach pgjdbc. A non-integer query value (`limit=abc`) fails Micronaut binding with a 400, which is fine. `listClampsAnOversizedLimitToTheHardCap` covers the cap.
+
+**3. Breaking shape change — no stragglers.** The only functional consumer is the bundled `app.js`, which was updated. `SessionCollector` uses `countBySource` but never `listConversations`, so it's unaffected. `playwright.config.js:47` hits the endpoint only as a webServer readiness probe (needs a 200, not an array). Java/JS/e2e tests were all updated to the `{items,total,limit,offset}` shape. No docs reference the array shape.
+
+**4. Frontend — correct.**
+- `offset = allConversations.length` is the right cursor for append-only loading.
+- `page.total ?? …` is harmless defensive code: `total` is a primitive `int` and always serializes (as `0`, never `null`), so the coalesce never actually triggers — but it's safe.
+- `appendLoadMore` builds a fresh button with one listener each render, and `list.innerHTML = ""` discards the old node, so there's **no listener leak**.
+- Auto-select: with items, `list.firstElementChild` is the first `.conv-item` (footer is appended last, so it's never first). With zero filtered results the first child is the "No sessions found" div; `targetDiv.click()` then finds no `.conv-item` via `closest()` and no-ops — safe.
+- Empty-filter-but-more-pages: `appendLoadMore` gates on `allConversations.length &gt;= convTotal` independent of the filter, so the footer correctly still appears when a search matches nothing loaded but more pages exist. Good.
+
+*Nit:* `loadMoreConversations` re-runs `renderConversationsList`, whose hash branch re-`click()`s the currently-selected item and re-fetches its transcript on every "Load more" press (and can jog scroll). Pre-existing behavior (search/sort already do this), just now triggered by paging too. Low priority.
+
+**5. MAX_LIMIT=1000 with the summaries LEFT JOIN — sensible.** The join is on `summaries(source, session_id)` (PK-backed), so it's an indexed lookup per row; 1000 rows × one probe is cheap, and the ordering is fully served by `sessions_source_updated`. No new index needed. The client `CONV_PAGE_SIZE=200` matches `DEFAULT_LIMIT`, well under the cap.
+
+**6. Tests — they do fail without the change.** The Java tests won't even compile against the old `listConversations(source)` signature / array response; the Vitest test asserts the `{items,total}` shape and the load-more button that don't exist pre-change. Coverage is good.
+
+*Missing cases (nits):*
+- Offset past the end (e.g. `offset=99`) → expect empty `items` with `total` still correct. Untested; low risk given the clamp math.
+- The empty-search-but-more-pages footer path (filtered empty yet button present) — asserted nowhere despite being a deliberate design point.
+
+## Other minor notes (nits)
+
+- `loadConversations`/`loadMoreConversations` never check `res.ok` before `res.json()`. A 500 (`StoreUnavailableException`) whose body happens to be JSON would parse to `page.items || []` → an empty sidebar with no error shown, rather than the catch-block message. Convention (vanilla-JS: handle non-2xx `fetch`). Pre-existing pattern, but the paged version inherits it. `src/main/resources/public/app.js:248` and `:273`.
+- `countBySource` and `listConversations` run as two separate connections/queries, not one transaction, so `total` and `items.length` can be momentarily inconsistent under concurrent ingest. Fine for a sidebar; noting for completeness.
+
+## Relevant files
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/BrainController.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/SessionRepository.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/ConversationPage.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/app.js
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/db/schema.sql
+
+Bottom line: no must-fix issues. The one thing worth an explicit decision is #1 — either accept the offset-drift duplicate/skip and fix the misleading `app.js` comment, or switch to keyset pagination (the index already supports it).</result>
+<usage><subagent_tokens>31279</subagent_tokens><tool_uses>19</tool_uses><duration_ms>161956</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa9c233de7cf22b27</task-id>
+<tool-use-id>toolu_01E21Xz3BqF7boSNevekFurM</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/aa9c233de7cf22b27.output</output-file>
+<status>completed</status>
+<summary>Agent "Review health endpoint" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've reviewed the controller, test, docker-compose healthcheck, README, serde setup, and auth filter scope. This is a clean, well-considered change. Findings below.
+
+## Verification of the specific concerns
+
+**1. Readiness logic / resource leak — correct, no leak.**
+`try (Connection connection = dataSource.getConnection())` guarantees the connection is returned to Hikari on every path: the `isValid==true` (200) path, the `isValid==false` fall-through to 503, and the `isValid` throwing path (close still runs). On the `getConnection` throw path nothing is assigned, so there's nothing to close. `connection.isValid(2)` is the right call — it uses the driver's lightweight validation rather than running a query. Catching only `SQLException` is adequate: Hikari pool exhaustion / borrow timeout surfaces as `SQLTransientConnectionException` (a `SQLException`), and a shut-down `HikariDataSource` throws `SQLException("… has been closed.")`. A truly unexpected `RuntimeException` would yield a 500 rather than 503, which is acceptable (and arguably correct) for an unforeseen fault.
+
+**2. Unauthenticated probes — correct.** `IngestAuthFilter` is `@ServerFilter("/api/ingest/**")`, so `/health*` is deliberately open. The bodies are only `UP`/`DOWN` plus a `db` flag — no version, hostname, driver, or exception text (the exception is logged at debug, not returned). Nothing sensitive leaks.
+
+**3. Compose healthcheck shell — escaping is correct.** In a YAML double-quoted scalar `\\r\\n` resolves to the literal `\r\n` (backslash-r backslash-n), which `printf` then turns into CR/LF — that's the intended two-step. `CMD-SHELL` runs `/bin/sh -c '&lt;string&gt;'`, and the string is `bash -c '…'`, so `/dev/tcp` (a bash builtin, not sh) is handled by bash. HTTP/1.0 with no Host returns 200 from Netty, and HTTP/1.0 makes the server close the socket → EOF, so `grep` can't hang on a no-match; `grep -q` also exits immediately on match. The 5s `timeout` backstops any stall. Correct and robust.
+
+**4. Native image — safe.** Plain `@Controller` with constructor injection needs no reachability metadata. Return types are `java.util.Map`, natively supported by `micronaut-serde-jackson` (confirmed on the classpath) — no reflective/`@Serdeable` gap. `nativeCompile` won't break.
+
+**5. Micronaut idioms — fine.** Raw `Map` for liveness vs `HttpResponse&lt;Map&gt;` for readiness is a reasonable asymmetry (readiness needs to set the status). `@Controller("/health")` + empty-path `@Get` → `/health`; `/ready` → `/health/ready`; unambiguous. Liveness correctly omits `@ExecuteOn(IO)` since it does no I/O.
+
+## Nits (optional, none blocking)
+
+- **`HealthControllerTest.java:67-71` — the `isValid()==false` branch is untested.** Only the `getConnection`-throws path to 503 is covered. A connection that is borrowed but returns `isValid(2)==false` hits a different line (the fall-through after the `if`) and has no test. Both paths return 503, so this is coverage completeness, not a defect. Consider a second stub whose connection returns `isValid==false`.
+- **`HealthControllerTest.java:70` — the 503 test asserts only status, not body.** It never checks `{"status":"DOWN","db":"DOWN"}`, so a regression that returned 503 with a wrong/empty body would pass. Cheap to add `assertEquals("DOWN", …)`.
+- **`docker-compose.yml:65` — `grep -q "200 OK"` is unanchored.** Theoretically a non-status-line containing `200 OK` could match, but `/health`'s body is `{"status":"UP"}`, so in practice there's no false positive. Anchoring to `HTTP/1.[01] 200 ` would be marginally stricter; not worth the added escaping.
+
+No correctness, security, resource-leak, or native-image issues. Good to commit once you decide on the nits.
+
+Relevant files:
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/HealthController.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/HealthControllerTest.java
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/README.md</result>
+<usage><subagent_tokens>18447</subagent_tokens><tool_uses>6</tool_uses><duration_ms>94931</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2b6f701c2ab0e3f5</task-id>
+<tool-use-id>toolu_018hHaYFanxejCJWZg6uno99</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a2b6f701c2ab0e3f5.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify health endpoint" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The app process exited (code 144 = SIGTERM from my pkill, expected) and port 8080 is no longer listening. Postgres is healthy and left running. Nothing left behind.
+
+## Verdict: GREEN
+
+All appropriate checks ran and passed. No source was modified.
+
+### Commands run and outcomes
+
+**1. `docker compose up -d postgres`** — exit 0. Container `agent-brain-viz-db` (postgres:17-alpine) up and healthy on 5432.
+
+**2. `mise exec -- ./gradlew build` (repo root)** — `BUILD SUCCESSFUL`. Full suite + Spotless (`spotlessJavaCheck`, `spotlessJavascriptCheck`, `spotlessCheck`) all passed. Tasks were up-to-date since the tree was already built, so I forced the Health test next to prove real execution.
+
+**3. `mise exec -- ./gradlew test --tests '…HealthControllerTest' --rerun`** — `BUILD SUCCESSFUL`, `:test` executed (not up-to-date). Fresh XML `build/test-results/test/TEST-io.github.glaforge.agybrainviz.HealthControllerTest.xml` (timestamped 11:29) shows `tests="3" skipped="0" failures="0" errors="0"`, all three named cases present and passing:
+- `livenessIsUpWhenTheProcessIsServing()`
+- `readinessIsUpWhenTheStoreIsReachable()`
+- `readinessIsA503WhenTheStoreIsUnreachable()`
+
+**4. `mise exec -- ./gradlew shadowJar`** — `BUILD SUCCESSFUL`; jar at `build/libs/agybrainviz-0.1-SNAPSHOT-all.jar` (~40 MB).
+
+**5. Booted the jar** (`java -Ddotenv.enabled=false -jar …`) against running Postgres — `Startup completed in 490ms. Server Running: http://localhost:8080`, Hikari pool started, schema up to date.
+
+Live probes with Postgres UP:
+- `GET /health` → `{"status":"UP"} [200]`
+- `GET /health/ready` → `{"db":"UP","status":"UP"} [200]`
+- Exact compose healthcheck (`bash /dev/tcp … grep "200 OK"`) → `exit=0`
+
+Probes with Postgres STOPPED (`docker compose stop postgres`, exit 0):
+- `GET /health` → `{"status":"UP"} [200]` (liveness stays up, DB-independent — correct)
+- `GET /health/ready` → `{"db":"DOWN","status":"DOWN"} [503]` (correct)
+
+After `docker compose up -d postgres` (healthy again):
+- `GET /health/ready` → `{"db":"UP","status":"UP"} [200]` (readiness recovers)
+
+**Cleanup:** app killed via `pkill` (exit 144 = SIGTERM, expected), no `agybrainviz` process remains, port 8080 not listening, Postgres left healthy. The app is NOT left running.
+
+### Notes
+- JSON key ordering differs from the task's literal expectation (`{"db":"UP","status":"UP"}` vs `{"status":"UP","db":"UP"}`) — this is just `Map.of` iteration order and is semantically identical; not a defect.
+- `git diff main` only covers README.md and docker-compose.yml; `HealthController.java` and `HealthControllerTest.java` are new untracked files (as expected, not yet added). All exercised.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/HealthController.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/HealthControllerTest.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/build/test-results/test/TEST-io.github.glaforge.agybrainviz.HealthControllerTest.xml`</result>
+<usage><subagent_tokens>18081</subagent_tokens><tool_uses>17</tool_uses><duration_ms>131652</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aec95980d1f8b0d53</task-id>
+<tool-use-id>toolu_01Ntr5oKLmgmPozHpk7QhH6P</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/aec95980d1f8b0d53.output</output-file>
+<status>completed</status>
+<summary>Agent "Review native CI job" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I've verified every claim against the code and the referenced workflow. Here are my findings.
+
+## Verdict: the workflow change is correct. No actionable defects.
+
+I confirmed each point you raised, plus checked the endpoint paths, query params, and response shapes the smoke curls depend on.
+
+### 1. Heredoc dedent — CONFIRMED correct
+Parsing `ci.yml` with a real YAML loader and printing the exact string the shell receives, the payload line and the `JSON` terminator both land at column 0 after the literal-block common-indentation strip:
+```
+16|cat &gt; smoke-session.json &lt;&lt;'JSON'
+17|[{"source":"antigravity-cli",...,"raw":"{\"type\":\"USER_INPUT\",...}\n"}]
+18|JSON
+```
+A quoted `&lt;&lt;'JSON'` requires the terminator with no leading whitespace — it's at line start, so the heredoc closes correctly. Because it's quoted, the `\"` and `\n` are written verbatim (no shell expansion), producing valid JSON where `raw` is a JSON-string-encoded payload. Correct.
+
+### 2. `set -euo pipefail` + trap — correct
+- A failed `grep -q` exits non-zero, `set -e` triggers script exit, and the `EXIT` trap fires — bash does not reset `$?` when running an `EXIT` trap (the trailing `kill ... || true` does not overwrite the exit code), so the app log is cat'd **and** the step still fails. Correct.
+- `curl -fsS ... | grep` under `pipefail` is the intended behavior: a non-2xx (`-f` → curl non-zero) or a non-matching body (grep non-zero) both fail the pipeline. No masking of the real failure.
+
+**Nit (robustness, low risk here):** `curl -fsS … | grep -q '…'` can theoretically produce a *false failure* under `pipefail` — when `grep -q` matches early it closes the pipe, curl gets SIGPIPE (exit 141), and `pipefail` reports the rightmost *non-zero*, i.e. 141, even though the assertion passed. This does **not** bite here because the responses are tiny (a single smoke session), so curl finishes writing into the pipe buffer and exits 0 before grep closes it. If any of these bodies grew large it could flake. Optional hardening: `resp=$(curl -fsS …); grep -q '…' &lt;&lt;&lt;"$resp"`.
+
+### 3. Readiness loop — correct, no hang
+`for _ in $(seq 1 30); … sleep 2` is bounded at ~60s. If the server never serves, the loop exhausts and the subsequent `curl -fsS …/health/ready` fails the step via `set -e`. No infinite-hang path. The `curl` inside the `if` condition correctly does not trip `set -e` during polling. `/health` is liveness (no DB), so it flips up as soon as Netty serves — the right probe to gate on.
+
+### 4. Service creds/port assumption — sound
+Postgres service (`agentbrainviz` / `agentviz` / `agentviz`, `5432:5432`) exactly matches the `application.yml` defaults (`jdbc:postgresql://localhost:5432/agentbrainviz`, `agentviz`/`agentviz`), which `Application.applyDatasourceSettings()` only overrides when `DATABASE_URL` is set. `DATABASE_URL` is unset here, the job runs directly on the runner (not `container:`), so `localhost:5432` maps to the service. Health-gating means Postgres is ready before steps run, and `POSTGRES_DB` creates the database, so schema bootstrap succeeds. No env needed. Correct.
+
+**Nit — `GITHUB_REF_NAME: native` is not strictly needed.** The native binary name is fixed (`build.gradle` sets `imageName = "agy-brain-viz"`, version-independent), so unlike the `backend`/`e2e` jobs — where a `&lt;pr&gt;/merge` slash leaks into the jar filename — nothing in this job's binary path depends on the version. It's harmless and defensive (avoids a slash in the embedded project version during `nativeCompile`, an untested path in `release-native-binaries.yml`), so keeping it is fine; just know it isn't load-bearing.
+
+### 5. `timeout-minutes: 45`, `--no-daemon`, GraalVM setup — good
+45 min is generous for `nativeCompile` (typically well under that). `--no-daemon` is present (a slight improvement over the release workflow, which omits it). `graalvm/setup-graalvm@v1` with `distribution: graalvm`, `java-version: "25"`, `github-token`, `cache: gradle` matches the known-good `release-native-binaries.yml` exactly. `cache: gradle` caches Gradle deps, not the native-image build itself — expected; no concern. `actions/checkout@v7` matches the rest of `ci.yml`.
+
+### 6. Smoke curls / assertions — all verified against the code
+- Ingest: `IngestResult(int ingested, int skipped, int failed)` is `@Serdeable` → serializes `{"ingested":1,...}`; `grep -q '"ingested":1'` matches.
+- Readiness: `HealthController.readiness()` returns `Map.of("status","UP","db","UP")` → `"db":"UP"` (no spaces from Micronaut serde); matches.
+- List: `BrainController` `@Get("/conversations")` with `@QueryValue Optional&lt;String&gt; flavor` — path and param name correct.
+- Transcript: `@Get("/conversations/{id}/transcript")` with `flavor` query param — correct.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/ci.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/release-native-binaries.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/application.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/HealthController.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/IngestResult.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/build.gradle`</result>
+<usage><subagent_tokens>25006</subagent_tokens><tool_uses>13</tool_uses><duration_ms>152298</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a4d05ffb9493afc38</task-id>
+<tool-use-id>toolu_01UqVyA5mKmFjeA1grjzLkqm</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a4d05ffb9493afc38.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify structured logging" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>GREEN.
+
+## Commands run and outcomes
+
+**1. Postgres + full build (repo root)**
+- `docker compose up -d postgres` → container `agent-brain-viz-db` Running (exit 0). Docker confirmed available; mise 2026.7.5; mise-pinned Java is 25.
+- `mise exec -- ./gradlew build` → `BUILD SUCCESSFUL` — all 35 tasks UP-TO-DATE (spotlessJavaCheck, spotlessJavascriptCheck, spotlessCheck, test all UP-TO-DATE, i.e. passing on this exact source).
+- Because the build was fully cached, I force-reran the suite: `mise exec -- ./gradlew test --rerun-tasks` → `BUILD SUCCESSFUL in 7s`. Test results: **36 test classes, 254 tests, 0 failures.**
+
+**2. Jar + runtime env-var switch**
+- `mise exec -- ./gradlew shadowJar` → `BUILD SUCCESSFUL`; jar at `build/libs/agybrainviz-0.1-SNAPSHOT-all.jar` (40.5 MB).
+- **No LOG_APPENDER** (`mise exec -- java -jar …`, background against running postgres): logback status confirmed `value "CONSOLE_TEXT" substituted for "${LOG_APPENDER:-CONSOLE_TEXT}"` and `Appender named [CONSOLE_JSON] not referenced. Skipping`. App log lines are the colorized TEXT pattern with ANSI escapes and `HH:mm:ss.SSS` prefix, e.g. (ANSI shown as `^[`):
+  ```
+  ^[[36m12:16:49.629^[[0;39m ^[[1;30m[main]^[[0;39m ^[[34mINFO ^[[0;39m ^[[35mio.micronaut.runtime.Micronaut^[[0;39m - Startup completed in 591ms. Server Running: http://localhost:8080
+  ```
+  Not JSON. Process killed (PID 9000), port 8080 cleared.
+- **LOG_APPENDER=CONSOLE_JSON**: status confirmed `value "CONSOLE_JSON" substituted`. Every app log line is a valid JSON object (5/5 parsed, 0 invalid, 0 ANSI escapes). Representative line parsed via the requested `python3 json.loads`:
+  ```
+  {"sequenceNumber":0,"timestamp":1783883845201,"nanoseconds":201670000,"level":"INFO","threadName":"main","loggerName":"io.micronaut.runtime.Micronaut","context":{...},"mdc":{},"message":"Startup completed in {}ms. Server Running: {}","arguments":["516","http://localhost:8080"],"throwable":null}
+  ```
+  Keys: `['arguments', 'context', 'level', 'loggerName', 'mdc', 'message', 'nanoseconds', 'sequenceNumber', 'threadName', 'throwable', 'timestamp']` — includes the required **level, loggerName, message, timestamp**. Process killed (PID 11218).
+- Cleanup verified: `pgrep -fl agybrainviz…-all.jar` → none; port 8080 → free. **No app process left running.**
+
+**3. Config validation**
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` → valid YAML.
+- `docker compose --profile full config` → VALID; rendered app service resolves `LOG_APPENDER: CONSOLE_JSON`.
+
+## Notes
+- One expected non-JSON artifact under CONSOLE_JSON: the Micronaut ASCII banner still prints before logging initializes. It is not a logback log line, so it does not affect JSON-per-log-line validity.
+- With JsonEncoder, `message` is the parameterized template (`"Startup completed in {}ms…"`) with values in a separate `arguments` array — standard JsonEncoder behavior, still valid JSON.
+- **native-under-JSON** (the ci.yml assertion `grep -q '"loggerName"' native-app.log`) was not run locally — it's validated by the GitHub Actions native job. The JVM runtime behavior above confirms the same JsonEncoder path is reachable; the ci.yml change is syntactically valid.
+
+Relevant files: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/logback.xml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/ci.yml`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.env.example`, `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/README.md`.</result>
+<usage><subagent_tokens>20294</subagent_tokens><tool_uses>17</tool_uses><duration_ms>153785</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a687b44fbca0b5f1b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a687b44fbca0b5f1b.output</output-file>
+<status>completed</status>
+<summary>Agent "Review structured logging" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have everything I need. Here is my review.
+
+## Review: structured-logging change (branch `feat/structured-logging`)
+
+The diff is small and the JVM behavior is sound. The one thing that matters here is a native-image interaction the diff doesn't mention, and it's exactly what the new CI assertion is (rightly) there to catch. Findings ranked by severity.
+
+---
+
+### 1. ACTIONABLE — `replaceLogbackXml = true` (Micronaut AOT) vs. the runtime `${LOG_APPENDER}` in `appender-ref`: native-only, must confirm the CI job is green before merge
+
+`build.gradle:100` sets `replaceLogbackXml = true`. Under `nativeCompile` (which CI runs at `.github/workflows/ci.yml:178`), Micronaut AOT does **not** ship `logback.xml` — it parses it at build time and generates Java that reconstructs the config programmatically. I decompiled the optimizer (`io.micronaut.aot.std.sourcegen.Logback14GeneratorHelper` in micronaut-aot-std-optimizers 3.0.0): it builds a build-time `Map&lt;String,String&gt; appenderRefToAppenderVarName` keyed by appender `name` (here `CONSOLE_TEXT`, `CONSOLE_JSON`) and wires each root `appender-ref` by looking up `AppenderRefModel.getRef()` in that map. There is no `OptionHelper`/`substVars`/`getenv` call anywhere in those generator classes.
+
+That means the root's `ref="${LOG_APPENDER:-CONSOLE_TEXT}"` is resolved **at image-build time, not at container runtime**, with two possible bad outcomes in the native binary:
+- the placeholder is looked up literally and misses the map → the root logger is wired to **no appender** → the native binary emits **zero logs** regardless of `LOG_APPENDER`; or
+- it resolves to the build-time default `CONSOLE_TEXT` (CI builds with `LOG_APPENDER` unset) and bakes it → runtime `LOG_APPENDER=CONSOLE_JSON` is **ignored**, so a native production deploy silently never emits JSON.
+
+Either way the concrete failure is: `LOG_APPENDER=CONSOLE_JSON ./agy-brain-viz` produces no `"loggerName"` line, and the new assertion at `ci.yml:219` (`grep -q '"loggerName"' native-app.log`) turns the native job **red**.
+
+Scope is native-only. The JVM path (`./gradlew run`) and the Docker `full` profile both use the real `logback.xml` — the `Dockerfile` builds a shadowJar on `eclipse-temurin:25-jre` (not native), so `${LOG_APPENDER}` substitution works there and the container-defaults-to-JSON design is fine. So the feature is validated everywhere except the native binary, and that native path is unverified in this diff.
+
+Action: run the native CI job on this branch and confirm it is green **before commit**. If it fails, the fix is to make appender selection something AOT preserves — e.g. keep a single appender and switch the *encoder*, or gate via a Micronaut logging property/profile rather than an env-selected `appender-ref` — not to loosen the metadata.
+
+This is also the correct answer to your Q2: the CI assertion is the right net, and it is sufficient — do **not** pre-add a `JsonEncoder` reflection entry to `reachability-metadata.json`. If AOT does the replacement, the generated code `new`s `JsonEncoder` directly (no reflection — matching the logback.xml comment's claim). If AOT instead falls back to shipping `logback.xml`, then `JsonEncoder` *is* instantiated reflectively and *would* need metadata that logback 1.5.32 does not ship (I checked the jar — it carries no `native-image`/`reflect-config` at all) and the app doesn't have. The single `"loggerName"` grep covers all of these failure modes, so it's the right guard — but precisely because it's load-bearing, it must be observed passing.
+
+### 2. nit — a misspelled `LOG_APPENDER` silently drops all logging (JVM)
+
+The `${VAR:-default}` syntax is honored by logback and env vars are consulted, so this works. But if someone sets `LOG_APPENDER=CONSOLE_JASON`, logback logs a one-line `Could not find an appender named [CONSOLE_JASON]` to its status stream and the root ends up with **no appender** — the app then runs with all logging silently suppressed. The default `CONSOLE_TEXT` is safe; there's no clean built-in fallback for a bad explicit value. Worth a one-line caveat in `.env.example`/README that the value must be exactly `CONSOLE_TEXT` or `CONSOLE_JSON`.
+
+### 3. nit — README slightly misdescribes the JSON schema
+
+`README.md` lists the fields as `timestamp, level, loggerName, message, mdc, …`. Confirmed against `JsonEncoder` 1.5.32: `timestamp` is **epoch millis (a number)**, not an ISO string; the human-readable text is under **`formattedMessage`** (there is also a separate raw `message` = the un-interpolated pattern); and every line also carries `sequenceNumber`, `nanoseconds`, `threadName`, and a nested `context` (`name`, `birthdate`, `properties`). This is logback's own schema, **not ECS/Logstash** — fine for stdout-tailing aggregators, but if anything downstream expects `@timestamp`/ECS field names it won't match. `throwable` is present and does carry the stacktrace (nested `cause`/`suppressed`/frames) on errors, `null` otherwise — so error logging is covered. Suggest tightening the field list and adding one clause that the shape is logback-native, not ECS.
+
+### 4. Confirmed clean
+
+- **Q5 formatting:** Spotless (`build.gradle:119`) targets only `java` and `javascript` — `logback.xml` is not covered, so no formatting gate applies. No concern.
+- **Q3 two-layer defaults:** app default `CONSOLE_TEXT` + compose default `CONSOLE_JSON` is intentional and documented in `README.md` and the `docker-compose.yml` comment. Consistent (Docker is JVM, so it honors the override). Fine.
+- **Q6 CI assertion:** `grep -q '"loggerName"'` matches JsonEncoder's actual key (`LOGGER_ATTR_NAME = "loggerName"`), and Micronaut's INFO-level startup logs guarantee such a line deterministically before the grep runs — not flaky. The only way it fails is the genuine native breakage in finding #1, which is the point.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/logback.xml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/build.gradle` (line 100, `replaceLogbackXml = true`)
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/ci.yml` (lines 185, 219)
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/README.md`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.env.example`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/Dockerfile` (confirms Docker app is JVM, not native)</result>
+<usage><subagent_tokens>38334</subagent_tokens><tool_uses>18</tool_uses><duration_ms>364286</duration_ms></usage>
+</task-notification>
+
+---
+
+ok 1password is unlocked
+
+---
+
+<task-notification>
+<task-id>a5d93378994656a6a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a5d93378994656a6a.output</output-file>
+<status>completed</status>
+<summary>Agent "Review CLI scheduling docs" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have the full CLI source and the diff. Let me verify the behavioral claims and check the scheduler syntax points.
+
+The behavioral claims all check out against `cli/main.go`:
+- `report.write(stdout, …)` at the end of `run` is called unconditionally — the summary always goes to stdout regardless of `--quiet`. Accurate.
+- `progress()` gates on `cfg.quiet || !isTerminal(stderr)`, and `isTerminal` checks for `os.ModeCharDevice` — so under any scheduler (stderr is a file/pipe) progress is silenced and `--quiet` is indeed optional. Accurate.
+- Error prints use `fmt.Fprintf(stderr, …)` and are not gated by `progress`; exit codes are `exitOK=0`, `exitFailed=1`, `exitUsage=2`. Matches "0 success, 1 sync failure, 2 misuse." Accurate.
+- `AGENT_INGEST_SERVER`, `AGENT_INGEST_TOKEN`, `--server`, `--quiet`, `--source` all exist and are named as the doc uses them. Accurate.
+
+Now the scheduler findings, ranked most severe first.
+
+## Findings
+
+### 1. actionable — cron example: `\` line-continuation does not work in a crontab
+`cli/README.md`, the cron code block:
+```
+*/30 * * * * . "$HOME/.config/agent-ingest/token.env" &amp;&amp; /usr/local/bin/agent-ingest \
+  --server https://viz.example.com --quiet &gt;&gt; "$HOME/.local/state/agent-ingest.log" 2&gt;&amp;1
+```
+Classic Vixie/ISC cron (crontab(5)) treats the command field as everything up to the newline; there is **no** backslash-newline continuation (backslash is only special before `%`). Copy-pasted verbatim, cron reads the first physical line as one entry ending in a literal trailing `\` (a broken `sh -c` command), and then tries to parse the second line `--server …` as a *new* crontab entry — where `--server` is not a valid minute field, so cron rejects it / logs an error. The whole schedule fails to install as intended. This must be collapsed onto a single physical line (or the reader warned explicitly). This is the highest-risk copy-paste failure in the change.
+
+### 2. actionable — systemd `EnvironmentFile` line has an inline comment, which systemd does not support
+`cli/README.md`, the `.service` block:
+```
+EnvironmentFile=%h/.config/agent-ingest/token.env   # holds AGENT_INGEST_TOKEN=...
+```
+systemd unit files do not support trailing inline comments; a `#` comment must be on its own line. The entire remainder of the line — including `   # holds AGENT_INGEST_TOKEN=...` — becomes the file path. That path doesn't exist, and because it isn't prefixed with `-`, a missing `EnvironmentFile` makes the unit fail to start. The `Type=oneshot` service will report failed on every trigger. Move the comment to its own line (or drop it). Everything else in both units is correct: `%h` is valid in user units, `Type=oneshot`, `Environment=`, `OnBootSec`/`OnUnitActiveSec`/`Persistent=true`, `WantedBy=timers.target`, `systemctl --user enable --now …`, and the `loginctl enable-linger` note for logged-out runs are all accurate.
+
+### 3. actionable — cron: sourcing the env file won't pass the token unless it uses `export`
+`cli/README.md`, cron line `. "$HOME/.config/agent-ingest/token.env" &amp;&amp; agent-ingest …`. Under `/bin/sh`, `. file` where the file contains `AGENT_INGEST_TOKEN=…` sets a *shell* variable that is **not exported**, so the child `agent-ingest` process never sees it and runs unauthenticated (401 → exit 1) against a token-protected server. The file must contain `export AGENT_INGEST_TOKEN=…` for the cron case. Note this also means the *same* `token.env` cannot be shared verbatim with the systemd `EnvironmentFile` (which wants `KEY=VALUE` **without** `export`), even though the doc points both at `.config/agent-ingest/token.env`. Worth calling out the format difference or using two files.
+
+### 4. nit — launchd: `launchctl load` is the deprecated interface
+`cli/README.md`, `launchctl load ~/Library/LaunchAgents/com.example.agent-ingest.plist`. This still works on current macOS but is deprecated in favor of `launchctl bootstrap gui/$(id -u) &lt;plist&gt;` (and `bootout` to unload). Not broken — optional to modernize or add a one-line note. The plist itself is correct: `StartInterval` integer `1800` = 30 min, `RunAtLoad`, `EnvironmentVariables`, `StandardErrorPath`, and `Label` matching the filename are all fine.
+
+### 5. nit — security guidance is sound, one small caveat
+Keeping the token in an env file with tight perms and `chmod 600` on the plist is correct advice. Minor: the launchd plist stores the token in cleartext with world-readable default perms until the user runs `chmod 600`, and `EnvironmentVariables` values are visible via `launchctl print`; the guidance is directionally right but you could note the token is also readable by anything running as that user. Also a cosmetic inconsistency: the systemd `ExecStart` uses `%h/bin/agent-ingest` while cron and launchd use `/usr/local/bin/agent-ingest` — harmless but readers may not have the binary in `~/bin`.
+
+## Summary
+The behavioral prose (stdout summary always printed, auto-silenced progress off a terminal, stderr + non-zero exit, env/flag names) is technically accurate against `cli/main.go`. The defects are all in the pasteable config: findings 1 and 2 will hard-fail on copy-paste and should be fixed before commit; finding 3 will silently drop auth in the cron path. File: `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`.</result>
+<usage><subagent_tokens>17792</subagent_tokens><tool_uses>2</tool_uses><duration_ms>89293</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a31beee15ca996bb7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a31beee15ca996bb7.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify empty-store onboarding" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Verdict: **RED** — the backend `./gradlew build` fails. Everything else is green.
+
+## Commands run and outcomes
+
+**Frontend unit — PASS (green)**
+- `npx vitest run` → `Test Files 13 passed (13)`, `Tests 116 passed (116)`.
+- `npx vitest run src/test/js/app.test.js -t "first-run onboarding"` → the new test `shows first-run onboarding in the main pane when the store is empty` → `1 passed | 8 skipped`.
+
+**Backend build — FAIL (red)**
+- `docker compose up -d postgres` → container running.
+- `mise exec -- ./gradlew build` (from repo root) → **BUILD FAILED in 10s**. Task `:spotlessJavascriptCheck` FAILED. Spotless/Prettier wants `src/main/resources/public/app.js` reformatted — the onboarding `&lt;pre&gt;` line exceeds the print width and must wrap the `escapeHtml(...)` call:
+
+```
+-      &lt;pre class="onboarding-cmd"&gt;agent-ingest --server ${escapeHtml(window.location.origin)}&lt;/pre&gt;
++      &lt;pre class="onboarding-cmd"&gt;agent-ingest --server ${escapeHtml(
++        window.location.origin
++      )}&lt;/pre&gt;
+```
+Gradle's own hint: `Run './gradlew :spotlessApply' to fix these violations.`
+
+This is a formatting-only failure (not a compile or JUnit failure) — `compileJava` and `shadowJar` succeed and no Java tests broke — but `./gradlew build` does not pass, so it is not the requested BUILD SUCCESSFUL. The main agent must run `./gradlew :spotlessApply` (or hand-format `app.js`).
+
+**e2e — PASS (green)**
+- No stray listener/jar found. Note: the Playwright server uses **port 8099**, not 8080 as the task stated (`playwright.config.js` line 6 `const PORT = 8099`); 8080 was irrelevant. The PID that briefly showed on :8080 was the Claude desktop app's network helper, not a server listener.
+- `mise exec -- ./gradlew shadowJar` → BUILD SUCCESSFUL (jar `build/libs/agybrainviz-0.1-SNAPSHOT-all.jar`).
+- `mise exec -- java -version` → Temurin 25.0.3 (Java 25 on PATH via mise, confirmed).
+- `mise exec -- npx playwright test e2e/sessions.spec.js` → **7 passed (3.8s)**, including `an empty source shows first-run onboarding` (selects the unseeded `antigravity` flavor).
+
+## Notes
+- No flakes observed; single run of each, all deterministic.
+- The e2e ran against a jar built from the *current, unformatted* `app.js`, and the onboarding behavior works at runtime — so the Spotless failure is cosmetic to the feature but a hard blocker for `./gradlew build` / CI.
+- Coverage of the diff is good: the new unit test asserts both the sidebar note (`import with agent-ingest`) and the main-pane guide (`No sessions yet`, `agent-ingest --server`); the e2e asserts the same in a real browser against an empty source.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/app.js` (Spotless violation — needs `:spotlessApply`)
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/js/app.test.js`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/e2e/sessions.spec.js`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/playwright.config.js` (port is 8099)</result>
+<usage><subagent_tokens>15597</subagent_tokens><tool_uses>17</tool_uses><duration_ms>101714</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0ed92091d81d0dcb</task-id>
+<tool-use-id>toolu_01QDQG9Cf7A6FU1AfzvonUuN</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a0ed92091d81d0dcb.output</output-file>
+<status>completed</status>
+<summary>Agent "Review empty-store onboarding UX" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have enough to assess. Findings below, ranked.
+
+## Findings
+
+### 1. "No sessions yet" is per-source but reads as whole-store empty — misleading (actionable)
+`src/main/resources/public/app.js:254,260` and `:349`. `convTotal` is the count for the *currently selected flavor* only — the fetch always sends `flavor=${flavor}` (`app.js:249`), and the dropdown (`index.html:23-27`) has **no "all" option**; every choice is one source (antigravity-cli, antigravity-ide, antigravity, codex, claude-code). So `convTotal === 0` means "this source is empty," not "the store is empty / first run."
+
+Concrete impact: a user who has imported Claude Code sessions but switches the flavor to "OpenAI Codex" gets the full first-run pane — 📭 "No sessions yet" plus "Import your agent transcripts with the agent-ingest CLI" — even though they have already imported and the store is populated. The prose actively misleads (they are told to run a first-import that they have already done). Violates the "clear, accurate empty state" expectation (nothing should tell the user the system is in a state it isn't).
+
+Fix: scope the copy to the source, e.g. heading "No **Codex** sessions yet" and drop/soften the "Import your agent transcripts … pushes them here" first-run framing unless the whole store is empty. If you can cheaply tell that *all* sources are empty (e.g. an aggregate count or the fact that no flavor has ever loaded rows), reserve the full onboarding for that genuine first-run case and use a lighter "Nothing here for this source yet" otherwise. At minimum, name the source in both the sidebar line (`app.js:349`) and the pane heading.
+
+### 2. Header still says "Select a session" while the pane says "No sessions yet" (actionable, small)
+`index.html:71` `&lt;h2 id="current-session-title"&gt;Select a session&lt;/h2&gt;` is left unchanged when onboarding replaces the main pane (`app.js:269`). With zero sessions there is nothing to select, so the header instruction is both inconsistent with the pane and impossible to follow. Fix: when showing onboarding, set `#current-session-title` to something neutral (e.g. empty, or "Getting started") so the two regions agree.
+
+### 3. Copyable command has no affordance and isn't reachable/announced (nit, worth doing)
+`style.css` `.onboarding-cmd { user-select: all }` is a nice touch, but it is invisible — nothing tells the user the block is click-to-select, and a `&lt;pre&gt;` is not focusable or operable by keyboard, so a keyboard/AT user gets no copy path and no hint one exists. This isn't a hard WCAG failure (the command text is readable), but it undercuts the feature's purpose. Fix: add a real `&lt;button&gt;` "Copy" beside the block that writes to `navigator.clipboard` and reports success via an `aria-live` region (or the existing `#conv-status` polite region at `index.html:50`), and/or add visible helper text like "Click to select, then copy." Prefer a button over relying on `user-select` alone.
+
+### 4. Decorative emoji is exposed to screen readers (nit)
+`app.js:273` `&lt;div class="empty-icon"&gt;📭&lt;/div&gt;` has no `aria-hidden="true"`, so AT announces it ("postbox"/"envelope with lowered flag"), which adds noise before the real heading. Add `aria-hidden="true"`. Note this matches the existing untreated `🧠` at `index.html:106`, so it's a consistency-level nit, not a regression.
+
+### 5. `word-break: break-all` breaks the command mid-token (nit)
+`style.css` `.onboarding-cmd`. `break-all` can wrap inside a word (e.g. `agent-in|gest`, `http://loc|alhost`), which is harder to read and looks broken. Since `white-space: pre-wrap` already handles wrapping, prefer `overflow-wrap: anywhere` (or `word-break: break-word`) so it breaks at the space/`://` boundaries first and only splits a long token when it truly must. Cosmetic; layout still holds on narrow viewports either way (I confirmed `pre-wrap` + centered `max-width:46ch` produce no horizontal scroll).
+
+## Checks that came back clean
+- **Logic ordering / regressions (your #5): correct.** `showEmptyStoreOnboarding()` runs only after a successful fetch and only when `convTotal === 0` (`app.js:255-260`); a non-empty store auto-selects and renders a transcript before the guard, so onboarding never shows when sessions exist. The unreachable-DB case throws on `!res.ok` and lands in `catch`, which shows the distinct "Error loading sessions. Is the backend running?" message — onboarding is never reached on error. The flavor-change handler (`app.js:109-116`) resets the pane synchronously before the async load resolves, so onboarding correctly wins for an empty flavor.
+- **`window.location.origin` in the command (your #1): safe and a genuinely good touch.** `escapeHtml` is applied (`app.js:277`), `origin` is browser-normalized (scheme+host+port, no path/user content), and `--server` with a base URL is the correct CLI invocation (`cli/main.go:81`, `cli/README.md:50`). The `--source` default is "all" (`cli/main.go:88`), so the prose's "scans … Antigravity, OpenAI Codex, and Claude Code" matches actual default behavior.
+- **Contrast/theming (your #4):** `.onboarding-cmd`/`.empty-state h2,p` use `--text-primary`/`--text-secondary`/`--border-color` on the dark main-pane bg — same tokens the rest of the app uses for body/heading text, so no new contrast risk introduced.
+
+One adjacent note (not this diff): the command omits any auth token, which is correct since the token is env-only (`AGENT_INGEST_TOKEN`, `cli/main.go:127`) and must not go on a command line. But if the server runs with the new fail-closed auth enabled, the bare command 401s with no hint here. Proportionate to leave for the localhost single-user default; consider a one-line "set `AGENT_INGEST_TOKEN` if your server requires auth" later.
+
+**Verdict:** Solid, safe feature with correct control flow; fix the per-source "No sessions yet" wording (#1) and the stale header (#2) before merge — the rest are nits.</result>
+<usage><subagent_tokens>18737</subagent_tokens><tool_uses>10</tool_uses><duration_ms>120609</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>af12aacaf2dbce9e1</task-id>
+<tool-use-id>toolu_01XT24wLNdXdLPw1cftLAY1w</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/af12aacaf2dbce9e1.output</output-file>
+<status>completed</status>
+<summary>Agent "Review empty-store onboarding" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have enough to assess all six points. Let me verify one interaction detail: what `list.firstElementChild.click()` does in the empty case.
+
+The empty branch appends a `.loading-state` div (no `data-id`), and `appendLoadMore` returns early when `allConversations.length &gt;= convTotal` (0 &gt;= 0), so the list contains only that div. `firstElementChild.click()` fires, but the delegated handler does `e.target.closest(".conv-item")` → null → no-op. Confirmed.
+
+## Findings
+
+The change is clean. No actionable defects. Everything behaves as your six questions hypothesize. Details:
+
+**1. Empty detection — correct.** `convTotal = page.total ?? allConversations.length` only reaches `=== 0` when the server reports zero (or omits `total` and returns an empty `items`). Since `offset=0` on this load, a positive `total` implies non-empty `items`, so the onboarding fires exactly on a genuinely empty store. The unreachable case is safe: `!res.ok` (or a JSON/network failure) throws, the `catch` writes the sidebar error and returns — control never reaches the `if (convTotal === 0)` line, so onboarding does **not** show. Confirmed.
+
+**2. XSS — sufficient and consistent.** `window.location.origin` (`scheme://host:port`) cannot contain `&lt;&gt;"'` per the URL spec, so `escapeHtml` here is defensive rather than strictly required — but it's correct and harmless. It's the only interpolation in the template; everything else is static text/markup. Mixing an `innerHTML` template literal with `createElement` matches existing app.js style (e.g. the `innerHTML` empty-state at line 112 and the `escapeHtml`-guarded `conv-id` at line 362).
+
+**3. Render flow — no stale-onboarding.** On the empty load, `renderConversationsList(true)` auto-clicks `firstElementChild`, which is the non-`.conv-item` `.loading-state` div → delegated click is a no-op → nothing overwrites `#transcript-container`, so the onboarding persists. On a later non-empty reload, `convTotal &gt; 0` so `showEmptyStoreOnboarding()` is skipped, and `autoSelect` clicks the real first `.conv-item`, whose async `selectConversation` replaces the pane with a transcript. Confirmed, no stale onboarding.
+
+**4. Sidebar three-way branch — mutually exclusive and exhaustive**, ordered correctly (search-with-more-pages → empty-store → generic) via `if/else if/else`. No `0 &lt; 0` misfire.
+
+**5. Consistency — good.** `showEmptyStoreOnboarding` as a non-exported module-level function is right; `escapeHtml` is already imported (line 16). The `.empty-state` markup in index.html (🧠 "select a session") and the injected 📭 onboarding are distinct messages sharing a style class — reuse, not duplication. No dead code.
+
+**6. Tests — exercise the new path and fail without the change.** The Vitest test seeds `total: 0`, asserts the sidebar Case-B text ("import with agent-ingest") and the main-pane onboarding ("No sessions yet", "agent-ingest --server"); both assertions would fail on the pre-change code (empty `#transcript-container`, old single-branch sidebar text). The e2e test drives the empty `antigravity` flavor and checks both panes. Good coverage.
+
+### Nits (optional, none blocking)
+
+- **`src/main/resources/public/app.js:341-353` — empty store with an active search term shows sidebar "No sessions found" while the main pane still displays the onboarding.** If a first-run user types into the search box on an empty store, Case A is false (`0 &lt; 0`) and Case B is false (`searchTerm` truthy), so the sidebar falls to the generic "No sessions found" even though the store is empty and the main pane still reads "No sessions yet." Minor cosmetic inconsistency, not a misfire.
+
+- **`src/main/resources/public/app.js:259` — server-contract violation (`total: 0` with non-empty `items`) would show onboarding and a populated list simultaneously**, and the auto-selected first item's async `selectConversation` could overwrite the onboarding a moment later. Only reachable if the backend violates its own paging contract; defensive-only concern.
+
+- **Missing test for the onboarding→transcript transition on refresh** (empty store, then non-empty reload replaces the onboarding). Point 3 holds by inspection, but there's no regression test guarding it.
+
+Relevant files:
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/app.js
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/style.css
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/js/app.test.js
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/e2e/sessions.spec.js</result>
+<usage><subagent_tokens>17484</subagent_tokens><tool_uses>8</tool_uses><duration_ms>103540</duration_ms></usage>
+</task-notification>
+
+---
+
+lets add all the untracked files. That shiould be part of the repo
+
+---
+
+Is there anything left that we need to address?
+
+---
+
+How can I set this up on a seperate machine that runs the docker version?
+
+---
+
+Lets setup a workflow that releases the binaries. Lets also setup things so they have a version for each. That way it is easier to debug things based on versions. Also lets setup the things you suggested
+
+---
+
+<task-notification>
+<task-id>aabc46de5215eca2e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/aabc46de5215eca2e.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify CLI release change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Everything verified. The workflow's build flags (`-trimpath -ldflags "-s -w -X main.version=${{ github.ref_name }}"`, `CGO_ENABLED=0`) and its 5-target matrix exactly match what I cross-compiled.
+
+## Verdict: GREEN
+
+All appropriate checks ran and passed.
+
+**Commands run and outcomes:**
+
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release-cli.yml'))"` → valid YAML (`YAML_OK`).
+- `cd cli &amp;&amp; gofmt -l .` → no output (all formatted).
+- `go vet ./...` → clean.
+- `go test -count=1 ./...` → all 3 packages `ok` (root, internal/client, internal/scan).
+- `go test -run TestVersionFlagPrintsTheVersionToStdout -v .` → `--- PASS` / `ok`.
+- Version stamping:
+  - `go build -ldflags "-X main.version=v1.2.3" -o /tmp/ai-ver . &amp;&amp; /tmp/ai-ver --version` → `agent-ingest v1.2.3`.
+  - No ldflags build → `agent-ingest dev`.
+- Cross-compile (each explicit, `CGO_ENABLED=0 -trimpath -ldflags "-s -w -X main.version=v1.2.3"`): linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64 → all 5 OK (build only; not executed on this host, as expected).
+
+**Coverage note:** The diff is CLI/workflow/docs only (`cli/README.md`, `cli/main_test.go`). The new test `TestVersionFlagPrintsTheVersionToStdout` (in `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`) correctly asserts `--version` prints `agent-ingest &lt;version&gt;` and exits OK, exercising the version-stamping path the workflow depends on. The workflow's build command and target matrix match exactly what I cross-compiled, so the release build is proven to compile for all published targets.
+
+**Skipped (justified):** `./gradlew build` — no backend files changed (diff touches only `cli/` and workflow), so backend build is unaffected and not run.
+
+**Not executed (by design):** the cross-compiled non-darwin/non-host binaries were not run — they can't execute on this arm64 macOS host; only the native builds were run to confirm `--version` output.</result>
+<usage><subagent_tokens>9896</subagent_tokens><tool_uses>7</tool_uses><duration_ms>49613</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3c88f8050ffff152</task-id>
+<tool-use-id>toolu_01J933868a9tJMf6RGH7TPrC</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a3c88f8050ffff152.output</output-file>
+<status>completed</status>
+<summary>Agent "Review CLI release workflow" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I verified the build, version stamping, and the test end-to-end. Here are my findings.
+
+## Verdict: clean
+
+The release workflow, version stamping, test, and docs are all correct. I cross-compiled darwin/arm64 with the exact ldflags from the workflow and confirmed `agent-ingest --version` prints the injected value; the version test passes; `go vet` is clean; `go.mod` (`go 1.23`) matches the `setup-go` pin.
+
+Point-by-point confirmation of the things you asked about:
+
+1. **`${{ github.ref_name }}` on a `release: published` event** — correct. On a release event `GITHUB_REF` is `refs/tags/&lt;tag&gt;` and `ref_name` is the bare tag, so the binary is stamped with the release tag (e.g. `v1.2.3`), not a branch.
+2. **`permissions: contents: write`** — both sufficient and necessary; release assets fall under the `contents` scope, and `GITHUB_TOKEN` is passed to the action.
+3. **5 parallel matrix jobs → same release** — no clobber. Each job writes a distinct filename (`agent-ingest-&lt;os&gt;-&lt;arch&gt;[.exe]`) and `action-gh-release` appends assets rather than replacing the asset set; same-name replacement is the only clobber path and names never collide. This is also the established pattern already used by `release-native-binaries.yml` (3 parallel uploads to the same release).
+4. **`-X main.version=` vs `var version = "dev"` at package `main`** — correct package/symbol; verified the stamp overrides `dev`.
+5. **`fail-fast: false`** — present, so one target failing won't cancel the other four. Good.
+6. **`matrix.ext` empty for non-windows** — Actions expands an undefined matrix key to the empty string, so `${out}${{ matrix.ext }}` is just the base name on non-windows and `.exe` only on windows. Correct.
+7. **No asset-name collision** with `release-native-binaries.yml` — CLI assets are `agent-ingest-*`, native assets are `agy-brain-viz-*.zip`. Disjoint. Confirmed.
+8. **`--version` test** (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go:157`) — sound: it drives the real `cli()` entry point, asserts `exitOK` and exact stdout `"agent-ingest " + version + "\n"`. Exercises the actual flag path, and `version` is `"dev"` in the un-stamped test build so the assertion is real, not tautological.
+9. **README install docs** (`/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md:22-43`) — the `releases/latest/download/agent-ingest-&lt;os&gt;-&lt;arch&gt;` URL pattern matches exactly what the workflow uploads; the `go build -ldflags "-X main.version=$(git describe --tags --always)"` line is correct and copy-pasteable; the `\` continuation sits in a real `bash` block (unlike the crontab caveat, which the docs correctly call out at line 112).
+
+## Nits (optional, none block the release)
+
+- **OS-name inconsistency across the two release workflows** — the CLI names macOS assets `darwin` (`.github/workflows/release-cli.yml:23-24`) while `release-native-binaries.yml:21` names them `macos`. Not a collision (different prefixes), but a user grabbing both binaries sees two different words for the same OS. Cosmetic.
+- **No `go test` gate before release build** (`.github/workflows/release-cli.yml`) — a release cut from a red commit would still ship binaries. `release-native-binaries.yml` has the same gap, so this is consistent with existing practice, not a regression.
+- **`go-version: "1.23"` is pinned exactly to `go.mod`'s `go 1.23`** — fine today, but a future `go.mod` bump requires remembering to bump the workflow too. Using `go-version-file: cli/go.mod` would keep them in lockstep.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/release-cli.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main_test.go`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/release-native-binaries.yml`</result>
+<usage><subagent_tokens>37793</subagent_tokens><tool_uses>10</tool_uses><duration_ms>85491</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a62c60b6fc522855d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/a62c60b6fc522855d.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify versioned deployment" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All checks executed and passed. Final state: only postgres is running.
+
+## Verdict: GREEN
+
+Branch `feat/versioned-deployment`. Every appropriate check ran and passed.
+
+### Backend build + tests
+- `docker compose up -d postgres` — postgres started (Testcontainers/DB available).
+- `mise exec -- ./gradlew build` from repo root — **BUILD SUCCESSFUL** (Spotless `spotlessCheck` + full suite; tasks up-to-date from a prior clean build).
+- `mise exec -- ./gradlew test --tests 'io.github.glaforge.agybrainviz.HealthControllerTest' --rerun` — **BUILD SUCCESSFUL**, `:test` executed. JUnit XML confirms `livenessIsUpAndReportsTheBuildVersion()` passed (0 failures/errors). Source asserts `/health` body `version` == `Version.VERSION`.
+
+### Compose validity
+- `docker compose --profile full config` — exit 0.
+- `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile full config` — exit 0.
+
+### Port reset (the `!reset` / `!override` crux) — verified by parsing config YAML
+- **PROD `app`**: exactly ONE ports entry — `host_ip: 127.0.0.1`, published 8080. It did NOT append; there is no second 0.0.0.0 entry.
+- **PROD `postgres`**: zero `ports:` lines — publishes nothing. `!reset []` replaced the base list (a plain override would have left 5432 published).
+- **BASE `app`**: published 8080 with no `host_ip` (= 0.0.0.0, all interfaces), unchanged.
+- **BASE `postgres`**: published 5432 with no `host_ip` (= 0.0.0.0), unchanged.
+
+### Docker version stamping (end-to-end)
+- `pkill -f 'agybrainviz.*-all.jar'` then `APP_VERSION=v9.9.9-verify docker compose --profile full up -d --build` — in-container Gradle build succeeded, image `agent-brain-viz:local` built, app+db started, db healthy.
+- After wait, `curl -s localhost:8080/health` returned `{"version":"v9.9.9-verify","status":"UP"}` — the `APP_VERSION` build arg flowed through `ENV GITHUB_REF_NAME` into `Version.VERSION` and out at `/health`. Confirmed by me (not just the parent's `v0.9.9-test` observation).
+
+### Teardown
+- `docker compose --profile full down` then `docker compose up -d postgres`. Final `docker compose ps`: only `agent-brain-viz-db` running (postgres:17-alpine, `0.0.0.0:5432-&gt;5432`). Full stack is NOT left running.
+
+Nothing skipped, nothing fixed.
+
+Relevant files:
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.prod.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/docker-compose.yml`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/Dockerfile`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/HealthController.java`
+- `/Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/java/io/github/glaforge/agybrainviz/HealthControllerTest.java`</result>
+<usage><subagent_tokens>16652</subagent_tokens><tool_uses>14</tool_uses><duration_ms>120685</duration_ms></usage>
+</task-notification>
