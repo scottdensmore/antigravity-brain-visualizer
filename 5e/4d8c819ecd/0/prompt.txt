@@ -1185,3 +1185,48 @@ One adjacent note (not this diff): the command omits any auth token, which is co
 **Verdict:** Solid, safe feature with correct control flow; fix the per-source "No sessions yet" wording (#1) and the stale header (#2) before merge — the rest are nits.</result>
 <usage><subagent_tokens>18737</subagent_tokens><tool_uses>10</tool_uses><duration_ms>120609</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>af12aacaf2dbce9e1</task-id>
+<tool-use-id>toolu_01XT24wLNdXdLPw1cftLAY1w</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/99320939-d56d-4c7e-b3e4-213a40305e7f/tasks/af12aacaf2dbce9e1.output</output-file>
+<status>completed</status>
+<summary>Agent "Review empty-store onboarding" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I have enough to assess all six points. Let me verify one interaction detail: what `list.firstElementChild.click()` does in the empty case.
+
+The empty branch appends a `.loading-state` div (no `data-id`), and `appendLoadMore` returns early when `allConversations.length &gt;= convTotal` (0 &gt;= 0), so the list contains only that div. `firstElementChild.click()` fires, but the delegated handler does `e.target.closest(".conv-item")` → null → no-op. Confirmed.
+
+## Findings
+
+The change is clean. No actionable defects. Everything behaves as your six questions hypothesize. Details:
+
+**1. Empty detection — correct.** `convTotal = page.total ?? allConversations.length` only reaches `=== 0` when the server reports zero (or omits `total` and returns an empty `items`). Since `offset=0` on this load, a positive `total` implies non-empty `items`, so the onboarding fires exactly on a genuinely empty store. The unreachable case is safe: `!res.ok` (or a JSON/network failure) throws, the `catch` writes the sidebar error and returns — control never reaches the `if (convTotal === 0)` line, so onboarding does **not** show. Confirmed.
+
+**2. XSS — sufficient and consistent.** `window.location.origin` (`scheme://host:port`) cannot contain `&lt;&gt;"'` per the URL spec, so `escapeHtml` here is defensive rather than strictly required — but it's correct and harmless. It's the only interpolation in the template; everything else is static text/markup. Mixing an `innerHTML` template literal with `createElement` matches existing app.js style (e.g. the `innerHTML` empty-state at line 112 and the `escapeHtml`-guarded `conv-id` at line 362).
+
+**3. Render flow — no stale-onboarding.** On the empty load, `renderConversationsList(true)` auto-clicks `firstElementChild`, which is the non-`.conv-item` `.loading-state` div → delegated click is a no-op → nothing overwrites `#transcript-container`, so the onboarding persists. On a later non-empty reload, `convTotal &gt; 0` so `showEmptyStoreOnboarding()` is skipped, and `autoSelect` clicks the real first `.conv-item`, whose async `selectConversation` replaces the pane with a transcript. Confirmed, no stale onboarding.
+
+**4. Sidebar three-way branch — mutually exclusive and exhaustive**, ordered correctly (search-with-more-pages → empty-store → generic) via `if/else if/else`. No `0 &lt; 0` misfire.
+
+**5. Consistency — good.** `showEmptyStoreOnboarding` as a non-exported module-level function is right; `escapeHtml` is already imported (line 16). The `.empty-state` markup in index.html (🧠 "select a session") and the injected 📭 onboarding are distinct messages sharing a style class — reuse, not duplication. No dead code.
+
+**6. Tests — exercise the new path and fail without the change.** The Vitest test seeds `total: 0`, asserts the sidebar Case-B text ("import with agent-ingest") and the main-pane onboarding ("No sessions yet", "agent-ingest --server"); both assertions would fail on the pre-change code (empty `#transcript-container`, old single-branch sidebar text). The e2e test drives the empty `antigravity` flavor and checks both panes. Good coverage.
+
+### Nits (optional, none blocking)
+
+- **`src/main/resources/public/app.js:341-353` — empty store with an active search term shows sidebar "No sessions found" while the main pane still displays the onboarding.** If a first-run user types into the search box on an empty store, Case A is false (`0 &lt; 0`) and Case B is false (`searchTerm` truthy), so the sidebar falls to the generic "No sessions found" even though the store is empty and the main pane still reads "No sessions yet." Minor cosmetic inconsistency, not a misfire.
+
+- **`src/main/resources/public/app.js:259` — server-contract violation (`total: 0` with non-empty `items`) would show onboarding and a populated list simultaneously**, and the auto-selected first item's async `selectConversation` could overwrite the onboarding a moment later. Only reachable if the backend violates its own paging contract; defensive-only concern.
+
+- **Missing test for the onboarding→transcript transition on refresh** (empty store, then non-empty reload replaces the onboarding). Point 3 holds by inspection, but there's no regression test guarding it.
+
+Relevant files:
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/app.js
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/resources/public/style.css
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/test/js/app.test.js
+- /Users/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/e2e/sessions.spec.js</result>
+<usage><subagent_tokens>17484</subagent_tokens><tool_uses>8</tool_uses><duration_ms>103540</duration_ms></usage>
+</task-notification>
