@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "72552b256e5c",
+  "strategy": "manual-commit",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "cli/README.md",
+    "cli/internal/client/client.go",
+    "cli/internal/client/client_test.go",
+    "cli/internal/scan/scan.go",
+    "cli/internal/scan/scan_test.go",
+    "cli/main.go",
+    "cli/main_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/72/552b256e5c/0/metadata.json",
+      "transcript": "/72/552b256e5c/0/full.jsonl",
+      "compact_transcript": "/72/552b256e5c/0/transcript.jsonl",
+      "content_hash": "/72/552b256e5c/0/content_hash.txt",
+      "prompt": "/72/552b256e5c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1816,
+    "cache_creation_tokens": 551007,
+    "cache_read_tokens": 21617414,
+    "output_tokens": 106357,
+    "api_call_count": 118
+  }
+}

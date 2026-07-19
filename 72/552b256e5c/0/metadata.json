@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "72552b256e5c",
+  "session_id": "c21c3560-2710-4c07-927e-0fd1f08468da",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-19T18:45:02.5347512Z",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 11,
+  "save_step_count": 1,
+  "files_touched": [
+    "cli/README.md",
+    "cli/internal/client/client.go",
+    "cli/internal/client/client_test.go",
+    "cli/internal/scan/scan.go",
+    "cli/internal/scan/scan_test.go",
+    "cli/main.go",
+    "cli/main_test.go"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8[1m]",
+  "turn_id": "2c64cdbd92ec",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1816,
+    "cache_creation_tokens": 551007,
+    "cache_read_tokens": 21617414,
+    "output_tokens": 106357,
+    "api_call_count": 118
+  },
+  "session_metrics": {
+    "turn_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-19T18:45:02.024035736Z",
+    "agent_lines": 553,
+    "agent_removed": 51,
+    "human_added": 382,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 935,
+    "total_lines_changed": 986,
+    "agent_percentage": 61.257606490872206,
+    "metric_version": 2
+  }
+}
