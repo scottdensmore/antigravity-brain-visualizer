@@ -177,6 +177,12 @@ class AnalysisControllerTest implements TestPropertyProvider {
         return client.toBlocking().retrieve(uri);
     }
 
+    // Summarize is a POST: it spends LLM tokens and (with force) invalidates the cache, so it must
+    // not be reachable by safe/idempotent GETs (prefetchers, crawlers).
+    private String post(String uri) {
+        return client.toBlocking().retrieve(io.micronaut.http.HttpRequest.POST(uri, ""));
+    }
+
     private void seed(String source, String id, String stepsJson) {
         PostgresTest.seedSession(source, id, "t-" + id, stepsJson, null, 1L);
     }
@@ -214,7 +220,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
     @Test
     void summarizeReturnsErrorWhenApiKeyMissing() throws IOException {
         API_KEY.set(Optional.empty());
-        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/any-id/summarize"));
+        JsonNode node = MAPPER.readTree(post("/api/analysis/conversations/any-id/summarize"));
         assertTrue(node.get("summary").asText().contains("GEMINI_API_KEY"));
     }
 
@@ -226,14 +232,14 @@ class AnalysisControllerTest implements TestPropertyProvider {
         seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
         seedSummary("antigravity-cli", id, "{\"summary\":\"local result\"}");
 
-        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/" + id + "/summarize"));
+        JsonNode node = MAPPER.readTree(post("/api/analysis/conversations/" + id + "/summarize"));
         assertEquals("local result", node.get("summary").asText());
     }
 
     @Test
     void summarizeReturnsNoTranscriptMessageWhenTranscriptMissing() throws IOException {
         JsonNode node = MAPPER.readTree(
-            get("/api/analysis/conversations/no-transcript-here/summarize")
+            post("/api/analysis/conversations/no-transcript-here/summarize")
         );
         assertEquals("No transcript found.", node.get("summary").asText());
     }
@@ -245,13 +251,13 @@ class AnalysisControllerTest implements TestPropertyProvider {
         String id = "rollout-2026-06-20T15-00-00-codexanalysis";
         seed("codex", id, NORMALIZED_STEPS);
 
-        String body = get(
+        String body = post(
             "/api/analysis/conversations/" + id + "/summarize?flavor=codex&force=true"
         );
         assertEquals("chunk summary", MAPPER.readTree(body).get("summary").asText());
         assertEquals(1, ANALYZE_CALLS.size());
 
-        String again = get("/api/analysis/conversations/" + id + "/summarize?flavor=codex");
+        String again = post("/api/analysis/conversations/" + id + "/summarize?flavor=codex");
         assertEquals("Chunk Title", MAPPER.readTree(again).get("shortTitle").asText());
         assertEquals(1, ANALYZE_CALLS.size());
     }
@@ -259,7 +265,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
     @Test
     void codexSummarizeReturnsNoTranscriptForUnknownId() throws IOException {
         JsonNode node = MAPPER.readTree(
-            get("/api/analysis/conversations/unknown-codex/summarize?flavor=codex")
+            post("/api/analysis/conversations/unknown-codex/summarize?flavor=codex")
         );
         assertEquals("No transcript found.", node.get("summary").asText());
     }
@@ -269,13 +275,13 @@ class AnalysisControllerTest implements TestPropertyProvider {
         String id = "12121212-3434-5656-7878-909090909090";
         seed("claude-code", id, NORMALIZED_STEPS);
 
-        String body = get(
+        String body = post(
             "/api/analysis/conversations/" + id + "/summarize?flavor=claude-code&force=true"
         );
         assertEquals("chunk summary", MAPPER.readTree(body).get("summary").asText());
         assertEquals(1, ANALYZE_CALLS.size());
 
-        String again = get("/api/analysis/conversations/" + id + "/summarize?flavor=claude-code");
+        String again = post("/api/analysis/conversations/" + id + "/summarize?flavor=claude-code");
         assertEquals("Chunk Title", MAPPER.readTree(again).get("shortTitle").asText());
         assertEquals(1, ANALYZE_CALLS.size());
     }
@@ -286,7 +292,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
         seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
         seedSummary("antigravity-cli", id, "{\"summary\":\"previously cached\"}");
 
-        JsonNode node = MAPPER.readTree(get("/api/analysis/conversations/" + id + "/summarize"));
+        JsonNode node = MAPPER.readTree(post("/api/analysis/conversations/" + id + "/summarize"));
         assertEquals("previously cached", node.get("summary").asText());
         assertTrue(ANALYZE_CALLS.isEmpty(), "cached path must not invoke the LLM");
     }
@@ -301,7 +307,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
         CONSOLIDATE_FAILS.set(true);
 
         JsonNode node = MAPPER.readTree(
-            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+            post("/api/analysis/conversations/" + id + "/summarize?force=true")
         );
         String summary = node.get("summary").asText();
 
@@ -320,7 +326,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
         ANALYZE_FAILS.set(true);
 
         String summary = MAPPER
-            .readTree(get("/api/analysis/conversations/" + id + "/summarize?force=true"))
+            .readTree(post("/api/analysis/conversations/" + id + "/summarize?force=true"))
             .get("summary")
             .asText();
         assertFalse(summary.startsWith("Error generating summary"));
@@ -335,7 +341,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
         seed("antigravity-cli", id, ANTIGRAVITY_ONE_LINE);
 
         JsonNode node = MAPPER.readTree(
-            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+            post("/api/analysis/conversations/" + id + "/summarize?force=true")
         );
 
         assertEquals("chunk summary", node.get("summary").asText());
@@ -354,7 +360,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
         TOKEN_RESULT.set(100_001);
 
         JsonNode node = MAPPER.readTree(
-            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+            post("/api/analysis/conversations/" + id + "/summarize?force=true")
         );
 
         assertEquals("final summary", node.get("summary").asText());
@@ -370,7 +376,7 @@ class AnalysisControllerTest implements TestPropertyProvider {
         seedSummary("antigravity-cli", id, "{\"summary\":\"stale\"}");
 
         JsonNode node = MAPPER.readTree(
-            get("/api/analysis/conversations/" + id + "/summarize?force=true")
+            post("/api/analysis/conversations/" + id + "/summarize?force=true")
         );
 
         assertEquals("chunk summary", node.get("summary").asText());
@@ -391,11 +397,11 @@ class AnalysisControllerTest implements TestPropertyProvider {
         ExecutorService background = Executors.newSingleThreadExecutor();
         try {
             Future<String> first = background.submit(() ->
-                get("/api/analysis/conversations/" + id + "/summarize?force=true")
+                post("/api/analysis/conversations/" + id + "/summarize?force=true")
             );
             assertTrue(started.await(5, TimeUnit.SECONDS), "first analysis did not start");
 
-            String second = get("/api/analysis/conversations/" + id + "/summarize?force=true");
+            String second = post("/api/analysis/conversations/" + id + "/summarize?force=true");
             assertTrue(
                 second.contains("already running"),
                 "concurrent request should be rejected, got: " + second
