@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "dd54a7cd0593",
+  "strategy": "manual-commit",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "build.gradle",
+    "e2e/fixtures.mjs",
+    "e2e/security.spec.js",
+    "e2e/sessions.spec.js",
+    "e2e/test-base.js",
+    "e2e/vendor/marked.min.js",
+    "src/main/resources/public/app.js",
+    "src/main/resources/public/index.html",
+    "src/main/resources/public/modules/analysis.js",
+    "src/main/resources/public/modules/drilldown.js",
+    "src/main/resources/public/modules/eval.js",
+    "src/main/resources/public/modules/insights.js",
+    "src/main/resources/public/modules/mine.js",
+    "src/main/resources/public/modules/optimize.js",
+    "src/main/resources/public/modules/stats.js",
+    "src/main/resources/public/modules/timeline.js",
+    "src/main/resources/public/modules/ui.js",
+    "src/main/resources/public/modules/utils.js",
+    "src/main/resources/public/vendor/purify.min.js",
+    "src/test/js/analysis.test.js",
+    "src/test/js/app.test.js",
+    "src/test/js/drilldown.test.js",
+    "src/test/js/eval.test.js",
+    "src/test/js/insights.test.js",
+    "src/test/js/mine.test.js",
+    "src/test/js/optimize.test.js",
+    "src/test/js/setup.js",
+    "src/test/js/stats.test.js",
+    "src/test/js/timeline.test.js",
+    "src/test/js/ui.test.js",
+    "src/test/js/utils.test.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/dd/54a7cd0593/0/metadata.json",
+      "transcript": "/dd/54a7cd0593/0/full.jsonl",
+      "compact_transcript": "/dd/54a7cd0593/0/transcript.jsonl",
+      "content_hash": "/dd/54a7cd0593/0/content_hash.txt",
+      "prompt": "/dd/54a7cd0593/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1814,
+    "cache_creation_tokens": 549978,
+    "cache_read_tokens": 21316412,
+    "output_tokens": 105669,
+    "api_call_count": 117
+  }
+}
