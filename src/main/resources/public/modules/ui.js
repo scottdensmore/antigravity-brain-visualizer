@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml, formatTime } from "./utils.js";
+import { state, escapeHtml, formatTime, apiFetch } from "./utils.js";
 
 const SUPPORTED_HIGHLIGHT_EXTS = [
   "js",
@@ -56,6 +56,9 @@ export function pathFromFileLink(href) {
   return decodeURIComponent(path);
 }
 
+// The element that had focus before the modal opened, so closing can hand focus back to it.
+let focusBeforeModal = null;
+
 // Fetch a file from the backend and render it in the preview modal. On failure, alerts the user.
 export async function openFilePreview(path) {
   const modal = document.getElementById("file-modal");
@@ -63,7 +66,9 @@ export async function openFilePreview(path) {
   const modalContent = document.getElementById("file-modal-content");
 
   try {
-    const res = await fetch(`/api/brain/file?path=${encodeURIComponent(path)}`);
+    const res = await apiFetch(
+      `/api/brain/file?path=${encodeURIComponent(path)}`
+    );
     if (!res.ok) {
       if (res.status === 404) throw new Error("File not found");
       throw new Error("Failed to load file");
@@ -81,7 +86,11 @@ export async function openFilePreview(path) {
       hljs.highlightElement(modalContent);
     }
 
+    // Opening steals focus for the dialog: remember where the keyboard user was, then land them on
+    // the close button. Closing (below) reverses this.
+    focusBeforeModal = document.activeElement;
     modal.classList.remove("hidden");
+    document.getElementById("close-modal-btn")?.focus();
   } catch (err) {
     alert(err.message + ":\n" + path);
   }
@@ -90,6 +99,27 @@ export async function openFilePreview(path) {
 export function closeFileModal() {
   const modal = document.getElementById("file-modal");
   if (modal) modal.classList.add("hidden");
+  if (focusBeforeModal && typeof focusBeforeModal.focus === "function") {
+    focusBeforeModal.focus();
+  }
+  focusBeforeModal = null;
+}
+
+// Keeps Tab (and Shift+Tab) cycling inside the open modal instead of escaping into the page.
+function trapModalTab(e, modal) {
+  const focusables = modal.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
 }
 
 export function initUI() {
@@ -120,8 +150,11 @@ export function initUI() {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal && !modal.classList.contains("hidden")) {
+    if (!modal || modal.classList.contains("hidden")) return;
+    if (e.key === "Escape") {
       closeFileModal();
+    } else if (e.key === "Tab") {
+      trapModalTab(e, modal);
     }
   });
 
@@ -144,7 +177,7 @@ function initScrubber() {
   let visibleCards = new Set();
 
   const updateTimelineRect = () => {
-    if (window.timelineTotalMs > 0 && visibleCards.size > 0) {
+    if (state.timelineTotalMs > 0 && visibleCards.size > 0) {
       let minTs = Infinity;
       let maxTs = -Infinity;
       visibleCards.forEach((el) => {
@@ -166,8 +199,8 @@ function initScrubber() {
       if (minTs !== Infinity && maxTs !== -Infinity) {
         // Add a slight buffer to the width so it doesn't look like a 0px line for a single card
         const startPct =
-          ((minTs - window.timelineStart) / window.timelineTotalMs) * 100;
-        let widthPct = ((maxTs - minTs) / window.timelineTotalMs) * 100;
+          ((minTs - state.timelineStart) / state.timelineTotalMs) * 100;
+        let widthPct = ((maxTs - minTs) / state.timelineTotalMs) * 100;
 
         const indicator = document.getElementById("session-timeline-indicator");
         if (indicator) {

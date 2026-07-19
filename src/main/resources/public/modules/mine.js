@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, fetchJson, section, FLAVOR_LABELS } from "./utils.js";
 import {
   slugify,
   skillMarkdown,
@@ -24,23 +24,6 @@ import { drillRow, wireDrilldown } from "./drilldown.js";
 
 const DL_BTN_STYLE =
   "padding:4px 10px; font-size:0.72rem; background:rgba(30,41,59,0.6); border:1px solid var(--border-color); color:var(--text-primary); cursor:pointer; border-radius:6px; white-space:nowrap;";
-
-const FLAVOR_LABELS = {
-  "antigravity-cli": "Antigravity CLI",
-  "antigravity-ide": "Antigravity IDE",
-  antigravity: "Antigravity Agent",
-  codex: "OpenAI Codex",
-  "claude-code": "Claude Code",
-};
-
-function section(title, color, bodyHtml) {
-  return `<div style="margin-top:28px;">
-      <div style="font-size:0.75rem; font-weight:700; color:${color}; margin-bottom:16px; letter-spacing:0.05em; text-transform:uppercase;">${escapeHtml(
-    title
-  )}</div>
-      ${bodyHtml}
-    </div>`;
-}
 
 function emptyNote(text) {
   return `<div class="stat-sub">${escapeHtml(text)}</div>`;
@@ -227,9 +210,9 @@ export async function showMining(flavor) {
   container.innerHTML =
     '<div class="loading-state" style="text-align:center; padding:40px; color:#94a3b8;">Mining skills &amp; rules from sessions…</div>';
   try {
-    const res = await fetch(`/api/mine?flavor=${encodeURIComponent(flavor)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const report = await res.json();
+    const report = await fetchJson(
+      `/api/mine?flavor=${encodeURIComponent(flavor)}`
+    );
     renderMining(report, container);
   } catch (e) {
     container.innerHTML =

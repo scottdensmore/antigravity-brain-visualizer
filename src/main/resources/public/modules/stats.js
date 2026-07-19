@@ -18,6 +18,7 @@ import {
   escapeHtml,
   updateTranscriptFilter,
   formatTime,
+  wireButton,
 } from "./utils.js";
 
 export function renderStats(steps) {
@@ -163,13 +164,13 @@ export function renderStats(steps) {
     durationChartHtml += '<div class="stat-sub">No active segments</div>';
   } else {
     const totalMs = segments[segments.length - 1].end - segments[0].start;
-    window.timelineStart = segments[0].start;
-    window.timelineTotalMs = totalMs;
+    state.timelineStart = segments[0].start;
+    state.timelineTotalMs = totalMs;
 
     const bottomMarker = document.getElementById("timeline-bottom-marker");
     if (bottomMarker) {
       bottomMarker.dataset.timestamp =
-        window.timelineStart + window.timelineTotalMs;
+        state.timelineStart + state.timelineTotalMs;
     }
 
     let totalPausedMs = 0;
@@ -206,8 +207,7 @@ export function renderStats(steps) {
       segments.forEach((seg, index) => {
         const gapMs = seg.start - lastEnd;
         if (gapMs > 0) {
-          const gapStartPct =
-            ((lastEnd - window.timelineStart) / totalMs) * 100;
+          const gapStartPct = ((lastEnd - state.timelineStart) / totalMs) * 100;
           const gapPct = (gapMs / totalMs) * 100;
           const gapStartStr = formatTime(lastEnd, false);
           const gapEndStr = formatTime(seg.start, false);
@@ -217,8 +217,7 @@ export function renderStats(steps) {
         }
 
         const segMs = seg.end - seg.start;
-        const segStartPct =
-          ((seg.start - window.timelineStart) / totalMs) * 100;
+        const segStartPct = ((seg.start - state.timelineStart) / totalMs) * 100;
         const segPct = (segMs / totalMs) * 100;
 
         const startStr = formatTime(seg.start, false);
@@ -263,7 +262,9 @@ export function renderStats(steps) {
       const width = Math.max((count / maxFreq) * 100, 2);
       toolsChartHtml += `
                 <div class="tool-chart-row" style="display: flex; align-items: center; margin-bottom: 10px; gap: 16px;">
-                    <div style="flex: 0 0 200px; font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-primary); text-align: right; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${name}">${name}</div>
+                    <div style="flex: 0 0 200px; font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-primary); text-align: right; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${escapeHtml(
+                      name
+                    )}">${escapeHtml(name)}</div>
                     <div style="flex: 1; height: 8px; background: rgba(30, 41, 59, 0.5); border-radius: 4px; overflow: hidden;">
                         <div style="height: 100%; width: ${width}%; background: var(--accent-purple); border-radius: 4px; transition: width 0.5s ease;"></div>
                     </div>
@@ -305,9 +306,9 @@ export function renderStats(steps) {
 
   container.innerHTML = `
         <div class="stats-grid">
-            <div class="stat-card" id="errors-stat-card" style="cursor: ${
-              errors > 0 ? "pointer" : "default"
-            };">
+            <div class="stat-card" id="errors-stat-card" ${
+              errors > 0 ? 'role="button" tabindex="0"' : ""
+            } style="cursor: ${errors > 0 ? "pointer" : "default"};">
                 <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
                     OUTCOME
                     <span id="errors-chevron" class="chevron" style="display: ${
@@ -321,7 +322,7 @@ export function renderStats(steps) {
                 </div>
                 <div class="stat-sub">${errors} errors during execution</div>
             </div>
-            <div class="stat-card" id="duration-stat-card" style="cursor: pointer;">
+            <div class="stat-card" id="duration-stat-card" role="button" tabindex="0" style="cursor: pointer;">
                 <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
                     DURATION
                     <span id="duration-chevron" class="chevron">›</span>
@@ -331,7 +332,7 @@ export function renderStats(steps) {
     segments.length !== 1 ? "s" : ""
   }</div>
             </div>
-            <div class="stat-card" id="user-queries-stat-card" style="cursor: pointer;">
+            <div class="stat-card" id="user-queries-stat-card" role="button" tabindex="0" style="cursor: pointer;">
                 <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
                     USER QUERIES
                     <span id="user-queries-chevron" class="chevron" style="display: inline-block; transform: rotate(0deg);">›</span>
@@ -339,7 +340,7 @@ export function renderStats(steps) {
                 <div class="stat-value">${userQueries}</div>
                 <div class="stat-sub">Manual interactions</div>
             </div>
-            <div class="stat-card" id="tools-stat-card" style="cursor: pointer;">
+            <div class="stat-card" id="tools-stat-card" role="button" tabindex="0" style="cursor: pointer;">
                 <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
                     TOOLS CALLED
                     <span id="tools-chevron" class="chevron">›</span>
@@ -347,7 +348,7 @@ export function renderStats(steps) {
                 <div class="stat-value">${toolsCalled}</div>
                 <div class="stat-sub">Agent-driven actions</div>
             </div>
-            <div class="stat-card" id="model-responses-stat-card" style="cursor: pointer;">
+            <div class="stat-card" id="model-responses-stat-card" role="button" tabindex="0" style="cursor: pointer;">
                 <div class="stat-label" style="display:flex; justify-content:space-between; align-items:center;">
                     MODEL RESPONSES
                     <span id="model-responses-chevron" class="chevron" style="display: inline-block; transform: rotate(0deg);">›</span>
@@ -361,9 +362,10 @@ export function renderStats(steps) {
         ${durationChartHtml}
     `;
 
+  // The cards are divs, so wireButton gives each one keyboard activation alongside its click.
   const userCard = document.getElementById("user-queries-stat-card");
   if (userCard) {
-    userCard.addEventListener("click", () => {
+    wireButton(userCard, () => {
       const chevron = document.getElementById("user-queries-chevron");
       state.activeFilters.userQueries = !state.activeFilters.userQueries;
 
@@ -380,7 +382,7 @@ export function renderStats(steps) {
 
   const modelCard = document.getElementById("model-responses-stat-card");
   if (modelCard) {
-    modelCard.addEventListener("click", () => {
+    wireButton(modelCard, () => {
       const chevron = document.getElementById("model-responses-chevron");
       state.activeFilters.modelResponses = !state.activeFilters.modelResponses;
 
@@ -397,7 +399,7 @@ export function renderStats(steps) {
 
   const toolsCard = document.getElementById("tools-stat-card");
   if (toolsCard) {
-    toolsCard.addEventListener("click", () => {
+    wireButton(toolsCard, () => {
       const chart = document.getElementById("tools-chart");
       const chevron = document.getElementById("tools-chevron");
       state.activeFilters.toolsCalled = !state.activeFilters.toolsCalled;
@@ -417,7 +419,7 @@ export function renderStats(steps) {
 
   const errorsCard = document.getElementById("errors-stat-card");
   if (errorsCard && errors > 0) {
-    errorsCard.addEventListener("click", () => {
+    wireButton(errorsCard, () => {
       const chart = document.getElementById("errors-chart");
       const chevron = document.getElementById("errors-chevron");
       state.activeFilters.outcomeErrors = !state.activeFilters.outcomeErrors;
@@ -437,7 +439,7 @@ export function renderStats(steps) {
 
   const durationCard = document.getElementById("duration-stat-card");
   if (durationCard) {
-    durationCard.addEventListener("click", () => {
+    wireButton(durationCard, () => {
       const chart = document.getElementById("duration-chart");
       const chevron = document.getElementById("duration-chevron");
       if (chart.style.display === "none") {

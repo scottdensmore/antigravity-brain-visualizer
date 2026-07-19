@@ -54,9 +54,7 @@ describe("triggerAnalysis", () => {
     expect(text).toContain("Future Recommendations");
 
     // The summarize endpoint was requested.
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/analysis/conversations/session-123/summarize")
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/analysis/conversations/session-123/summarize"), expect.any(Object));
     // Result cached for next time.
     expect(state.summaryCache["session-123"]).toContain("All good in the end");
     // Session title updated from the short title.

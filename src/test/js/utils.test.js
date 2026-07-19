@@ -1,10 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   state,
   escapeHtml,
   syntaxHighlight,
   formatTime,
   updateTranscriptFilter,
+  fetchJson,
+  round1,
+  section,
+  wireButton,
+  FLAVOR_LABELS,
 } from "../../main/resources/public/modules/utils.js";
 
 beforeEach(() => {
@@ -17,6 +22,10 @@ beforeEach(() => {
   };
   state.spansMultipleDays = false;
   document.body.innerHTML = "";
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("escapeHtml", () => {
@@ -65,6 +74,59 @@ describe("formatTime", () => {
     const out = formatTime("2026-06-19T09:05:00Z");
     // e.g. "Jun 19, 09:05"
     expect(out).toMatch(/[A-Za-z]{3}\s+\d{1,2},\s+\d{2}:\d{2}/);
+  });
+});
+
+describe("fetchJson", () => {
+  it("returns the parsed body on success", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ n: 1 }) })
+    );
+    await expect(fetchJson("/api/x")).resolves.toEqual({ n: 1 });
+  });
+
+  it("throws on a non-OK status", async () => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }));
+    await expect(fetchJson("/api/x")).rejects.toThrow("HTTP 500");
+  });
+});
+
+describe("round1", () => {
+  it("rounds to one decimal and treats nullish as 0", () => {
+    expect(round1(1.26)).toBe(1.3);
+    expect(round1(null)).toBe(0);
+    expect(round1(undefined)).toBe(0);
+  });
+});
+
+describe("section", () => {
+  it("escapes the title and embeds the body html as-is", () => {
+    const html = section("<Tools>", "red", "<b>body</b>");
+    expect(html).toContain("&lt;Tools&gt;");
+    expect(html).toContain("<b>body</b>");
+  });
+});
+
+describe("FLAVOR_LABELS", () => {
+  it("labels the known sources", () => {
+    expect(FLAVOR_LABELS["claude-code"]).toBe("Claude Code");
+    expect(FLAVOR_LABELS["codex"]).toBe("OpenAI Codex");
+  });
+});
+
+describe("wireButton", () => {
+  it("activates on click, Enter and Space, but not on other keys", () => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const handler = vi.fn();
+    wireButton(el, handler);
+
+    el.click();
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+
+    expect(handler).toHaveBeenCalledTimes(3);
   });
 });
 

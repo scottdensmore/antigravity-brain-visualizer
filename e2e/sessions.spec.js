@@ -34,10 +34,11 @@ test.describe("session browsing", () => {
     await page.goto("/");
     await expect(page.locator("#conversations-list .conv-item")).toHaveCount(2);
     await page.selectOption("#flavor-select", "antigravity-ide");
-    await expect(page.locator("#conversations-list .conv-item")).toHaveCount(1);
-    await expect(page.locator("#conversations-list .conv-item")).toContainText(
-      "IDE refactor session"
-    );
+    // The IDE flavor holds its own session plus the hostile XSS fixture (see security.spec.js).
+    await expect(page.locator("#conversations-list .conv-item")).toHaveCount(2);
+    await expect(
+      page.locator(".conv-item", { hasText: "IDE refactor session" })
+    ).toBeVisible();
   });
 
   test("an empty source shows first-run onboarding", async ({ page }) => {

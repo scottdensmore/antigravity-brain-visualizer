@@ -8,6 +8,7 @@ import {
 
 beforeEach(() => {
   document.body.innerHTML = `
+    <button id="outside-btn"></button>
     <div id="file-modal" class="hidden">
       <div id="file-modal-title"></div>
       <pre id="file-modal-content"></pre>
@@ -94,5 +95,24 @@ describe("closeFileModal", () => {
     modal.classList.remove("hidden");
     closeFileModal();
     expect(modal.classList.contains("hidden")).toBe(true);
+  });
+});
+
+describe("modal focus management", () => {
+  it("moves focus to the close button on open and restores it on close", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, text: () => Promise.resolve("hello") })
+    );
+    const outside = document.getElementById("outside-btn");
+    outside.focus();
+    expect(document.activeElement).toBe(outside);
+
+    await openFilePreview("/home/u/notes.txt");
+    expect(document.activeElement).toBe(
+      document.getElementById("close-modal-btn")
+    );
+
+    closeFileModal();
+    expect(document.activeElement).toBe(outside);
   });
 });

@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Brain Visualizer</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css"
+          integrity="sha384-6PRNB60loRkq5oYgj0ETV33K0YsTUlab8qtfTGXhRgW5Nz1IpzS2zwj6UmlJEnyV" crossorigin="anonymous">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -120,15 +121,22 @@
     
 
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Pinned versions with subresource integrity: transcript content is untrusted, so the
+         libraries that touch it must not be able to change out from under us. -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+            integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
+            integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous"></script>
+    <!-- DOMPurify is vendored (not CDN) so the sanitizer that stands between untrusted transcript
+         markdown and the DOM is always present, even offline. -->
+    <script src="vendor/purify.min.js"></script>
 
     <!-- File Preview Modal -->
-    <div id="file-modal" class="modal hidden">
+    <div id="file-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="file-modal-title">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="file-modal-title">File View</h3>
-                <button id="close-modal-btn" class="icon-btn">×</button>
+                <button id="close-modal-btn" class="icon-btn" aria-label="Close file preview">×</button>
             </div>
             <div class="modal-body">
                 <pre><code id="file-modal-content"></code></pre>

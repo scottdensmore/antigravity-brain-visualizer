@@ -135,6 +135,27 @@ describe("session browsing and selection (integration)", () => {
     expect(document.querySelector("#transcript-container .step-card")).not.toBeNull();
   });
 
+  it("makes list items focusable buttons and selects one with the keyboard", async () => {
+    mockBackend();
+
+    await loadConversations();
+    await flush();
+
+    const items = document.querySelectorAll("#conversations-list .conv-item");
+    // Announced and reachable by keyboard.
+    expect(items[1].getAttribute("role")).toBe("button");
+    expect(items[1].tabIndex).toBe(0);
+
+    // Enter on the second (focused) item selects it, same as a click.
+    items[1].dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+    );
+    await flush();
+
+    expect(items[1].classList.contains("active")).toBe(true);
+    expect(document.getElementById("current-session-id").dataset.id).toBe("bbb222");
+  });
+
   it("offers 'Load more' when the store has more than one page, and appends the next page", async () => {
     // Page 0 returns 1 of 2 sessions; the footer must appear, and loading more appends the rest.
     const pages = {

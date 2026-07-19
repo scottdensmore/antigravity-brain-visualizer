@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { state, escapeHtml } from "./utils.js";
+import { state, escapeHtml, apiFetch } from "./utils.js";
 
 export async function triggerAnalysis(sessionId, force) {
   const btn = document.getElementById("summarize-btn");
@@ -69,8 +69,8 @@ export async function triggerAnalysis(sessionId, force) {
     const pollProgress = async () => {
       while (polling && state.currentPollSessionId === sessionId) {
         try {
-          const pres = await fetch(
-            `/api/analysis/conversations/${sessionId}/progress`
+          const pres = await apiFetch(
+            `/api/analysis/conversations/${sessionId}/progress?flavor=${flavor}`
           );
           if (pres.ok) {
             const pdata = await pres.json();
@@ -93,8 +93,14 @@ export async function triggerAnalysis(sessionId, force) {
 
     pollProgress();
 
-    const res = await fetch(url);
-    polling = false; // stop polling
+    // Summarize spends LLM tokens (and force invalidates the cache), so it's a POST, not a GET.
+    let res;
+    try {
+      res = await apiFetch(url, { method: "POST" });
+    } finally {
+      // Stop polling even when the request throws, or the loop would hit /progress forever.
+      polling = false;
+    }
 
     const data = await res.json();
 

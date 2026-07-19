@@ -8,6 +8,12 @@ beforeEach(() => {
   container = document.getElementById("transcript-container");
 });
 
+// Step bodies render lazily on first expansion; tests that assert body content must open the card
+// the way a user would.
+function expandCard(index = 0) {
+  container.querySelectorAll(".step-card .step-header")[index].click();
+}
+
 describe("renderTranscript", () => {
   it("shows an empty state when there are no steps", () => {
     renderTranscript([], container);
@@ -54,6 +60,7 @@ describe("renderTranscript", () => {
       },
     ];
     renderTranscript(steps, container);
+    expandCard();
     const toolCall = container.querySelector(".tool-call");
     expect(toolCall).not.toBeNull();
     expect(toolCall.querySelector(".tool-name").textContent).toContain("edit_file");
@@ -70,6 +77,7 @@ describe("renderTranscript", () => {
       },
     ];
     renderTranscript(steps, container);
+    expandCard();
     const errorBox = container.querySelector(".code-block");
     expect(errorBox).not.toBeNull();
     expect(errorBox.innerHTML).toContain("ERROR:");
@@ -87,6 +95,7 @@ describe("renderTranscript", () => {
       },
     ];
     renderTranscript(steps, container);
+    expandCard();
     const requestBlock = container.querySelector(".user-request-block");
     const contextBlock = container.querySelector(".system-context-block");
     expect(requestBlock.textContent).toContain("Please do X");

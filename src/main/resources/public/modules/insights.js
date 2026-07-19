@@ -13,16 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, fetchJson, section, FLAVOR_LABELS } from "./utils.js";
 import { drillRow, wireDrilldown } from "./drilldown.js";
-
-const FLAVOR_LABELS = {
-  "antigravity-cli": "Antigravity CLI",
-  "antigravity-ide": "Antigravity IDE",
-  antigravity: "Antigravity Agent",
-  codex: "OpenAI Codex",
-  "claude-code": "Claude Code",
-};
 
 function formatDuration(totalSeconds) {
   const secs = Math.round(totalSeconds || 0);
@@ -64,15 +56,6 @@ function barList(items, color, emptyText, category) {
       return drillRow(category, it.name, inner);
     })
     .join("");
-}
-
-function section(title, color, bodyHtml) {
-  return `<div style="margin-top:28px;">
-      <div style="font-size:0.75rem; font-weight:700; color:${color}; margin-bottom:16px; letter-spacing:0.05em; text-transform:uppercase;">${escapeHtml(
-    title
-  )}</div>
-      ${bodyHtml}
-    </div>`;
 }
 
 export function renderInsights(report, container) {
@@ -156,10 +139,9 @@ export async function showInsights(flavor) {
   container.innerHTML =
     '<div class="loading-state" style="text-align:center; padding:40px; color:#94a3b8;">Computing fleet insights…</div>';
   try {
-    const res = await fetch(
+    const report = await fetchJson(
       `/api/insights?flavor=${encodeURIComponent(flavor)}`
     );
-    const report = await res.json();
     renderInsights(report, container);
   } catch (e) {
     container.innerHTML =
