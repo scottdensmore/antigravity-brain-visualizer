@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -147,10 +148,23 @@ func seedHome(t *testing.T) string {
 func runCLI(t *testing.T, args []string, getenv func(string) string) (int, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	if getenv == nil {
-		getenv = func(string) string { return "" }
+	inner := getenv
+	if inner == nil {
+		inner = func(string) string { return "" }
 	}
-	code := cli(args, &out, &errBuf, getenv)
+	// Point the scan cache at a throwaway path unless the test overrides it, so
+	// tests never read or write the real user cache directory.
+	cachePath := filepath.Join(t.TempDir(), "scan-cache.json")
+	getenv = func(key string) string {
+		if v := inner(key); v != "" {
+			return v
+		}
+		if key == "AGENT_INGEST_CACHE" {
+			return cachePath
+		}
+		return ""
+	}
+	code := cli(context.Background(), args, &out, &errBuf, getenv)
 	return code, out.String(), errBuf.String()
 }
 
@@ -450,7 +464,7 @@ func TestHelpGoesToStdoutAndExitsZero(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("--help exit = %d, want 0", code)
 	}
-	for _, want := range []string{"agent-ingest", "--server", "--dry-run", "AGENT_INGEST_TOKEN"} {
+	for _, want := range []string{"agent-ingest", "--server", "--dry-run", "--no-cache", "AGENT_INGEST_TOKEN", "AGENT_INGEST_CACHE"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("help missing %q", want)
 		}
@@ -588,6 +602,102 @@ func TestNonUTF8TranscriptIsIngestedOnceThenSkipped(t *testing.T) {
 	}
 }
 
+// rewriteKeepingStat replaces path's content with a same-length string and
+// restores the original mtime, so only an actual re-read could observe the new
+// content — the non-flaky way to tell whether the scan trusted its cache.
+func rewriteKeepingStat(t *testing.T, path, content string) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int64(len(content)) != info.Size() {
+		t.Fatalf("rewriteKeepingStat needs same-length content: %d != %d", len(content), info.Size())
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// cacheEnv pins the scan cache to one path so it persists across runCLI calls
+// within a test (runCLI otherwise gives every call a throwaway cache).
+func cacheEnv(t *testing.T) func(string) string {
+	t.Helper()
+	cachePath := filepath.Join(t.TempDir(), "scan-cache.json")
+	return func(k string) string {
+		if k == "AGENT_INGEST_CACHE" {
+			return cachePath
+		}
+		return ""
+	}
+}
+
+func TestScanCacheSkipsRehashingUnchangedFilesAcrossRuns(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := t.TempDir()
+	path := filepath.Join(home, ".codex/sessions/r.jsonl")
+	write(t, path, "hello")
+	// The server already has this exact content, so nothing should ever upload.
+	f.manifest["codex"] = map[string]string{"r": sha("hello")}
+
+	env := cacheEnv(t)
+	args := []string{"--server", f.srv.URL, "--home", home, "--source", "codex"}
+	if code, _, _ := runCLI(t, args, env); code != 0 {
+		t.Fatalf("priming run exit = %d", code)
+	}
+
+	// Same size and mtime, different bytes. A run that re-hashed would see a
+	// changed session and push it; one that trusts the cache keeps the old hash,
+	// which still matches the manifest, and pushes nothing.
+	rewriteKeepingStat(t, path, "world")
+
+	code, stdout, _ := runCLI(t, args, env)
+	if code != 0 {
+		t.Fatalf("second run exit = %d", code)
+	}
+	if f.pushedCount() != 0 {
+		t.Fatalf("pushed %d session(s); a stat-identical file must ride the cache and skip", f.pushedCount())
+	}
+	if !strings.Contains(stdout, "1 skipped") {
+		t.Errorf("the cached session should still be reported as skipped; stdout=%q", stdout)
+	}
+}
+
+func TestNoCacheFlagForcesAFullRehash(t *testing.T) {
+	f := newFakeServer()
+	defer f.srv.Close()
+	home := t.TempDir()
+	path := filepath.Join(home, ".codex/sessions/r.jsonl")
+	write(t, path, "hello")
+	f.manifest["codex"] = map[string]string{"r": sha("hello")}
+
+	env := cacheEnv(t)
+	args := []string{"--server", f.srv.URL, "--home", home, "--source", "codex"}
+	if code, _, _ := runCLI(t, args, env); code != 0 {
+		t.Fatalf("priming run exit = %d", code)
+	}
+	rewriteKeepingStat(t, path, "world")
+
+	// --no-cache must ignore the primed cache, re-hash the file, see it differs
+	// from the manifest, and push the current content.
+	if code, _, _ := runCLI(t, append([]string{"--no-cache"}, args...), env); code != 0 {
+		t.Fatalf("--no-cache run exit = %d", code)
+	}
+	if f.pushedCount() != 1 {
+		t.Fatalf("pushed %d session(s), want 1: --no-cache must re-read the changed file", f.pushedCount())
+	}
+	f.mu.Lock()
+	raw := f.pushed[0][0]["raw"]
+	f.mu.Unlock()
+	if raw != "world" {
+		t.Errorf("pushed raw = %q, want the current on-disk content", raw)
+	}
+}
+
 func TestChunkSplitsByByteBudgetNotJustCount(t *testing.T) {
 	// Transcripts are large, so a batch is capped by cumulative bytes as well as count, to stay under
 	// the server's request-size limit.
@@ -645,6 +755,30 @@ func TestBatchSizeSplitsIntoSeparateRequests(t *testing.T) {
 	}
 	if f.batchCount() != 2 {
 		t.Fatalf("sent %d requests, want 2 (3 sessions at batch-size 2)", f.batchCount())
+	}
+}
+
+func TestCleartextTokenOverHTTPWarnsOnlyForNonLoopbackHosts(t *testing.T) {
+	cases := []struct {
+		name   string
+		server string
+		token  string
+		warn   bool
+	}{
+		{"token over http to a remote host", "http://brain.example.com:8080", "s3cret", true},
+		{"token over https", "https://brain.example.com", "s3cret", false},
+		{"token over http to localhost", "http://localhost:8080", "s3cret", false},
+		{"token over http to 127.0.0.1", "http://127.0.0.1:8080", "s3cret", false},
+		{"no token over http to a remote host", "http://brain.example.com", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stderr bytes.Buffer
+			warnCleartextToken(tc.server, tc.token, &stderr)
+			if got := strings.Contains(stderr.String(), "warning"); got != tc.warn {
+				t.Errorf("warned = %v, want %v; stderr=%q", got, tc.warn, stderr.String())
+			}
+		})
 	}
 }
 

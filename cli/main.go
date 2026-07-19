@@ -26,9 +26,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/scottdensmore/antigravity-brain-visualizer/cli/internal/client"
 	"github.com/scottdensmore/antigravity-brain-visualizer/cli/internal/scan"
@@ -55,20 +58,26 @@ type config struct {
 	jsonOut   bool
 	quiet     bool
 	batchSize int
+	noCache   bool
+	cachePath string // where the scan cache lives; "" disables persistence
 }
 
 func main() {
-	os.Exit(cli(os.Args[1:], os.Stdout, os.Stderr, os.Getenv))
+	// Ctrl-C / SIGTERM cancel the context, so in-flight requests and retry
+	// backoff waits stop cleanly instead of the process hanging on them.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	os.Exit(cli(ctx, os.Args[1:], os.Stdout, os.Stderr, os.Getenv))
 }
 
 // cli parses arguments and runs the sync, returning the process exit code. It
 // takes its streams and environment as parameters so it is fully testable.
-func cli(args []string, stdout, stderr io.Writer, getenv func(string) string) int {
+func cli(ctx context.Context, args []string, stdout, stderr io.Writer, getenv func(string) string) int {
 	cfg, code, done := parseFlags(args, stdout, stderr, getenv)
 	if done {
 		return code
 	}
-	return run(context.Background(), cfg, stdout, stderr)
+	return run(ctx, cfg, stdout, stderr)
 }
 
 func parseFlags(args []string, stdout, stderr io.Writer, getenv func(string) string) (config, int, bool) {
@@ -84,6 +93,7 @@ func parseFlags(args []string, stdout, stderr io.Writer, getenv func(string) str
 		jsonOut     = fs.Bool("json", false, "write a machine-readable summary to stdout")
 		quiet       = fs.Bool("quiet", false, "suppress progress on stderr")
 		batchSize   = fs.Int("batch-size", defaultBatchSize, "sessions per push request")
+		noCache     = fs.Bool("no-cache", false, "ignore the local scan cache and re-read and re-hash every transcript")
 		showVersion = fs.Bool("version", false, "print the version and exit")
 	)
 	fs.Var(&sources, "source", "source to sync; repeatable (default: all)")
@@ -131,6 +141,8 @@ func parseFlags(args []string, stdout, stderr io.Writer, getenv func(string) str
 		jsonOut:   *jsonOut,
 		quiet:     *quiet,
 		batchSize: *batchSize,
+		noCache:   *noCache,
+		cachePath: envOr(getenv, "AGENT_INGEST_CACHE", scan.DefaultCachePath()),
 	}, exitOK, false
 }
 
@@ -145,18 +157,33 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 		home = h
 	}
 
-	sessions, err := scan.Scan(home, cfg.sources)
+	// The scan cache lets a corpus that has not changed since the last run skip
+	// re-reading and re-hashing every transcript. It is strictly an optimization:
+	// a missing, corrupt, or unwritable cache degrades to full hashing, never a
+	// failure, and the server-side manifest diff below is always consulted.
+	var cache *scan.Cache
+	if !cfg.noCache {
+		cache = scan.LoadCache(cfg.cachePath)
+	}
+	sessions, err := scan.ScanWithCache(home, cfg.sources, cache)
 	if err != nil {
 		fmt.Fprintf(stderr, "agent-ingest: %s\n", err)
 		return exitFailed
 	}
+	// The hashes are valid as soon as the scan finishes, whatever the pushes
+	// below do, so persist them now (best-effort; warn, never fail).
+	if err := cache.Save(); err != nil {
+		fmt.Fprintf(stderr, "agent-ingest: warning: could not save scan cache: %s\n", err)
+	}
 	bySource := groupBySource(sessions)
 
+	warnCleartextToken(cfg.server, cfg.token, stderr)
 	cl := client.New(cfg.server, cfg.token)
 	report := newReport(cfg.dryRun)
 
 	for _, source := range cfg.sources {
-		list := bySource[source]
+		// Sorted so batches are chunked in a stable order run over run.
+		list := scan.SortedByKey(bySource[source])
 		if len(list) == 0 {
 			continue // this machine has no sessions for this source
 		}
@@ -171,7 +198,7 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 			continue
 		}
 
-		changed := changedSessions(list, manifest)
+		changed := changedSessions(list, manifest, stderr)
 		sr := sourceReport{Skipped: len(list) - len(changed)}
 
 		// Summary sync is a best-effort layer on top of the transcript sync. If the summary manifest
@@ -221,7 +248,12 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 		report.add(source, sr)
 	}
 
-	report.write(stdout, cfg.jsonOut)
+	if err := report.write(stdout, cfg.jsonOut); err != nil {
+		// A summary that failed to write (a closed pipe, a full disk) must fail
+		// the run — a script reading stdout would otherwise see success and no data.
+		fmt.Fprintf(stderr, "agent-ingest: %s\n", err)
+		return exitFailed
+	}
 	if report.failed {
 		return exitFailed
 	}
@@ -229,11 +261,20 @@ func run(ctx context.Context, cfg config, stdout, stderr io.Writer) int {
 }
 
 // changedSessions keeps only the sessions whose content differs from what the
-// server already stores, so an unchanged corpus uploads nothing.
-func changedSessions(list []scan.Session, manifest map[string]string) []client.PushSession {
+// server already stores, so an unchanged corpus uploads nothing. A session the
+// scan cache spared from being read is read here, and only here — sessions the
+// server already has never touch the disk beyond a stat.
+func changedSessions(list []scan.Session, manifest map[string]string, stderr io.Writer) []client.PushSession {
 	var changed []client.PushSession
-	for _, s := range list {
+	for i := range list {
+		s := &list[i]
 		if manifest[s.ID] == s.Hash {
+			continue
+		}
+		if err := s.LoadRaw(); err != nil {
+			// The transcript vanished or became unreadable between the scan and the
+			// push; skip it — like the scanner does — rather than fail the source.
+			fmt.Fprintf(stderr, "agent-ingest: warning: skipping %s/%s: %s\n", s.Source, s.ID, err)
 			continue
 		}
 		changed = append(changed, client.PushSession{
@@ -338,6 +379,28 @@ func validateServer(server string) error {
 	return nil
 }
 
+// warnCleartextToken flags a bearer token about to be sent over cleartext HTTP
+// to a non-loopback host, where anyone on the network path can read it. It only
+// warns — plain http on a trusted network is a legitimate setup — but the
+// exposure must never be silent.
+func warnCleartextToken(server, token string, stderr io.Writer) {
+	if token == "" {
+		return
+	}
+	u, err := url.Parse(server)
+	if err != nil || u.Scheme != "http" {
+		return
+	}
+	host := u.Hostname()
+	if host == "localhost" {
+		return
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return
+	}
+	fmt.Fprintf(stderr, "agent-ingest: warning: sending the bearer token unencrypted over http to %s; use an https --server\n", host)
+}
+
 func envOr(getenv func(string) string, key, fallback string) string {
 	if v := getenv(key); v != "" {
 		return v
@@ -365,6 +428,10 @@ Flags:
   --batch-size N    max sessions per push request (default %d; a request is also
                     capped at ~16 MiB of transcript, and one larger session is
                     sent on its own)
+  --no-cache        ignore the local scan cache and re-read and re-hash every
+                    transcript. The cache only skips local hashing of files
+                    whose size and mtime are unchanged; the server's manifest
+                    is always consulted, so this is rarely needed.
   --dry-run         report what would be pushed, without pushing (still queries
                     the server's manifest to compute the diff)
   --json            write a machine-readable summary to stdout
@@ -374,6 +441,8 @@ Flags:
 
 Environment:
   AGENT_INGEST_SERVER   default for --server
+  AGENT_INGEST_CACHE    path of the scan cache file (default: agent-ingest/
+                        scan-cache.json under the OS user cache directory)
   AGENT_INGEST_TOKEN    bearer token, sent when the server sets INGEST_TOKEN.
                         Passed via the environment (not a flag) so it never lands
                         in shell history or the process list.
@@ -443,7 +512,7 @@ func (r *report) add(source string, sr sourceReport) {
 	}
 }
 
-func (r *report) write(stdout io.Writer, jsonOut bool) {
+func (r *report) write(stdout io.Writer, jsonOut bool) error {
 	if jsonOut {
 		payload := map[string]any{
 			"ok":     !r.failed,
@@ -461,13 +530,15 @@ func (r *report) write(stdout io.Writer, jsonOut bool) {
 		}
 		enc := json.NewEncoder(stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(payload)
-		return
+		if err := enc.Encode(payload); err != nil {
+			return fmt.Errorf("writing JSON summary: %w", err)
+		}
+		return nil
 	}
 
 	if len(r.order) == 0 {
 		fmt.Fprintln(stdout, "No sessions found to ingest.")
-		return
+		return nil
 	}
 	verb := "ingested"
 	if r.dryRun {
@@ -486,6 +557,7 @@ func (r *report) write(stdout io.Writer, jsonOut bool) {
 		fmt.Fprintf(stdout, "%-*s  %d %s, %d skipped, %d failed%s\n", width, s, sr.Ingested, verb, sr.Skipped, sr.Failed, summarySuffix(sr.SummariesSynced, sr.SummariesFailed, r.dryRun))
 	}
 	fmt.Fprintf(stdout, "%-*s  %d %s, %d skipped, %d failed%s\n", width, "total", r.total.Ingested, verb, r.total.Skipped, r.total.Failed, summarySuffix(r.totalSummaries, r.totalSummariesFailed, r.dryRun))
+	return nil
 }
 
 // summarySuffix appends the standalone-summary tally to a report line, but only when there is one, so

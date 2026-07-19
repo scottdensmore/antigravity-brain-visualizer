@@ -182,6 +182,58 @@ func TestScanSkipsUnreadableEntriesRatherThanFailing(t *testing.T) {
 	}
 }
 
+func TestScanKeepsTheFirstOfDuplicateStemsAndWarns(t *testing.T) {
+	home := t.TempDir()
+	// The same filename stem in two project directories would collide on
+	// (source, id) and last-writer-wins on the server; the first must win and the
+	// skipped file must be named, never silently dropped or silently clobbered.
+	write(t, filepath.Join(home, ".claude/projects/proj-a/cc-uuid-1.jsonl"), "first")
+	write(t, filepath.Join(home, ".claude/projects/proj-b/cc-uuid-1.jsonl"), "second")
+
+	var warned strings.Builder
+	warnWriter = &warned
+	defer func() { warnWriter = os.Stderr }()
+
+	sessions, err := Scan(home, []string{"claude-code"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("a duplicate stem must keep exactly 1 session, got %d", len(sessions))
+	}
+	if sessions[0].Raw != "first" {
+		t.Errorf("the first file walked must win (its id may already be stored), got %q", sessions[0].Raw)
+	}
+	for _, want := range []string{"cc-uuid-1", "proj-a", "proj-b"} {
+		if !strings.Contains(warned.String(), want) {
+			t.Errorf("the warning must identify the id and both paths; missing %q in %q", want, warned.String())
+		}
+	}
+}
+
+func TestScanDuplicateStemAfterAnEmptyFileIsNotACollision(t *testing.T) {
+	home := t.TempDir()
+	// The first file with the stem is empty (never really a session), so the
+	// second is the real one and must be kept without a warning.
+	write(t, filepath.Join(home, ".claude/projects/proj-a/cc-uuid-1.jsonl"), "")
+	write(t, filepath.Join(home, ".claude/projects/proj-b/cc-uuid-1.jsonl"), "real")
+
+	var warned strings.Builder
+	warnWriter = &warned
+	defer func() { warnWriter = os.Stderr }()
+
+	sessions, err := Scan(home, []string{"claude-code"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions) != 1 || sessions[0].Raw != "real" {
+		t.Fatalf("the non-empty file must be kept, got %v", keys(byKey(sessions)))
+	}
+	if warned.Len() != 0 {
+		t.Errorf("an empty file is not a collision; got warning %q", warned.String())
+	}
+}
+
 func TestScanReadsAntigravitySummaryJSON(t *testing.T) {
 	home := t.TempDir()
 	// Antigravity writes its own AI analysis next to the transcript; the CLI carries it

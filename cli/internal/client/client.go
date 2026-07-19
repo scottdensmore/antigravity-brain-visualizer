@@ -31,9 +31,11 @@ import (
 // Client is a thin HTTP client for the ingest API. An empty token leaves requests
 // unauthenticated, which the server accepts when INGEST_TOKEN is unset.
 type Client struct {
-	baseURL string
-	token   string
-	http    *http.Client
+	baseURL  string
+	token    string
+	http     *http.Client
+	attempts int           // total tries per request, including the first
+	backoff  time.Duration // wait before the second try; doubles each retry
 }
 
 // New returns a Client for baseURL, sending a bearer token when one is given.
@@ -42,7 +44,9 @@ func New(baseURL, token string) *Client {
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   token,
 		// A finite timeout so a wedged server fails the sync instead of hanging it.
-		http: &http.Client{Timeout: 60 * time.Second},
+		http:     &http.Client{Timeout: 60 * time.Second},
+		attempts: 3,
+		backoff:  250 * time.Millisecond,
 	}
 }
 
@@ -141,34 +145,71 @@ func (c *Client) PushSummaries(ctx context.Context, summaries []PushSummary) (Re
 }
 
 // do sends the request, adds auth, treats any non-2xx as an error (never a
-// silent empty result), and decodes a successful body into out.
+// silent empty result), and decodes a successful body into out. Transient
+// failures — a connection error, a 429, or a 5xx — are retried a few times with
+// exponential backoff; every ingest endpoint is idempotent, so a retry can
+// never double-ingest. The backoff wait ends early when the context is
+// cancelled (e.g. Ctrl-C).
 func (c *Client) do(req *http.Request, out any) error {
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
+	backoff := c.backoff
+	for attempt := 1; ; attempt++ {
+		if attempt > 1 && req.GetBody != nil {
+			// The previous attempt consumed the body; rewind it for the retry.
+			body, err := req.GetBody()
+			if err != nil {
+				return fmt.Errorf("rewinding %s request body for retry: %w", req.URL.Path, err)
+			}
+			req.Body = body
+		}
+		retryable, err := c.doOnce(req, out)
+		if err == nil || !retryable || attempt >= c.attempts {
+			return err
+		}
+		select {
+		case <-req.Context().Done():
+			return err
+		case <-time.After(backoff):
+		}
+		backoff *= 2
+	}
+}
+
+// doOnce performs a single attempt, reporting whether a failure is transient
+// (worth retrying) alongside the error.
+func (c *Client) doOnce(req *http.Request, out any) (retryable bool, _ error) {
 	resp, err := c.http.Do(req)
 	if err != nil {
 		// Name the target and hint at the cause; the bare net/http error ("dial
-		// tcp …: connection refused") doesn't say what to do about it.
-		return fmt.Errorf("cannot reach the visualizer at %s (is it running? check --server): %w", c.baseURL, err)
+		// tcp …: connection refused") doesn't say what to do about it. A cancelled
+		// context is deliberate (Ctrl-C), not transient — never retry it.
+		return req.Context().Err() == nil, fmt.Errorf("cannot reach the visualizer at %s (is it running? check --server): %w", c.baseURL, err)
 	}
 	defer resp.Body.Close()
 
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Report the status even if the body read was partial.
-		return fmt.Errorf("%s returned %d: %s", req.URL.Path, resp.StatusCode, serverMessage(body, resp.Status))
+		// The error body only feeds the message, so cap it — a misbehaving server
+		// must not make the CLI buffer an unbounded response.
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		retry := resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500
+		return retry, fmt.Errorf("%s returned %d: %s", req.URL.Path, resp.StatusCode, serverMessage(body, resp.Status))
 	}
-	if readErr != nil {
-		return fmt.Errorf("reading %s response: %w", req.URL.Path, readErr)
+	// A success body is read in full, never capped: the manifest for a large
+	// corpus easily exceeds any fixed limit, and truncating it would silently
+	// break the sync.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return true, fmt.Errorf("reading %s response: %w", req.URL.Path, err)
 	}
 	if out == nil {
-		return nil
+		return false, nil
 	}
 	if err := json.Unmarshal(body, out); err != nil {
-		return fmt.Errorf("decoding %s response: %w", req.URL.Path, err)
+		return false, fmt.Errorf("decoding %s response: %w", req.URL.Path, err)
 	}
-	return nil
+	return false, nil
 }
 
 // serverMessage prefers the API's {"error": "..."} text, falling back to the
