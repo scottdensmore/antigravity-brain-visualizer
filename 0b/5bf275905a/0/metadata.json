@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "0b5bf275905a",
+  "session_id": "c21c3560-2710-4c07-927e-0fd1f08468da",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-19T18:44:21.406558422Z",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 11,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/AnalysisOrchestrator.java",
+    "src/test/java/io/github/glaforge/agybrainviz/AnalysisControllerTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8[1m]",
+  "turn_id": "2c64cdbd92ec",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1812,
+    "cache_creation_tokens": 549196,
+    "cache_read_tokens": 21016192,
+    "output_tokens": 104794,
+    "api_call_count": 116
+  },
+  "session_metrics": {
+    "turn_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-19T18:44:21.047581387Z",
+    "agent_lines": 463,
+    "agent_removed": 363,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 463,
+    "total_lines_changed": 826,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
