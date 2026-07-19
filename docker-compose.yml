@@ -19,9 +19,13 @@ services:
     container_name: agent-brain-viz-db
     restart: unless-stopped
     environment:
+      # The well-known defaults are for the localhost-only dev database. A production deployment
+      # must override POSTGRES_PASSWORD (docker-compose.prod.yml refuses to start without it).
+      # Note: Postgres only reads these on FIRST init of the pgdata volume — changing them later
+      # requires `docker compose down -v` (wipes data) or an in-database ALTER ROLE.
       POSTGRES_DB: agentbrainviz
-      POSTGRES_USER: agentviz
-      POSTGRES_PASSWORD: agentviz
+      POSTGRES_USER: ${POSTGRES_USER:-agentviz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentviz}
     ports:
       - "5432:5432"
     volumes:
@@ -29,7 +33,7 @@ services:
       # It is removed only by `docker compose down -v`.
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agentviz -d agentbrainviz"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentviz} -d agentbrainviz"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -53,8 +57,8 @@ services:
     environment:
       # Reach Postgres over the compose network by service name, not localhost.
       DATABASE_URL: jdbc:postgresql://postgres:5432/agentbrainviz
-      POSTGRES_USER: agentviz
-      POSTGRES_PASSWORD: agentviz
+      POSTGRES_USER: ${POSTGRES_USER:-agentviz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentviz}
       # Optional. Passed through from the host shell or the project's .env if set; otherwise blank,
       # and AI summarization is simply unavailable.
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
@@ -64,6 +68,11 @@ services:
       # Fail closed: with the container running -Ddotenv.enabled=false, the app only sees env vars
       # passed here (not a .env), so this must be forwarded explicitly for the flag to take effect.
       INGEST_REQUIRE_AUTH: ${INGEST_REQUIRE_AUTH:-}
+      # Guards the read/compute API (transcripts, summarize, mine, eval, optimize) the same way
+      # INGEST_TOKEN guards ingest. Set it alongside INGEST_TOKEN when the server leaves localhost;
+      # the web UI prompts for it once and remembers it in the browser.
+      API_TOKEN: ${API_TOKEN:-}
+      API_REQUIRE_AUTH: ${API_REQUIRE_AUTH:-}
       # Structured JSON logs by default in the container (one object per line, for a log aggregator).
       # Override with LOG_APPENDER=CONSOLE_TEXT for human-readable container logs.
       LOG_APPENDER: ${LOG_APPENDER:-CONSOLE_JSON}

@@ -25,6 +25,7 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -94,11 +95,18 @@ public class BrainController {
             if (!filePath.startsWith(geminiDir)) {
                 return HttpResponse.unauthorized();
             }
-            if (Files.exists(filePath) && !Files.isDirectory(filePath)) {
-                return HttpResponse.ok(Files.readString(filePath));
-            } else {
+            if (!Files.exists(filePath) || Files.isDirectory(filePath)) {
                 return HttpResponse.notFound("File not available on this machine.");
             }
+            // A symlink under ~/.gemini can point anywhere on disk; re-check the sandbox against the
+            // fully resolved path so a planted link can't read files outside it.
+            Path realFile = filePath.toRealPath();
+            if (!realFile.startsWith(geminiDir.toRealPath())) {
+                return HttpResponse.unauthorized();
+            }
+            return HttpResponse.ok(Files.readString(realFile));
+        } catch (NoSuchFileException e) {
+            return HttpResponse.notFound("File not available on this machine.");
         } catch (IOException e) {
             return HttpResponse.serverError("Error reading file: " + e.getMessage());
         }

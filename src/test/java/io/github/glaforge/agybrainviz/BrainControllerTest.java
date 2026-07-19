@@ -237,6 +237,22 @@ class BrainControllerTest implements TestPropertyProvider {
     }
 
     @Test
+    void fileIsUnauthorizedForASymlinkEscapingGeminiDir() throws IOException {
+        Path outside = tempHome.resolve("outside-secret.txt");
+        Files.writeString(outside, "secret");
+        Path link = tempHome.resolve(".gemini").resolve("innocent-looking.txt");
+        Files.createDirectories(link.getParent());
+        Files.createSymbolicLink(link, outside);
+
+        // The link itself lives inside the sandbox; only resolving it reveals the escape.
+        HttpClientResponseException ex = assertThrows(
+            HttpClientResponseException.class,
+            () -> get("/api/brain/file?path=" + link)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatus());
+    }
+
+    @Test
     void fileNotFoundForMissingFileInsideGeminiDir() {
         Path missing = tempHome.resolve(".gemini").resolve("does-not-exist.txt");
 

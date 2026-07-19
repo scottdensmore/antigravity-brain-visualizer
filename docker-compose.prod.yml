@@ -17,6 +17,11 @@ services:
     # Don't expose the database to the network; only the app needs it, over the compose network.
     # `!reset` replaces the base list (a plain `ports: []` would be *appended*, leaving 5432 published).
     ports: !reset []
+    environment:
+      # A production stack must not run on the well-known dev credentials. `:?` makes Compose refuse
+      # to start until POSTGRES_PASSWORD is provided (in .env or the shell). Remember Postgres reads
+      # it only on first init of the pgdata volume — see the note in the base compose file.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env — the dev default is not allowed in production}
 
   app:
     # `!override` replaces the base list rather than appending to it, so 8080 isn't also left published
@@ -24,3 +29,5 @@ services:
     # it and terminates TLS.
     ports: !override
       - "127.0.0.1:8080:8080"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env — the dev default is not allowed in production}

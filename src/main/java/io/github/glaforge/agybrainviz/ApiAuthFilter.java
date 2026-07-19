@@ -28,20 +28,33 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Guards the ingest endpoints with a shared bearer token when {@code INGEST_TOKEN} is set.
+ * Guards the read/compute API with a shared bearer token when {@code API_TOKEN} is set.
  *
- * <p>These are the only endpoints that write, and the only ones a remote machine calls, so they are
- * the only ones worth guarding. With no token configured the filter waves everything through — the
- * server is then presumed to be listening on localhost only.
+ * <p>These routes serve the stored transcripts, spend LLM tokens (summarize, mine, optimize, eval's
+ * judge), and mutate saved eval runs — on a server reachable off-localhost they need guarding just
+ * as much as ingest. Ingest keeps its own filter and token ({@link IngestAuthFilter}): the ingest
+ * token is distributed to every pushing machine, the API token only to readers.
+ *
+ * <p>With no token configured the filter waves everything through — the server is then presumed to
+ * be listening on localhost only.
  */
 @Singleton
-@ServerFilter("/api/ingest/**")
-public class IngestAuthFilter {
+@ServerFilter(
+    patterns = {
+        "/api/analysis/**",
+        "/api/brain/**",
+        "/api/eval/**",
+        "/api/insights/**",
+        "/api/mine/**",
+        "/api/optimize/**",
+    }
+)
+public class ApiAuthFilter {
 
-    private final IngestConfig config;
+    private final ApiConfig config;
 
     @Inject
-    public IngestAuthFilter(IngestConfig config) {
+    public ApiAuthFilter(ApiConfig config) {
         this.config = config;
     }
 
@@ -51,16 +64,12 @@ public class IngestAuthFilter {
     public HttpResponse<?> guard(HttpRequest<?> request) {
         Optional<String> expected = config.token();
         if (expected.isEmpty()) {
-            // No token configured. Normally that's the localhost-only default, so wave through — but
-            // if the operator opted into INGEST_REQUIRE_AUTH they want auth enforced, and there is no
-            // token any request could present. Fail closed: reject with a 503 (a server-side
-            // misconfiguration the client can't fix by authenticating), never fall back to open. The
-            // body stays generic — the specific cause (missing INGEST_TOKEN) is for the operator's
-            // startup log, not an unauthenticated caller.
+            // Same fail-closed contract as ingest: an operator who demanded auth without providing
+            // a token gets a 503 (their misconfiguration), never a silent fallback to open.
             if (config.requireAuth()) {
                 return HttpResponse
                     .status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("error", "Ingest is unavailable."));
+                    .body(Map.of("error", "The API is unavailable."));
             }
             return null; // unguarded by configuration
         }
@@ -70,7 +79,7 @@ public class IngestAuthFilter {
             return HttpResponse
                 .unauthorized()
                 .body(
-                    Map.of("error", "Ingest requires a valid Authorization: Bearer <INGEST_TOKEN>.")
+                    Map.of("error", "This API requires a valid Authorization: Bearer <API_TOKEN>.")
                 );
         }
         return null;
