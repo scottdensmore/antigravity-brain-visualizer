@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "ae4f84f89b90",
+  "strategy": "manual-commit",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 11,
+  "files_touched": [
+    ".env.example",
+    "docker-compose.prod.yml",
+    "docker-compose.yml",
+    "src/main/java/io/github/glaforge/agybrainviz/ApiAuthFilter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/ApiConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/BearerTokens.java",
+    "src/main/java/io/github/glaforge/agybrainviz/BrainController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java",
+    "src/test/java/io/github/glaforge/agybrainviz/ApiAuthFilterTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/BrainControllerTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ae/4f84f89b90/0/metadata.json",
+      "transcript": "/ae/4f84f89b90/0/full.jsonl",
+      "compact_transcript": "/ae/4f84f89b90/0/transcript.jsonl",
+      "content_hash": "/ae/4f84f89b90/0/content_hash.txt",
+      "prompt": "/ae/4f84f89b90/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1810,
+    "cache_creation_tokens": 547821,
+    "cache_read_tokens": 20717347,
+    "output_tokens": 104165,
+    "api_call_count": 115
+  }
+}

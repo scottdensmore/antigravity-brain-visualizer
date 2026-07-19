@@ -1,0 +1,456 @@
+Look through this app and see if there is anything we can do to improve it
+
+---
+
+<task-notification>
+<task-id>a69bfbb8c5bd43f24</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/a69bfbb8c5bd43f24.output</output-file>
+<status>completed</status>
+<summary>Agent "Review Go CLI" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Findings verified against the code. Prioritized list:
+
+## HIGH
+
+**1. Manifest responses truncated at 1 MiB → large corpora fail every run**
+`internal/client/client.go:157` — `io.ReadAll(io.LimitReader(resp.Body, 1&lt;&lt;20))` caps *all* response bodies (including successful GET manifest / summary-manifest) at 1 MiB; a manifest is an `id→hash` map (~110 bytes/entry), so past ~9k stored sessions the JSON is silently truncated and `json.Unmarshal` fails, making the source unsyncable. Fix: apply the 1 MiB `LimitReader` only to error bodies; read success bodies unbounded (or with a much higher cap), keying the branch on `resp.StatusCode`.
+
+**2. No retry on transient failures; one blip fails the whole source**
+`main.go:165,195,211` and `client.go:145` — a single network hiccup or 5xx on the manifest fetch or any push batch aborts that source (`continue`/`break`) with no retry/backoff, defeating the "safe to run on a schedule" goal. Fix: wrap `do` (or the idempotent GET/POST calls) in bounded retry-with-backoff on connection errors and 5xx/429.
+
+## MED
+
+**3. Every file is fully read and SHA-256'd on every run, even when unchanged**
+`internal/scan/scan.go:198,208,214` — the diff is hash-based against the server manifest, but there is no local incremental state, so `os.ReadFile` + `ToValidUTF8` + `Sha256Hex` runs over the entire corpus each invocation regardless of the `Mtime` already captured. Fix: persist a local `id → {mtime,size,hash}` cache and skip re-hashing files whose mtime+size are unchanged.
+
+**4. Whole transcripts and whole batches held in memory**
+`scan.go:198` (`os.ReadFile` of each transcript) plus `client.go:92`/`:126` (`json.Marshal` of the full batch) mean a batch holds every transcript's bytes twice (raw string + marshaled JSON) in memory; combined with `maxBatchBytes = 16 MiB` of raw this is bounded per-batch but each individual huge file is still fully resident and JSON-copied. Fix: stream-encode batches (e.g. `json.Encoder` over an `io.Pipe` into the request body) instead of `json.Marshal` into a `[]byte`.
+
+**5. Bearer token can be sent over cleartext http to a remote host**
+`main.go:333` (`validateServer` accepts any `http://` host) + `client.go:146` — a non-localhost `--server http://...` with `AGENT_INGEST_TOKEN` set transmits the bearer token in plaintext with no warning. Fix: error or warn when a token is configured and the server scheme is `http` and host is not loopback.
+
+**6. No signal handling; Ctrl-C cannot cancel in-flight work**
+`main.go:71` uses `context.Background()` — SIGINT/SIGTERM won't cancel the HTTP requests (only the per-request 60 s timeout applies), so an interrupted run may leave a partially pushed source. Fix: derive ctx from `signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)`.
+
+**7. Same filename stem in different project dirs collides on ID**
+`scan.go:120` (Claude/Codex id = filename stem, "never from the path") — two genuinely different sessions sharing a stem across project directories both scan with the same `ID`, so `changedSessions`/manifest key collide and both get pushed under one id (last-writer-wins on the server). Fix: detect duplicate `(source,id)` during scan and warn/skip, or qualify the id with a path hash when a collision occurs.
+
+## LOW
+
+**8. Batch ordering is nondeterministic**
+`main.go:250` `groupBySource` preserves filesystem `WalkDir` order and `SortedByKey` (`scan.go:243`) is defined but never called anywhere — batches (and thus retries/partial-failure boundaries) vary run to run. Fix: sort each source's sessions (use the existing `SortedByKey`) before `chunk`.
+
+**9. `report.write` JSON/stdout write errors swallowed**
+`main.go:464` `_ = enc.Encode(payload)` — a failed stdout write (e.g. broken pipe) is ignored and still returns exit 0. Fix: on encode/write error, report to stderr and return `exitFailed`.
+
+**10. Redundant empty-file checks with a stat/read TOCTOU**
+`scan.go:195` and `:202` both guard size 0 (stat then re-check after read); the stat-then-read window also means size can change between calls. Minor; could drop the stat and rely solely on `len(raw)==0`.
+
+## Missing test coverage
+
+- **Large-manifest truncation (finding 1):** no test drives a manifest body &gt;1 MiB through `client.do`; would have caught the `LimitReader` cap.
+- **`--batch-size &lt; 1` usage error:** `main.go:120-123` validation is untested (no test asserts exit 2 for `--batch-size 0`).
+- **Mid-batch push failure:** no test verifies that when batch 2 of 3 fails (`main.go:199` break), batch-1's `Ingested` count is retained, later batches are skipped, and the source is marked errored.
+- **Duplicate stem collision (finding 7):** no scan test for two files with the same stem in different dirs.
+- **Cleartext-token warning (finding 5):** no test around token + `http://` remote.
+- **`serverMessage` fallbacks:** `client.go:176` non-JSON body and empty-body (status-line) branches are untested (existing tests only cover the `{"error":...}` path).</result>
+<usage><subagent_tokens>48820</subagent_tokens><tool_uses>8</tool_uses><duration_ms>97605</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a045ea5e5b82e64e4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/a045ea5e5b82e64e4.output</output-file>
+<status>completed</status>
+<summary>Agent "Review JS frontend" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Read all frontend files fully. Here are the verified findings, prioritized.
+
+## HIGH severity
+
+**1. Stored XSS via `marked.parse()` on untrusted transcript content**
+`modules/timeline.js:158, 208, 215, 223, 232, 237, 340`
+`marked.parse()` is called on `step.thinking` and `step.content` (raw agent/user transcript text) and the result is injected via `body.innerHTML` (line 443). marked.js does not sanitize by default and there is no DOMPurify anywhere in the codebase — a transcript containing `&lt;img src=x onerror=...&gt;` or `&lt;script&gt;`-equivalent markdown/HTML executes in the app origin. This is the single highest-value issue: transcript content is explicitly untrusted, and it reaches the DOM unescaped on every session view.
+Fix: run marked output through DOMPurify (`DOMPurify.sanitize(marked.parse(x))`), added as a dependency, before assigning to `innerHTML`. Configure marked with a hook or wrap all six call sites in one helper.
+
+**2. XSS via unescaped tool name**
+`modules/timeline.js:434` — `&lt;div class="tool-name"&gt;⚙ ${tool.name}&lt;/div&gt;` interpolates `tool.name` (from transcript `tool_calls`) into `innerHTML` with no `escapeHtml`.
+`modules/stats.js:266` — same `tool.name`/`toolName` used unescaped in both `title="${name}"` and the text node (note the sibling error chart at line 293 *does* call `escapeHtml`, so this is an inconsistency, not intent).
+Fix: wrap both in `escapeHtml(tool.name)` / `escapeHtml(name)`.
+
+**3. XSS via unescaped `step.type` / `step.source`**
+`modules/timeline.js:113-124` — `typeStr`/`sourceStr` come straight from `step.type`/`step.source` and are injected into `header.innerHTML` (badge + label) with no escaping. If ingested data has non-enum type/source strings, HTML executes.
+Fix: `escapeHtml(typeStr)` and `escapeHtml(sourceStr)`.
+
+**4. Race condition on transcript load (no generation guard)**
+`app.js:520-576` `selectConversation` fetches the transcript with no supersede guard. Clicking session A then B quickly: if A's fetch resolves after B's, `renderTranscript`/`renderStats` run with A's data into the now-B container, showing the wrong transcript. `modules/eval.js:478-507` already implements the correct `renderGeneration` pattern — `selectConversation` and `triggerAnalysis`'s transcript path lack it (analysis has `currentPollSessionId`, transcript has nothing).
+Fix: adopt the same monotonic-generation guard before writing to `#transcript-container`.
+
+## MEDIUM severity
+
+**5. Attribute-injection XSS via web-search citation URLs**
+`modules/timeline.js:294-323` — `linkMap` URLs are matched by `https?://[^\s\)]+`, which permits a `"` character, then injected into `href="${linkMap[id]}"`. A search-result URL like `https://x"onmouseover=alert(1)` breaks out of the attribute. Search results are untrusted content.
+Fix: `escapeHtml` the URL (or build the anchor via DOM APIs / restrict the char class to exclude quotes).
+
+**6. Infinite progress-poll loop on analysis fetch failure**
+`modules/analysis.js:68-97` — `polling` is set `false` only after `await fetch(url)` resolves (line 97). If that fetch throws, control jumps to `catch` (line 211) and `polling` is never cleared, so the `pollProgress` while-loop keeps hitting `/progress` every 1s indefinitely while the user stays on that session.
+Fix: set `polling = false` in a `finally`, or gate the loop on a flag cleared in `finally`.
+
+**7. No virtualization; full transcript rendered eagerly**
+`modules/timeline.js:33-446` — every step becomes a DOM subtree up front (map over all steps), each running `marked.parse` and `JSON.parse`, and `ui.js:230-253` registers a MutationObserver + two IntersectionObservers per card. For sessions with thousands of steps this is heavy layout/parse work on the main thread with no windowing.
+Fix: virtualize (render on scroll / IntersectionObserver-driven lazy body parse), or at least defer `marked.parse` of a step body until its card is first expanded (bodies start collapsed anyway).
+
+**8. Keyboard inaccessibility of primary controls**
+`app.js:392-399` conversation items are `&lt;div class="conv-item"&gt;` with a click handler but no `role`, `tabindex`, or keydown handler — sessions cannot be selected by keyboard. Same pattern for the stat cards (`modules/stats.js:364-453`) and drill rows (`modules/drilldown.js`). Selection is mouse-only.
+Fix: use `&lt;button&gt;` or add `role="button"`, `tabindex="0"`, and Enter/Space handlers.
+
+**9. Modal has no focus management / focus trap**
+`index.html:127-137`, `modules/ui.js:95-126` — opening the file-preview modal does not move focus into it or trap Tab; background remains focusable. Escape-to-close exists (good) but focus is never restored to the trigger.
+Fix: focus the close button on open, trap Tab within the modal, restore focus on close.
+
+## LOW severity
+
+**10. CDN scripts loaded without SRI or version pinning**
+`index.html:123` loads `marked/marked.min.js` (no version, no `integrity`); `:124` highlight.js and `:8,11` CSS/fonts also lack SRI. Unpinned marked can silently change escaping behavior; no SRI is a supply-chain exposure.
+Fix: pin exact versions and add `integrity`/`crossorigin`.
+
+**11. Duplicated fetch/error-handling and constants across modules**
+`FLAVOR_LABELS` is copy-pasted in `insights.js:19`, `mine.js:28`, `eval.js:20`, `optimize.js:18`; `section()` and `round1()` are re-defined in several modules; the `container.innerHTML = 'loading…' / try fetch / catch red-error` block is repeated in `insights.js`, `mine.js`, `eval.js`, `optimize.js`, `app.js`. 
+Fix: extract a shared `flavorLabels`, `section`, `round1`, and a `fetchJson(url)` + `renderError(container)` helper.
+
+**12. Global mutable state via `window.*` and `state`**
+`modules/stats.js:166-167` writes `window.timelineStart`/`window.timelineTotalMs`, read in `timeline.js:568` and `ui.js:147`; `window.scrollToTime` (timeline.js:577) and inline `onclick` handlers in `stats.js:216,238` depend on these globals. This couples stats/timeline/ui through the global namespace and makes render ordering load-bearing (stats must run to populate the timeline marker).
+Fix: move shared timeline bounds into the imported `state` object.
+
+**13. `summaryCache` keyed by session id only, not flavor**
+`modules/utils.js:24`, `modules/analysis.js:38-41` — cache key is `sessionId`; if ids collide across flavors the wrong cached analysis renders. Minor given ids are likely globally unique, but the flavor is available and free to include.
+
+**14. `renderTranscript` regex meta-parsing runs on every render with no guard for very large `content`**
+`modules/timeline.js:198-340` runs multiple global regexes (tag extraction, citation grouping) over full `step.content` strings; a pathological large content field does redundant passes. Low impact but worth batching the passes.
+
+No issues found in `mine-export.js`/`eval-export.js` (CSV cell quoting at `eval-export.js:31-33` and YAML quoting at `mine-export.js:25-29` are correctly escaped); insights/mine/eval/optimize render paths consistently use `escapeHtml` for model/transcript-derived strings — the escaping gaps are concentrated in `timeline.js` and `stats.js`.</result>
+<usage><subagent_tokens>84509</subagent_tokens><tool_uses>16</tool_uses><duration_ms>116063</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a424a3f3888bc0c36</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/a424a3f3888bc0c36.output</output-file>
+<status>completed</status>
+<summary>Agent "Review build/tests/ops" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Findings verified against the repo. Raw prioritized list below.
+
+## HIGH
+
+1. **HIGH — `.github/workflows/ci.yml` (no docker job)** — The `Dockerfile` is never built or run by any workflow (`ci.yml`, `release-cli.yml`, `release-native-binaries.yml` contain no `docker build`), so a broken image (bad `cp` glob, base-tag drift, non-root perms) ships undetected. Fix: add a CI job that runs `docker compose --profile full up -d --build` (or `docker build .`) and curls `/health`.
+
+2. **HIGH — `docker-compose.yml:23-24,56-57` + `docker-compose.prod.yml:15-26`** — The Postgres password is a hardcoded literal `agentviz` in the base compose and the prod override only resets `ports`, so a "production" deploy inherits the well-known default DB credentials. Fix: source `POSTGRES_PASSWORD`/`POSTGRES_USER` from env (`${...}`) and require them (no default) in `docker-compose.prod.yml`.
+
+## MED
+
+3. **MED — `build.gradle:128-132`** — Spotless JS formatting targets only `src/main/resources/public/**`; the test/e2e JavaScript (`e2e/*.js`, `e2e/*.mjs`, `src/test/js/*.js`) is neither formatted nor linted, and there is no ESLint anywhere (no `.eslintrc`, no `lint` script in `package.json`). Fix: extend the Spotless `javascript` target to `e2e/**` and `src/test/js/**`, and/or add ESLint with a CI step.
+
+4. **MED — `src/main/java/.../{AnalyzerService,AnalysisJudgeService,VariantAnalyzerService,MinerAdvisorService}.java`** — The four LLM-backed services have no matching `*Test` (only their controllers do); their prompt-assembly/response-mapping logic is untested. Fix: add unit tests with a stubbed `ChatModel` asserting request construction and response parsing.
+
+5. **MED — `README.md:408`** — Claims "Three suites cover the app; CI runs all of them," but `ci.yml` actually runs five jobs (backend, frontend-unit, e2e, **Go CLI**, **native smoke**); the Go CLI suite is absent from the Development &amp; Tests section entirely. Fix: update the count and add the `cd cli &amp;&amp; go test ./...` step.
+
+6. **MED — `package.json:13-15`** — Dev deps use floating caret ranges and are behind (`vitest ^2.1.8` → v3 available, `jsdom ^25` → v26, `@playwright/test ^1.49.1`); lockfile pins them but there is no renovate/dependabot and no Gradle version catalog (versions inline in `build.gradle`). Fix: add Dependabot for npm+gradle+actions and bump.
+
+## LOW
+
+7. **LOW — `Dockerfile:39`** — No `HEALTHCHECK` instruction; liveness is only defined in `docker-compose.yml`, so an image run outside compose (k8s, plain `docker run`) has no health signal. Fix: add a `HEALTHCHECK` mirroring the compose `/dev/tcp` probe.
+
+8. **LOW — `README.md:433`** — LICENSE link is `[LICENSE](../LICENSE)`, but the file is `./LICENSE` at repo root alongside this README, so the link points outside the repo. Fix: change to `(LICENSE)`.
+
+9. **LOW — `mise.toml:1-4`** — Pins only `java = "temurin-25"`; Node and Go are unpinned, so local contributors can drift from CI's Node 22 / Go 1.23. Fix: add `node = "22"` and `go = "1.23"`.
+
+10. **LOW — `cli/go.mod:1`** — Module path `github.com/scottdensmore/antigravity-brain-visualizer/cli` is inconsistent with the Java group `io.github.glaforge.agybrainviz` and the repo directory `agent-brain-visualizer`. Fix: reconcile the module path with the canonical repo URL.
+
+11. **LOW — `e2e/eval.spec.js:28-45`** — The "saving a run" specs persist rows into the shared Postgres store (`#save-run-btn`) that later A/B-comparison assertions read; with `retries: 1` (`playwright.config.js:28`) a mid-spec failure re-runs a mutating flow against a non-reset DB, risking duplicate rows / order coupling. Fix: scope saved-run assertions to run-specific identifiers or clean up in an `afterEach`.
+
+12. **LOW — `.github/workflows/ci.yml:63` vs `release-cli.yml:19`** — The CLI Go version is hardcoded `"1.23"` in `ci.yml` but read via `go-version-file: cli/go.mod` in the release workflow, so a future Go bump silently desyncs the two pipelines. Fix: use `go-version-file: cli/go.mod` in `ci.yml` too.
+
+Non-findings confirmed (so they aren't re-flagged): `.env` is git-ignored and NOT tracked (only `.env.example`); Dockerfile runtime runs as non-root uid 10001; compose and native jobs have healthchecks; Go CLI is fully built/vetted/gofmt-checked/tested in CI; no hard waits (`waitForTimeout`/`sleep`) in any e2e spec; all frontend modules have matching vitest files.</result>
+<usage><subagent_tokens>38652</subagent_tokens><tool_uses>20</tool_uses><duration_ms>141361</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9cbec04f5b44edd6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/a9cbec04f5b44edd6.output</output-file>
+<status>completed</status>
+<summary>Agent "Review Java backend" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Based on my review of the Micronaut backend, here are the prioritized findings. All verified against the code.
+
+## HIGH
+
+**1. Expensive LLM + DB-mutating endpoints are entirely unauthenticated**
+`IngestAuthFilter.java:40` — `@ServerFilter("/api/ingest/**")` only guards ingest. Every other controller is open: `AnalysisController` `/summarize` (spends LLM tokens, and `force=true` deletes the cache and recomputes — `AnalysisController.java:119`), plus `/api/optimize` (POST), `/api/mine`, `/api/insights`, and `/api/eval` (POST/DELETE at `EvalController.java:54,68`, which write/delete DB rows). The design explicitly contemplates the server being reachable off-localhost (that's the whole point of `INGEST_TOKEN`), so an unauthenticated attacker can burn the Gemini API budget, DoS via chunked analysis, and mutate `eval_runs`.
+Fix: broaden the auth filter (or add a second `@ServerFilter`) to also cover the token-spending / mutating endpoints, or introduce a shared read/compute token distinct from the ingest token.
+
+## MED
+
+**2. `summarize` is a state-mutating, expensive operation exposed as GET**
+`AnalysisController.java:89` — `@Get(".../summarize")` deletes the cached summary on `force=true` (line 119), runs the LLM pipeline, and upserts the result (line 283). GETs must be safe/idempotent; a browser prefetch, proxy, or crawler hitting `?force=true` will silently trigger token spend and cache invalidation.
+Fix: make it `@Post`.
+
+**3. `AnalysisController` is a god class doing orchestration in the controller, with `System.out`/`printStackTrace` logging**
+`AnalysisController.java` (404 lines) embeds chunking, parallel dispatch, progress simulation, recursive consolidation, and local merge directly in the HTTP handler. It logs via `System.out.println` (line 148), `System.err.println` + `e.printStackTrace()` (lines 176–179, 257, 285, 291–292) instead of SLF4J like the rest of the codebase.
+Fix: extract an `AnalysisOrchestrator` service; replace stdout/stderr with a `Logger`.
+
+**4. `progressMap` / `runningTasks` keyed by `id` only, ignoring `flavor`**
+`AnalysisController.java:45,86` (used at 101, 134, 194, 301, 304) — two sessions from different sources that share an id collide in the in-flight guard and progress map. It's also purely in-memory, so nothing coordinates across instances that share the DB.
+Fix: key both maps by `(flavor, id)`.
+
+**5. `new ObjectMapper()` allocated per request / per call**
+`AnalysisController.java:97` and `:122` construct a fresh `ObjectMapper` on every request; `TranscriptParser.java:46` constructs one on every `parseSequences` call. `ObjectMapper` is thread-safe and expensive to build (`AnalysisSequences`/`Ingestor`/`AntigravityNormalizer` correctly use a static one).
+Fix: reuse a single `static final ObjectMapper`.
+
+**6. File-preview endpoint does not resolve symlinks**
+`BrainController.java:92-97` — `getFileContent` normalizes the path and checks `startsWith(geminiRoot)`, which blocks `..` traversal (well covered by tests) but does not call `toRealPath()`. A symlink placed under `~/.gemini` pointing outside is followed by `Files.readString`, escaping the sandbox. This endpoint is also unauthenticated.
+Fix: resolve `filePath.toRealPath()` and re-check `startsWith` against `geminiRoot().toRealPath()`.
+
+## LOW
+
+**7. Whole transcript loaded into memory on both ingest and read**
+`Ingestor.java:145` (`raw.lines().toList()`) plus `AntigravityNormalizer.toStepsJson` building a full in-memory `ArrayNode`, and `BrainController.java:76` / `SessionRepository.steps` returning the entire steps JSON as one `String`. With `max-request-size: 128 MiB` (`application.yml:11`) a single large session pins substantial heap per in-flight request.
+Fix: cap per-item raw size at ingest; consider streaming the transcript read.
+
+**8. Partial ingest failures return HTTP 200 with no signal in the status**
+`IngestController.java:69,89` — `ingest`/`ingestSummaries` return `IngestResult` (with a `failed` count) always as 200; a caller that only checks status can't tell that items were rejected.
+Fix: document that clients must inspect `failed`, or return a 207/4xx when `failed &gt; 0`.
+
+**9. `fakeProgress` sleeper occupies an IO-pool thread**
+`AnalysisController.java:231-248` submits a `Thread.sleep(2000)` loop (up to ~18s) onto the shared `TaskExecutors.IO` pool during consolidation, consuming a pool thread purely to animate the progress bar.
+Fix: use a scheduled executor / lighter timer, or drive progress from the consolidation callbacks.
+
+**10. Default model names look invalid**
+`AiConfig.java:50,52` — defaults `gemini-3.5-flash` and `gemma4` are not standard model identifiers; if an operator relies on the defaults, the first LLM call fails at runtime rather than at startup.
+Fix: verify/correct the default model names, or validate model availability on startup.
+
+Note: SQL is uniformly parameterized (no injection), the `(source, updated_at DESC, id)` index backs the list query, pagination is present and clamped (`BrainController.java:46-48,63`), JDBC resources use try-with-resources throughout, and the bearer-token comparison is constant-time (`IngestAuthFilter.java:84-89`) — no findings there.</result>
+<usage><subagent_tokens>71153</subagent_tokens><tool_uses>30</tool_uses><duration_ms>163474</duration_ms></usage>
+</task-notification>
+
+---
+
+Ok lets start lets start doing all those in your order
+
+---
+
+<task-notification>
+<task-id>ae74d64dab7555c11</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/ae74d64dab7555c11.output</output-file>
+<status>completed</status>
+<summary>Agent "Extract analysis orchestrator" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Refactor complete. Nothing committed.
+
+## New structure
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/AnalysisController.java`** (86 lines, was ~430) — pure HTTP surface:
+- `GET /conversations/{id}/progress` reads through `orchestrator.progress(flavor, id)` and maps to the same `ProgressResponse` DTO.
+- `POST /conversations/{id}/summarize` keeps only the `aiConfig.isConfigured()` guard (serialized via the static `MAPPER`, preserved), then delegates to `orchestrator.summarize(flavorName, id, force)`. No chunking/consolidation logic remains.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/src/main/java/io/github/glaforge/agybrainviz/AnalysisOrchestrator.java`** (new, `@Singleton`, license header included) — owns everything else:
+- `summarize(...)`: the "already running" guard (`runningTasks.putIfAbsent` on `taskKey(flavor, id)`), `sessions.exists` check, cache read / force-delete decision (I moved the cache seam into the orchestrator so the whole `runningTasks`-guarded critical section stays in one place — cache reads inside the guard is the original ordering), error-envelope catch, and `progressMap` cleanup.
+- `analyzeAndConsolidate(...)`: chunking via `TranscriptParser.splitIntoSafeChunks`, then `analyzeChunksInParallel(...)` (IO-executor fan-out, `Semaphore(20)`, monotonic progress via `compute`), then recursive consolidation with the local-merge fallback and the no-cache-on-fallback + best-effort `summaries.upsert` semantics, all copied verbatim.
+- `recursivelyConsolidate`, `localMerge`, `cap` moved unchanged.
+- Progress state: `progressMap`/`runningTasks` are now **instance** `ConcurrentHashMap`s (were statics), still keyed by `taskKey(flavor, id)`. SLF4J `LOG` and static `MAPPER` preserved.
+- `fakeProgress` sleeper replaced: a single-thread daemon `ScheduledExecutorService` owned by the orchestrator (`startConsolidationTicker`) ticks 90→99 at the same 2s cadence, cancelled in the same `finally`, and shut down via `@PreDestroy`. No IO-pool thread is parked anymore; the extra `AtomicBoolean consolidationDone` flag became unnecessary (cancellation covers it).
+
+All client-visible strings, JSON shapes, progress percentages, and phase messages are byte-identical to the original.
+
+## Test results
+
+`AnalysisControllerTest` untouched and green: 14 tests, 0 failures. Full suite + `spotlessJavaCheck`:
+
+```
+&gt; Task :test
+BUILD SUCCESSFUL in 35s
+total tests: 264, skipped: 0, failures: 0, errors: 0
+```
+
+## Deliberately not done / caveats
+
+- The working tree contains many uncommitted modifications from a **concurrent workstream** (cli/, public/*.js, README, workflows, ApiAuthFilter, etc.) that predate/overlap my session — I did not touch any of them; my diff is only the two files above.
+- `./gradlew spotlessCheck` (full) currently fails on `spotlessJavascriptCheck` for `src/main/resources/public/modules/eval.js` and `stats.js` — those files are out of my allowed scope and were being actively edited by the other workstream while I ran (mtimes updated mid-check), so I did not reformat them. `spotlessJavaCheck` passes.
+- I did not split the extraction into the suggested three phases since the single-pass move stayed green on the first test run.</result>
+<usage><subagent_tokens>52122</subagent_tokens><tool_uses>15</tool_uses><duration_ms>299268</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>acb77f6505e8eaf3c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/acb77f6505e8eaf3c.output</output-file>
+<status>completed</status>
+<summary>Agent "Frontend dedup and a11y" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All done. Tests pass (13 files, 128 tests) and spotless has formatted everything.
+
+## Summary of changes
+
+**src/main/resources/public/modules/utils.js**
+- `state` gained `timelineStart` / `timelineTotalMs` (replacing the `window.*` globals).
+- New shared exports: `FLAVOR_LABELS` (single copy of the source-label map), `section(title, color, bodyHtml)`, `round1(n)`, `fetchJson(url, options)` (apiFetch + throws `HTTP &lt;status&gt;` on `!res.ok` + parses JSON), and `wireButton(el, handler)` (click + Enter/Space activation for div-buttons, with Space `preventDefault`).
+- `apiFetch` / `renderMarkdown` semantics untouched.
+
+**modules/insights.js, mine.js, eval.js, optimize.js**
+- Removed their duplicated `FLAVOR_LABELS`, `section`, and `round1` (eval + optimize) definitions; now imported from utils.js. All four copies were byte-identical, so nothing was left behind.
+- Load paths now use `fetchJson`: `showInsights`, `showMining`, `showEval` (incl. `fetchHistory`), `runComparison`, `showOptimize`. eval.js keeps `apiFetch` for its POST/DELETE run persistence (no JSON body expected). Side effect: `showInsights` now also treats a non-2xx as a failure (it previously tried to parse it).
+
+**modules/drilldown.js**
+- `toggleDrill` uses `fetchJson`; `.drill-bar` and `.drill-session` rows get `role="button" tabindex="0"` and are wired via `wireButton`, so drill rows expand and sessions open from the keyboard.
+
+**modules/stats.js**
+- Writes `state.timelineStart` / `state.timelineTotalMs` instead of `window.*`.
+- The five interactive stat cards get `role="button" tabindex="0"` (the OUTCOME card only when there are errors, matching its click wiring) and use `wireButton` for Enter/Space parity.
+
+**modules/timeline.js, modules/ui.js**
+- Read timeline bounds from `state` instead of `window`. `window.scrollToTime` left as-is (inline onclick handlers).
+
+**modules/ui.js + index.html (modal)**
+- Opening the file preview records `document.activeElement`, shows the modal, and focuses `#close-modal-btn`; `closeFileModal` restores focus to the remembered element. A `trapModalTab` handler keeps Tab/Shift+Tab cycling inside the open modal (shares the existing Escape keydown listener). index.html: `#file-modal` gains `role="dialog" aria-modal="true" aria-labelledby="file-modal-title"`, close button gains `aria-label`.
+
+**app.js**
+- `.conv-item` rows get `role="button"` and `tabIndex = 0`; the list's event delegation gains a keydown branch so Enter/Space selects the focused session.
+
+**Tests** (117 → 128, all passing)
+- `utils.test.js`: fetchJson success/failure, round1, section escaping, FLAVOR_LABELS, wireButton activation keys.
+- `app.test.js`: conv items are focusable buttons; Enter selects a session end-to-end.
+- `stats.test.js`: cards keyboard-toggle their charts; inert OUTCOME card has no button role, errored one does.
+- `drilldown.test.js`: Enter on a drill bar expands it.
+- `ui.test.js`: focus moves to the close button on open and is restored on close.
+- `insights.test.js`: one existing mock updated to include `ok: true` (required now that the load path checks `res.ok` — the old mock didn't model a real Response).
+
+Test tail:
+```
+ Test Files  13 passed (13)
+      Tests  128 passed (128)
+```
+
+**Deliberately not done**
+- The "loading… / try / catch red error" shells were kept in each module (only the fetch-parse-throw core was extracted as `fetchJson`) — the loading texts and error messages differ per view, and unifying them would contort the modules.
+- `window.scrollToTime` intentionally left on `window` (used by inline `onclick` in generated timeline HTML).
+- No focus trap for `#conv-popover` (it's `pointer-events: none` hover chrome, not interactive). Nothing committed; `vendor/`, `cli/`, Java, CI files untouched by me (the working tree contains unrelated concurrent modifications I left alone).</result>
+<usage><subagent_tokens>146721</subagent_tokens><tool_uses>87</tool_uses><duration_ms>480002</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aab87fb458768dfc6</task-id>
+<tool-use-id>toolu_01NvH7ge9xjkdxJ4Jesv7nGo</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/aab87fb458768dfc6.output</output-file>
+<status>completed</status>
+<summary>Agent "CI and ops hardening" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All done. The working tree contains other in-flight changes (as expected); my edits touched only the six intended files and none of the restricted paths.
+
+## Summary of changes
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/workflows/ci.yml`**
+- New `docker` job ("Docker image (compose smoke)", `ubuntu-latest`, 20-min timeout, matching the existing job style): `docker compose --profile full up -d --build --wait` (compose healthchecks gate `--wait`), then curls `http://localhost:8080/health` asserting HTTP 200, with `docker compose --profile full logs app` on failure and `down -v` teardown on `always()`.
+- `cli` job: `go-version: "1.23"` replaced with `go-version-file: cli/go.mod` (with a comment mirroring release-cli.yml), so the two workflows can't desync.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/Dockerfile`**
+- Added a `HEALTHCHECK --interval=10s --timeout=5s --retries=12 --start-period=40s` using bash's `/dev/tcp` probe of `/health`, exec-form, mirroring the compose reference (which still takes precedence under compose). I verified the `eclipse-temurin:25-jre` base directly: it has bash but no curl and no wget, so `/dev/tcp` is the right tool.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/mise.toml`**
+- Added `node = "22"` (matches CI's setup-node) and `go = "1.23"` (matches `cli/go.mod`, which CI now tracks too), with comments.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/.github/dependabot.yml`** (new)
+- Weekly updates for npm (`/`), gradle (`/`), gomod (`/cli`), and github-actions (`/`).
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/e2e/eval.spec.js`**
+- Saved-run assertions are now scoped to run-specific identifiers without weakening coverage: a `saveRun()` helper snapshots the `data-saved-at` set, clicks save, waits for row count +1, and returns the one new `savedAt`. The "records it in history" test asserts on that specific row; the A/B test ticks exactly the two rows it saved (via `div:has(&gt; button.run-del-btn[data-saved-at=...])`) instead of `nth(0)/nth(1)`; the delete test targets its own run's delete button. Added a `test.afterEach` that deletes every run a test saved via `DELETE /api/eval/runs?savedAt=...` (safe: serial workers, and the endpoint takes only `savedAt` — confirmed in `EvalController.java`), so retries against a non-reset store start clean and history doesn't grow unboundedly. Tests 1–2 (no writes) unchanged.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/README.md`**
+- Development &amp; Tests now says CI runs the four suites "plus a native-image smoke test and a Docker image build-and-boot smoke"; the mise blurb now says it pins the toolchain (Java plus Node/Go), matching the new mise.toml.
+
+## Validation results
+
+- `docker compose config -q`: passes.
+- YAML well-formedness (ruby YAML — no python3 `yaml` module on this machine): ci.yml, release-cli.yml, dependabot.yml, docker-compose.yml, docker-compose.prod.yml all parse. actionlint not installed.
+- `node --check e2e/eval.spec.js`: OK; `npx playwright test --list` collects all 5 eval tests plus setup.
+- `docker build .`: ran to completion successfully (image built). I then booted the image standalone and watched the baked-in HEALTHCHECK go from a "connection refused" probe during startup to status `healthy` — the probe works exactly as written. Test image and container cleaned up afterward.
+
+## Deliberately not done
+
+- Did not run `npx playwright test e2e/eval.spec.js`: port 5432 on this machine is held by an unrelated project's Postgres (`travel-app-db-1`), so the suite would connect to the wrong database (or fail auth) and starting this repo's compose Postgres would conflict on the port. The spec was validated by syntax check, Playwright collection, and cross-checking every selector/endpoint against `src/main/resources/public/modules/eval.js` and `EvalController.java`.
+- Did not run the full compose smoke locally for the same port-conflict reason; CI runners start clean so the new job is unaffected.
+- No commits made, and no edits under `src/main/resources/public/`, `src/main/java/`, or `cli/`.</result>
+<usage><subagent_tokens>63186</subagent_tokens><tool_uses>43</tool_uses><duration_ms>461208</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae28680d99f85df5d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/ae28680d99f85df5d.output</output-file>
+<status>completed</status>
+<summary>Agent "CLI incremental scan cache" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>All checks pass. Final verification run output:
+
+```
+ok  	github.com/scottdensmore/antigravity-brain-visualizer/cli	5.344s
+ok  	github.com/scottdensmore/antigravity-brain-visualizer/cli/internal/client	(cached)
+ok  	github.com/scottdensmore/antigravity-brain-visualizer/cli/internal/scan	0.014s
+```
+(`gofmt -l .` clean, `go vet ./...` clean; the new tests also pass under `-race`.)
+
+## Summary of changes
+
+**New: `/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/scan/cache.go`**
+- `Cache` type keyed by session identity (`source + "\x00" + id`) with entries `{path, mtimeNano, size, hash}`; the hash is of the UTF-8-sanitized content (the exact bytes uploaded), never the raw file bytes (cache.go:41-47).
+- `DefaultCachePath()` → `os.UserCacheDir()/agent-ingest/scan-cache.json`, `""` when unavailable (cache.go:31).
+- `LoadCache` never fails: missing/unreadable/corrupt/version-mismatched files yield an empty cache (cache.go:69). `Save` writes atomically (temp + rename) and returns errors only for an optional warning (cache.go:117). `lookup`/`store` are nil-receiver-safe, so a nil `*Cache` disables caching entirely.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/internal/scan/scan.go`**
+- `Session` gains `Path` and an unexported `rawLoaded`; new `(*Session).LoadRaw()` reads + sanitizes on demand (scan.go:73-89).
+- `Scan` keeps its old signature (delegates with nil cache); new `ScanWithCache` threads the cache through `scanFlat`/`scanAntigravity` (scan.go:105-115).
+- `readSession` (scan.go:243): on a path+size+mtime cache hit it skips the read entirely and returns a Session with only the cached hash; on a miss it hashes and stores under the pre-read stat, so a stat/read race self-invalidates on the next run.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/main.go`**
+- New `--no-cache` flag (main.go:97) and `AGENT_INGEST_CACHE` env override for the cache path (main.go:145); both documented in the usage text (main.go:432, 445).
+- `run` loads the cache (unless `--no-cache`), scans via `ScanWithCache`, and saves right after the scan — best-effort, warning-only on failure (main.go:167-184).
+- `changedSessions` (main.go:290) now calls `LoadRaw` only for sessions the server manifest says changed, so unchanged sessions never get read — only stat'ed. A file that vanished between scan and push is skipped with a warning, matching the scanner's tolerance.
+
+**Tests** — `internal/scan/cache_test.go` (new): cache hit proven via a non-flaky stat-preserving rewrite (same-length content + `os.Chtimes` restore — only a real re-read could see the new bytes), mtime-change and size-change invalidation, corrupt file and unknown-version degradation, unwritable path never failing the scan, nil-cache full hashing, and `LoadRaw` on-demand read. `main_test.go`: `runCLI` now injects a throwaway `AGENT_INGEST_CACHE` so tests never touch the real user cache dir (main_test.go:148); end-to-end `TestScanCacheSkipsRehashingUnchangedFilesAcrossRuns` and `TestNoCacheFlagForcesAFullRehash` (main_test.go:704, 733); help test asserts `--no-cache` and `AGENT_INGEST_CACHE`.
+
+**`/home/scottdensmore/Developer/scottdensmore/agent-brain-visualizer/cli/README.md`** — new paragraph on the scan cache, `--no-cache` flag row, and `AGENT_INGEST_CACHE` env row.
+
+## Server-perspective behavior
+Unchanged: hashes are identical (same sanitized bytes), the manifest diff is always consulted, pushed payloads carry the same fields, and retry/backoff, signal handling, batch ordering, and duplicate-stem warnings are untouched.
+
+## Deliberately not done
+- No pruning of cache entries for deleted files (stale entries are harmless and keep the file small; they self-invalidate on any change).
+- `LoadRaw` does not re-verify the cached hash against re-read content mid-run; if a file mutates without changing size+mtime after a manifest mismatch, the pushed content is authoritative and the next run self-heals via the server manifest.
+- Antigravity `summary.json` files are still read every run — they are small, and their sync path diffs against the summary manifest, not the local cache.
+- No cache-file locking for concurrent CLI invocations; the atomic rename means the worst case is one run's entries winning, never corruption.</result>
+<usage><subagent_tokens>98781</subagent_tokens><tool_uses>44</tool_uses><duration_ms>537255</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b6ulx1m1c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-scottdensmore-Developer-scottdensmore-agent-brain-visualizer/c21c3560-2710-4c07-927e-0fd1f08468da/tasks/b6ulx1m1c.output</output-file>
+<status>completed</status>
+<summary>Background command "Full Gradle build (tests + spotless check + jar)" completed (exit code 0)</summary>
+</task-notification>

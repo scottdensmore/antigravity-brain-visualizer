@@ -1,0 +1,166 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "ae4f84f89b90",
+  "session_id": "c21c3560-2710-4c07-927e-0fd1f08468da",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-19T18:44:02.41509476Z",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 11,
+  "save_step_count": 6,
+  "files_touched": [
+    ".env.example",
+    "docker-compose.prod.yml",
+    "docker-compose.yml",
+    "src/main/java/io/github/glaforge/agybrainviz/ApiAuthFilter.java",
+    "src/main/java/io/github/glaforge/agybrainviz/ApiConfig.java",
+    "src/main/java/io/github/glaforge/agybrainviz/BearerTokens.java",
+    "src/main/java/io/github/glaforge/agybrainviz/BrainController.java",
+    "src/main/java/io/github/glaforge/agybrainviz/IngestAuthFilter.java",
+    "src/test/java/io/github/glaforge/agybrainviz/ApiAuthFilterTest.java",
+    "src/test/java/io/github/glaforge/agybrainviz/BrainControllerTest.java"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-8[1m]",
+  "turn_id": "2c64cdbd92ec",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1810,
+    "cache_creation_tokens": 547821,
+    "cache_read_tokens": 20717347,
+    "output_tokens": 104165,
+    "api_call_count": 115
+  },
+  "session_metrics": {
+    "turn_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-19T18:44:01.867139615Z",
+    "agent_lines": 365,
+    "agent_removed": 22,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 365,
+    "total_lines_changed": 387,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 420,
+      "user_lines_removed": 112,
+      "agent_lines_added": 1802,
+      "agent_lines_removed": 775,
+      "user_added_per_file": {
+        "README.md": 5,
+        "cli/internal/scan/cache.go": 148,
+        "cli/internal/scan/scan.go": 64,
+        "cli/main.go": 38,
+        "cli/main_test.go": 15,
+        "e2e/eval.spec.js": 60,
+        "src/main/resources/public/app.js": 14,
+        "src/main/resources/public/index.html": 2,
+        "src/main/resources/public/modules/drilldown.js": 7,
+        "src/main/resources/public/modules/eval.js": 3,
+        "src/main/resources/public/modules/optimize.js": 4,
+        "src/main/resources/public/modules/stats.js": 19,
+        "src/main/resources/public/modules/timeline.js": 2,
+        "src/main/resources/public/modules/ui.js": 36,
+        "src/test/js/insights.test.js": 3
+      },
+      "user_removed_per_file": {
+        "README.md": 3,
+        "cli/internal/scan/scan.go": 16,
+        "cli/main.go": 5,
+        "cli/main_test.go": 2,
+        "e2e/eval.spec.js": 24,
+        "src/main/resources/public/index.html": 2,
+        "src/main/resources/public/modules/drilldown.js": 8,
+        "src/main/resources/public/modules/eval.js": 9,
+        "src/main/resources/public/modules/optimize.js": 18,
+        "src/main/resources/public/modules/stats.js": 17,
+        "src/main/resources/public/modules/timeline.js": 2,
+        "src/main/resources/public/modules/ui.js": 5,
+        "src/test/js/insights.test.js": 1
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 645,
+      "user_lines_removed": 7,
+      "agent_lines_added": 2064,
+      "agent_lines_removed": 877,
+      "user_added_per_file": {
+        "cli/README.md": 9,
+        "cli/internal/scan/cache.go": 148,
+        "cli/internal/scan/cache_test.go": 234,
+        "cli/main_test.go": 97,
+        "src/main/resources/public/modules/eval.js": 3,
+        "src/main/resources/public/modules/stats.js": 2,
+        "src/test/js/app.test.js": 21,
+        "src/test/js/drilldown.test.js": 18,
+        "src/test/js/stats.test.js": 30,
+        "src/test/js/ui.test.js": 20,
+        "src/test/js/utils.test.js": 63
+      },
+      "user_removed_per_file": {
+        "cli/main_test.go": 1,
+        "src/main/resources/public/modules/eval.js": 1,
+        "src/main/resources/public/modules/stats.js": 4,
+        "src/test/js/utils.test.js": 1
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 382,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2322,
+      "agent_lines_removed": 879,
+      "user_added_per_file": {
+        "cli/internal/scan/cache.go": 148,
+        "cli/internal/scan/cache_test.go": 234
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 382,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2322,
+      "agent_lines_removed": 879,
+      "user_added_per_file": {
+        "cli/internal/scan/cache.go": 148,
+        "cli/internal/scan/cache_test.go": 234
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 382,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2322,
+      "agent_lines_removed": 879,
+      "user_added_per_file": {
+        "cli/internal/scan/cache.go": 148,
+        "cli/internal/scan/cache_test.go": 234
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 382,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2398,
+      "agent_lines_removed": 888,
+      "user_added_per_file": {
+        "cli/internal/scan/cache.go": 148,
+        "cli/internal/scan/cache_test.go": 234
+      }
+    }
+  ]
+}
