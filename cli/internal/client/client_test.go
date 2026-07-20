@@ -17,12 +17,23 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
+
+// newFastRetryClient returns a client whose retry backoff is near-instant, so
+// retry tests exercise the real retry path without real waits.
+func newFastRetryClient(baseURL string) *Client {
+	c := New(baseURL, "")
+	c.backoff = time.Millisecond
+	return c
+}
 
 func TestManifestParsesTheIdToHashMap(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,6 +53,124 @@ func TestManifestParsesTheIdToHashMap(t *testing.T) {
 	}
 	if got["a"] != "h1" || got["b"] != "h2" || len(got) != 2 {
 		t.Fatalf("manifest = %v", got)
+	}
+}
+
+func TestManifestLargerThanOneMiBRoundTripsUntruncated(t *testing.T) {
+	// A corpus of ~9k+ sessions serializes well past 1 MiB. The client must read
+	// the whole success body — a capped read would truncate the manifest and
+	// silently break the sync for large corpora.
+	want := make(map[string]string, 16000)
+	for i := 0; i < 16000; i++ {
+		want[fmt.Sprintf("session-%05d", i)] = hashLike(i)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(want)
+	}))
+	defer srv.Close()
+
+	got, err := New(srv.URL, "").Manifest(context.Background(), "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("manifest has %d entries, want %d — the success body must not be truncated", len(got), len(want))
+	}
+	if got["session-15999"] != want["session-15999"] {
+		t.Errorf("late entries must survive intact, got %q", got["session-15999"])
+	}
+}
+
+// hashLike builds a distinct 64-hex-char string, the shape of a real
+// content hash, so the fake manifest above has realistic entry sizes.
+func hashLike(i int) string {
+	return fmt.Sprintf("%064x", i)
+}
+
+func TestTransientServerErrorsAreRetried(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) <= 2 {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = io.WriteString(w, `{"error":"try again"}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"a":"h1"}`)
+	}))
+	defer srv.Close()
+
+	got, err := newFastRetryClient(srv.URL).Manifest(context.Background(), "codex")
+	if err != nil {
+		t.Fatalf("two 500s then a 200 must succeed via retry, got %v", err)
+	}
+	if got["a"] != "h1" || len(got) != 1 {
+		t.Fatalf("manifest = %v", got)
+	}
+	if n := calls.Load(); n != 3 {
+		t.Fatalf("server saw %d request(s), want 3 (two failures, then the success)", n)
+	}
+}
+
+func TestClientErrorsAreNotRetried(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"error":"malformed batch"}`)
+	}))
+	defer srv.Close()
+
+	if _, err := newFastRetryClient(srv.URL).Manifest(context.Background(), "codex"); err == nil {
+		t.Fatal("a 400 must surface as an error")
+	}
+	if n := calls.Load(); n != 1 {
+		t.Fatalf("server saw %d request(s), want 1 — a 4xx is the caller's fault, not transient", n)
+	}
+}
+
+func TestRetriesGiveUpAfterTheAttemptBudget(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	if _, err := newFastRetryClient(srv.URL).Manifest(context.Background(), "codex"); err == nil {
+		t.Fatal("a server that never recovers must still fail")
+	}
+	if n := calls.Load(); n != 3 {
+		t.Fatalf("server saw %d request(s), want exactly the attempt budget of 3", n)
+	}
+}
+
+func TestPushRetryResendsTheFullBody(t *testing.T) {
+	var calls atomic.Int32
+	var retriedBody []PushSession
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var batch []PushSession
+		_ = json.NewDecoder(r.Body).Decode(&batch)
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		retriedBody = batch
+		_, _ = io.WriteString(w, `{"ingested":1,"skipped":0,"failed":0}`)
+	}))
+	defer srv.Close()
+
+	res, err := newFastRetryClient(srv.URL).Push(context.Background(),
+		[]PushSession{{Source: "codex", ID: "a", SourceMtime: 42, Raw: "x"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Ingested != 1 {
+		t.Fatalf("result = %+v", res)
+	}
+	// The first attempt consumed the request body; the retry must rewind and
+	// resend it in full, not POST an empty body.
+	if len(retriedBody) != 1 || retriedBody[0].ID != "a" || retriedBody[0].Raw != "x" {
+		t.Fatalf("retried request carried %+v, want the original batch", retriedBody)
 	}
 }
 
@@ -200,10 +329,10 @@ func TestNon2xxIsAnErrorNotASilentEmptyResult(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := New(srv.URL, "").Manifest(context.Background(), "codex"); err == nil {
+	if _, err := newFastRetryClient(srv.URL).Manifest(context.Background(), "codex"); err == nil {
 		t.Fatal("expected a 503 to surface as an error")
 	}
-	if _, err := New(srv.URL, "").Push(context.Background(), []PushSession{{Source: "codex", ID: "a"}}); err == nil {
+	if _, err := newFastRetryClient(srv.URL).Push(context.Background(), []PushSession{{Source: "codex", ID: "a"}}); err == nil {
 		t.Fatal("expected a 503 to surface as an error")
 	}
 }

@@ -59,13 +59,29 @@ describe("wireDrilldown", () => {
     c.querySelector(".drill-bar").click();
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("category=workflow")
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("category=workflow"), expect.any(Object));
     const sub = c.querySelector(".drill-sessions");
     expect(sub.innerHTML).toContain("Refactor");
     sub.querySelector(".drill-session").click();
     expect(convClick).toHaveBeenCalled();
+  });
+
+  it("expands a row with the keyboard (Enter on the focusable bar)", async () => {
+    const c = document.getElementById("c");
+    c.innerHTML = drillRow("tool", "Bash", "<span>bar</span>");
+    wireDrilldown(c, "codex");
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ sessions: [] }) })
+    );
+
+    const bar = c.querySelector(".drill-bar");
+    expect(bar.getAttribute("role")).toBe("button");
+    expect(bar.getAttribute("tabindex")).toBe("0");
+
+    bar.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(c.querySelector(".drill-sessions").innerHTML).toContain("No sessions");
   });
 
   it("toggles visibility without refetching on a second click", async () => {

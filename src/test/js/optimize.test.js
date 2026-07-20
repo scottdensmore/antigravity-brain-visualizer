@@ -83,7 +83,7 @@ describe("showOptimize", () => {
       Promise.resolve({ ok: true, json: () => Promise.resolve({ instruction: "Analyze the transcript.", maxSample: 5 }) })
     );
     await showOptimize("antigravity-cli");
-    expect(global.fetch).toHaveBeenCalledWith("/api/optimize");
+    expect(global.fetch).toHaveBeenCalledWith("/api/optimize", expect.any(Object));
     expect(document.getElementById("transcript-container").innerHTML).toContain("Prompt Lab");
     expect(document.getElementById("opt-a").value).toBe("Analyze the transcript.");
   });

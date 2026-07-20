@@ -6,6 +6,12 @@ globalThis.marked = {
   parse: (text) => (text == null ? "" : String(text)),
 };
 
+// `DOMPurify` (sanitizer, vendored) — passthrough stub; rendering logic is under test here, not
+// sanitization itself.
+globalThis.DOMPurify = {
+  sanitize: (html) => (html == null ? "" : String(html)),
+};
+
 // `hljs` (syntax highlighter) — stub so calls are no-ops in tests.
 globalThis.hljs = {
   highlightElement: () => {},

@@ -103,9 +103,7 @@ describe("drill-down", () => {
     c.querySelector('.drill-row[data-drill-category="error"] .drill-bar').click();
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/insights/sessions?flavor=codex&category=error&key=")
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/insights/sessions?flavor=codex&category=error&key="), expect.any(Object));
     const sub = c.querySelector('.drill-row[data-drill-category="error"] .drill-sessions');
     expect(sub.innerHTML).toContain("Parser fix");
 
@@ -128,9 +126,11 @@ describe("drill-down", () => {
 
 describe("showInsights", () => {
   it("fetches the report for a flavor and renders it", async () => {
-    global.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve(REPORT) }));
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(REPORT) })
+    );
     await showInsights("codex");
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/insights?flavor=codex"));
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/insights?flavor=codex"), expect.any(Object));
     expect(document.getElementById("transcript-container").innerHTML).toContain("Bash");
   });
 

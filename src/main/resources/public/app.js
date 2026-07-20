@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { state, escapeHtml } from "./modules/utils.js";
+import { state, escapeHtml, apiFetch } from "./modules/utils.js";
 import { renderTranscript } from "./modules/timeline.js";
 import { renderStats } from "./modules/stats.js";
 import { triggerAnalysis } from "./modules/analysis.js";
@@ -245,7 +245,7 @@ export async function loadConversations() {
     document.getElementById("flavor-select").value
   );
   try {
-    const res = await fetch(
+    const res = await apiFetch(
       `/api/brain/conversations?flavor=${flavor}&limit=${CONV_PAGE_SIZE}&offset=0`
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -326,7 +326,7 @@ export async function loadMoreConversations() {
     btn.textContent = "Loading…";
   }
   try {
-    const res = await fetch(
+    const res = await apiFetch(
       `/api/brain/conversations?flavor=${flavor}&limit=${CONV_PAGE_SIZE}&offset=${allConversations.length}`
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -391,6 +391,10 @@ export function renderConversationsList(autoSelect = false) {
     filtered.forEach((conv) => {
       const div = document.createElement("div");
       div.className = "conv-item";
+      // The rows are divs, so tell the keyboard (and screen readers) they act like buttons; the
+      // matching Enter/Space handling is delegated on the list below.
+      div.setAttribute("role", "button");
+      div.tabIndex = 0;
       div.dataset.id = conv.id;
       div.dataset.summary = conv.summary;
       div.dataset.updatedAt = conv.updatedAt || "0";
@@ -406,6 +410,16 @@ export function renderConversationsList(autoSelect = false) {
     list.addEventListener("click", (e) => {
       const item = e.target.closest(".conv-item");
       if (item && item.dataset.id) {
+        selectConversation(item.dataset.id, item);
+      }
+    });
+
+    // Keyboard parity with the click delegation: Enter/Space on a focused item selects it.
+    list.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const item = e.target.closest(".conv-item");
+      if (item && item.dataset.id) {
+        e.preventDefault(); // Space must not scroll the sidebar
         selectConversation(item.dataset.id, item);
       }
     });
@@ -517,7 +531,12 @@ function appendLoadMore(list) {
   list.appendChild(footer);
 }
 
+// Monotonic generation counter guarding transcript loads: clicking session A then B quickly must
+// never let A's slower response render into B's view. Same pattern as eval.js's renderGeneration.
+let transcriptGeneration = 0;
+
 export async function selectConversation(id, element) {
+  const generation = ++transcriptGeneration;
   document
     .querySelectorAll(".conv-item")
     .forEach((el) => el.classList.remove("active"));
@@ -546,10 +565,13 @@ export async function selectConversation(id, element) {
     const flavor = encodeURIComponent(
       document.getElementById("flavor-select").value
     );
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/brain/conversations/${id}/transcript?flavor=${flavor}`
     );
     const steps = await response.json();
+
+    // A newer selection superseded this one while the transcript was in flight.
+    if (generation !== transcriptGeneration) return;
 
     state.spansMultipleDays = false;
     if (
@@ -570,6 +592,7 @@ export async function selectConversation(id, element) {
     renderTranscript(steps, container);
     renderStats(steps);
   } catch (e) {
+    if (generation !== transcriptGeneration) return;
     container.innerHTML =
       '<div class="loading-state" style="text-align:center; color:red;">Failed to load transcript.</div>';
   }

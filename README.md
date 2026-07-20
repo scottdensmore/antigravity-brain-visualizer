@@ -77,10 +77,11 @@ Alternatively, you can clone this repository and run or build it locally from so
 ### Prerequisites
 
 Building from source requires **Java 25** — the Micronaut 5 Gradle plugins and the project's source
-level both need it. The repo pins the JDK with [`mise`](https://mise.jdx.dev/) (see `mise.toml`):
+level both need it. The repo pins its toolchain — the JDK, plus the Node and Go that the tests and
+CLI use — with [`mise`](https://mise.jdx.dev/) (see `mise.toml`):
 
 ```bash
-mise install    # provisions temurin-25 once
+mise install    # provisions temurin-25 (plus node and go) once
 ```
 
 With `mise` active, `./gradlew …` automatically uses Java 25. If you don't use `mise`, put a Java 25
@@ -204,19 +205,22 @@ interfaces — treat it as exposed and do the following:
   and a large pushed body can pin significant heap (the request is buffered whole). The server logs a
   warning at startup whenever ingest is unauthenticated, so watch the boot log. Give the same token to
   `agent-ingest` via `AGENT_INGEST_TOKEN`.
-- **Fail closed if you never want the open default.** Set `INGEST_REQUIRE_AUTH=true` and the server
-  refuses all ingest until a token is configured, so a missing `INGEST_TOKEN` can't silently leave the
-  writes exposed.
+- **Set `API_TOKEN`.** It guards everything that isn't ingest: the stored transcripts, and the
+  endpoints that spend LLM tokens (summarize, mine, optimize, eval's judge) or mutate saved eval
+  runs. The web UI prompts for the token on first use and remembers it in the browser. It is a
+  separate secret from `INGEST_TOKEN` on purpose — the ingest token is handed to every machine that
+  pushes, the API token only to the people allowed to read.
+- **Fail closed if you never want the open default.** Set `INGEST_REQUIRE_AUTH=true` (and
+  `API_REQUIRE_AUTH=true`) and the server refuses those requests until a token is configured, so a
+  missing token can't silently leave the endpoints exposed.
 - **Terminate TLS at a reverse proxy.** The app speaks plain HTTP; put nginx, Caddy, or a cloud load
   balancer in front to serve HTTPS, so the bearer token and transcripts aren't sent in the clear. If
   the proxy runs on the same host, keep `INGEST_TOKEN` set — an unauthenticated request forwarded from
   a local proxy is indistinguishable from a genuine localhost client.
-- **Don't publish Postgres.** Keep the database on a private network; only the app needs to reach it.
-  The default compose file exposes 5432 for local development — remove that port mapping in a shared
-  deployment.
-
-Read endpoints stay open (this is a single-user tool); put the whole app behind the proxy's auth if
-you need to restrict who can view trajectories.
+- **Don't publish Postgres, and change its password.** Keep the database on a private network; only
+  the app needs to reach it. The default compose file exposes 5432 for local development with a
+  well-known password — the production override removes the port mapping and refuses to start until
+  `POSTGRES_PASSWORD` is set.
 
 > [!NOTE]
 > The eval run history previously lived in `~/.agybrainviz/eval-runs.jsonl`. That file is no longer
@@ -236,6 +240,9 @@ reverse proxy is the only public entrypoint.
    ```dotenv
    INGEST_TOKEN=<openssl rand -hex 32>
    INGEST_REQUIRE_AUTH=true         # refuse ingest until the token is set (fail closed)
+   API_TOKEN=<openssl rand -hex 32> # a different token; guards reads and LLM-spending endpoints
+   API_REQUIRE_AUTH=true
+   POSTGRES_PASSWORD=<openssl rand -hex 32>  # required by the prod override; read on first db init
    GEMINI_API_KEY=<optional, for AI summaries>
    ```
 
@@ -353,6 +360,8 @@ Every variable below can live in `.env` or be exported as an environment variabl
 | `POSTGRES_PASSWORD` | `agentviz`                                     | Store password                       |
 | `INGEST_TOKEN`      | _(unset — ingest is open)_                     | Bearer token required by `/api/ingest` |
 | `INGEST_REQUIRE_AUTH` | `false`                                      | When `true`, refuse all ingest until `INGEST_TOKEN` is set (fail closed) |
+| `API_TOKEN`         | _(unset — the API is open)_                    | Bearer token required by the rest of `/api` (transcripts, summarize, mine, eval, optimize); the web UI prompts for it once |
+| `API_REQUIRE_AUTH`  | `false`                                        | When `true`, refuse those endpoints until `API_TOKEN` is set (fail closed) |
 | `LOG_APPENDER`      | `CONSOLE_TEXT` (the container defaults to `CONSOLE_JSON`) | Exactly `CONSOLE_TEXT` (readable colorized logs) or `CONSOLE_JSON` (one structured JSON object per line) |
 
 Once the server starts, open your web browser and navigate to [http://localhost:8080](http://localhost:8080) to interact with the visualizer.
@@ -405,7 +414,8 @@ it picks up a `.env` from the directory you launch it from (or use environment v
 
 ## Development & Tests
 
-Three suites cover the app; CI runs all of them on every pull request:
+Four suites cover the app; CI runs all of them (plus a native-image smoke test and a Docker image
+build-and-boot smoke) on every pull request:
 
 ```bash
 mise exec -- ./gradlew build   # backend JUnit + Spotless (format check)
@@ -413,6 +423,7 @@ npm install                    # once, for the frontend/e2e tests
 npm test                       # frontend unit tests (Vitest)
 docker compose up -d           # the store the e2e jar talks to
 mise exec -- npm run e2e       # end-to-end (Playwright) against a booted jar with seeded fixtures
+cd cli && go test ./...        # the agent-ingest CLI (Go)
 ```
 
 **The tests need Docker running.** Nothing is faked: the store tests exercise a real Postgres rather
@@ -431,7 +442,7 @@ Code is auto-formatted by Spotless (prettier-java + prettier for JS); run `mise 
 spotlessApply` before committing.
 
 ## License
-This project is licensed under the Apache 2.0 License. See the [LICENSE](../LICENSE) file for details.
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 This is not an officially supported Google product.

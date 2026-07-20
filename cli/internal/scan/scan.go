@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -30,6 +31,10 @@ import (
 	"sort"
 	"strings"
 )
+
+// warnWriter receives scan warnings (stderr in the binary); it is a package
+// variable only so tests can capture the output.
+var warnWriter io.Writer = os.Stderr
 
 // Source names, which are also the `source` the server stores each session under.
 const (
@@ -51,10 +56,32 @@ const cacheDir = ".agybrainviz"
 type Session struct {
 	Source  string
 	ID      string
-	Mtime   int64 // file modification time, epoch milliseconds
-	Raw     string
-	Hash    string // hex SHA-256 of Raw, matching the server's content hash
+	Path    string // transcript file the session was scanned from
+	Mtime   int64  // file modification time, epoch milliseconds
+	Raw     string // sanitized transcript content; empty on a cache hit until LoadRaw
+	Hash    string // hex SHA-256 of the sanitized content, matching the server's content hash
 	Summary string // the tool's own AI analysis JSON, or "" when there is none
+
+	// rawLoaded distinguishes "content not read yet" (a cache hit) from an
+	// actually loaded Raw, so LoadRaw knows whether the file must be read.
+	rawLoaded bool
+}
+
+// LoadRaw ensures Raw holds the transcript content, sanitized exactly as a
+// full scan would have (invalid UTF-8 coerced to U+FFFD). A session read
+// fully at scan time is untouched; one whose read was skipped by the hash
+// cache is read now. Call it before uploading a session's content.
+func (s *Session) LoadRaw() error {
+	if s.rawLoaded {
+		return nil
+	}
+	raw, err := os.ReadFile(s.Path)
+	if err != nil {
+		return err
+	}
+	s.Raw = strings.ToValidUTF8(string(raw), "�")
+	s.rawLoaded = true
+	return nil
 }
 
 // Sha256Hex returns the lowercase hex SHA-256 of s, byte-for-byte identical to
@@ -67,6 +94,14 @@ func Sha256Hex(s string) string {
 // Scan collects the sessions for the requested sources under home. A source
 // whose directory is absent contributes nothing; an unknown source is an error.
 func Scan(home string, sources []string) ([]Session, error) {
+	return ScanWithCache(home, sources, nil)
+}
+
+// ScanWithCache is Scan with an optional hash cache: a file whose path, size,
+// and mtime match its cache entry reuses the cached hash instead of being read
+// and re-hashed (its Raw stays unloaded until LoadRaw). A nil cache forces
+// full hashing.
+func ScanWithCache(home string, sources []string, cache *Cache) ([]Session, error) {
 	var out []Session
 	for _, source := range sources {
 		var (
@@ -75,11 +110,11 @@ func Scan(home string, sources []string) ([]Session, error) {
 		)
 		switch source {
 		case SourceClaudeCode:
-			sessions, err = scanFlat(source, filepath.Join(home, ".claude", "projects"))
+			sessions, err = scanFlat(source, filepath.Join(home, ".claude", "projects"), cache)
 		case SourceCodex:
-			sessions, err = scanFlat(source, filepath.Join(home, ".codex", "sessions"))
+			sessions, err = scanFlat(source, filepath.Join(home, ".codex", "sessions"), cache)
 		case SourceAntigravityCLI, SourceAntigravityIDE:
-			sessions, err = scanAntigravity(source, filepath.Join(home, ".gemini", source, "brain"))
+			sessions, err = scanAntigravity(source, filepath.Join(home, ".gemini", source, "brain"), cache)
 		default:
 			return nil, fmt.Errorf("unknown source %q (known: %s)", source, strings.Join(AllSources, ", "))
 		}
@@ -94,11 +129,12 @@ func Scan(home string, sources []string) ([]Session, error) {
 // scanFlat walks a tree of `<id>.jsonl` files (Codex, Claude Code), taking the
 // id from the filename stem — never from the path, so the same session
 // de-duplicates no matter which machine or project directory produced it.
-func scanFlat(source, root string) ([]Session, error) {
+func scanFlat(source, root string, cache *Cache) ([]Session, error) {
 	if !isDir(root) {
 		return nil, nil
 	}
 	var sessions []Session
+	seen := map[string]string{} // id -> path already kept, to catch filename-stem collisions
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			// An unreadable directory or entry must not abort syncing the machine;
@@ -117,11 +153,22 @@ func scanFlat(source, root string) ([]Session, error) {
 		if !strings.HasSuffix(d.Name(), ".jsonl") {
 			return nil
 		}
-		session, ok, err := readSession(source, strings.TrimSuffix(d.Name(), ".jsonl"), path)
+		id := strings.TrimSuffix(d.Name(), ".jsonl")
+		if prev, dup := seen[id]; dup {
+			// Two different files with the same stem would collide on (source, id)
+			// and silently overwrite each other on the server (last writer wins).
+			// Keep the first — its id may already be stored — and warn about the
+			// one skipped rather than qualify the id, which would re-ingest
+			// already-stored sessions under new ids.
+			fmt.Fprintf(warnWriter, "agent-ingest: warning: duplicate %s session id %q: keeping %s, skipping %s\n", source, id, prev, path)
+			return nil
+		}
+		session, ok, err := readSession(source, id, path, cache)
 		if err != nil {
 			return nil // skip an unreadable transcript rather than failing the source
 		}
 		if ok {
+			seen[id] = path
 			sessions = append(sessions, session)
 		}
 		return nil
@@ -135,7 +182,7 @@ func scanFlat(source, root string) ([]Session, error) {
 // scanAntigravity lists the session directories under a flavor's brain and reads
 // each one's transcript, preferring transcript_full.jsonl when present (the
 // richer capture) exactly as the server does. The id is the directory name.
-func scanAntigravity(source, brain string) ([]Session, error) {
+func scanAntigravity(source, brain string, cache *Cache) ([]Session, error) {
 	if !isDir(brain) {
 		return nil, nil
 	}
@@ -156,7 +203,7 @@ func scanAntigravity(source, brain string) ([]Session, error) {
 		if transcript == "" {
 			continue
 		}
-		session, ok, err := readSession(source, entry.Name(), transcript)
+		session, ok, err := readSession(source, entry.Name(), transcript, cache)
 		if err != nil {
 			continue // skip an unreadable transcript rather than failing the source
 		}
@@ -187,13 +234,25 @@ func readSummary(path string) string {
 
 // readSession reads one transcript into a hashed Session, reporting ok=false for
 // an empty file (a session that never really started, which the server ignores).
-func readSession(source, id, path string) (Session, bool, error) {
+// When the cache proves the file unchanged since it was last hashed, the read is
+// skipped entirely and the Session carries only the cached hash — its content is
+// loaded on demand (LoadRaw) in the rare case the server still wants it.
+func readSession(source, id, path string, cache *Cache) (Session, bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return Session{}, false, err
 	}
 	if info.Size() == 0 {
 		return Session{}, false, nil
+	}
+	if hash, ok := cache.lookup(source, id, path, info); ok {
+		return Session{
+			Source: source,
+			ID:     id,
+			Path:   path,
+			Mtime:  info.ModTime().UnixMilli(),
+			Hash:   hash,
+		}, true, nil
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -206,12 +265,18 @@ func readSession(source, id, path string) (Session, bool, error) {
 	// transport replaces invalid bytes with U+FFFD, so hashing the raw bytes would
 	// diverge from the server's hash and re-upload the session on every run.
 	content := strings.ToValidUTF8(string(raw), "�")
+	hash := Sha256Hex(content)
+	// Cache under the pre-read stat: if the file changed between stat and read,
+	// the next run's stat won't match and the entry self-invalidates.
+	cache.store(source, id, path, info, hash)
 	return Session{
-		Source: source,
-		ID:     id,
-		Mtime:  info.ModTime().UnixMilli(),
-		Raw:    content,
-		Hash:   Sha256Hex(content),
+		Source:    source,
+		ID:        id,
+		Path:      path,
+		Mtime:     info.ModTime().UnixMilli(),
+		Raw:       content,
+		Hash:      hash,
+		rawLoaded: true,
 	}, true, nil
 }
 

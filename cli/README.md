@@ -59,6 +59,13 @@ Running it again uploads nothing: each session is keyed by a stable `(source, id
 and skipped when the server already has identical content, so it is safe to run on a
 schedule (`cron`, a `launchd` timer, …).
 
+Repeat runs are also cheap locally: the CLI keeps a small scan cache (see
+`AGENT_INGEST_CACHE` below) mapping each session to the size, mtime, and content hash
+seen on the previous run, so unchanged transcripts are not re-read and re-hashed — only
+stat'ed. The cache is purely an optimization: it never affects what the server receives
+(the server-side manifest diff is always consulted), and a missing, corrupt, or
+unwritable cache just falls back to full hashing. `--no-cache` forces that full re-hash.
+
 ### Flags
 
 | Flag | Default | Meaning |
@@ -67,6 +74,7 @@ schedule (`cron`, a `launchd` timer, …).
 | `--source NAME` | all | Source to sync; repeatable. One of `antigravity-cli`, `antigravity-ide`, `codex`, `claude-code`. |
 | `--home DIR` | current user's home | Home directory to scan (mainly for testing). |
 | `--batch-size N` | `100` | Sessions per push request. |
+| `--no-cache` | off | Ignore the local scan cache and re-read and re-hash every transcript. |
 | `--dry-run` | off | Report what would be pushed, without pushing. |
 | `--json` | off | Write a machine-readable summary to stdout. |
 | `--quiet` | off | Suppress progress on stderr. |
@@ -78,6 +86,7 @@ schedule (`cron`, a `launchd` timer, …).
 | Variable | Meaning |
 | -------- | ------- |
 | `AGENT_INGEST_SERVER` | Default for `--server`. |
+| `AGENT_INGEST_CACHE` | Path of the scan cache file (default: `agent-ingest/scan-cache.json` under the OS user cache directory, e.g. `~/.cache/agent-ingest/scan-cache.json` on Linux). |
 | `AGENT_INGEST_TOKEN` | Bearer token, sent when the server sets `INGEST_TOKEN`. Passed via the environment (not a flag) so it never lands in shell history or the process list. |
 
 ### Exit codes

@@ -60,7 +60,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          # Track cli/go.mod (as release-cli.yml does) so a future Go bump doesn't need a second
+          # edit here.
+          go-version-file: cli/go.mod
           # The CLI depends only on the standard library, so there is no go.sum
           # to key a module cache on.
           cache: false
@@ -138,6 +140,34 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  docker:
+    name: Docker image (compose smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # None of the other jobs exercise the Dockerfile, so a broken image build (or an image that
+    # builds but can't boot) would otherwise only surface on someone's machine. Build the app image
+    # via compose and let `--wait` hold until the healthchecks (Postgres, then the app's /dev/tcp
+    # probe) go green, then confirm /health answers 200 from the host side.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the image and start the full stack
+        run: docker compose --profile full up -d --build --wait
+
+      - name: Probe the health endpoint
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health)
+          echo "GET /health -> HTTP $status"
+          test "$status" = "200"
+
+      - name: Dump app logs on failure
+        if: failure()
+        run: docker compose --profile full logs app
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile full down -v
 
   native:
     name: Native image (GraalVM smoke)

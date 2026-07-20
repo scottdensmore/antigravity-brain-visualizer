@@ -19,74 +19,54 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.ToIntFunction;
 
+/**
+ * HTTP surface for conversation analysis. The heavy lifting — chunking, parallel LLM dispatch,
+ * consolidation, progress tracking, and caching — lives in {@link AnalysisOrchestrator}.
+ */
 @Controller("/api/analysis")
 public class AnalysisController {
 
-    private static final int MAX_TOKENS_PER_CHUNK = 100_000;
-    private static final Map<String, ProgressState> progressMap = new ConcurrentHashMap<>();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Serdeable
-    public record ProgressState(int progress, String phase) {}
+    public record ProgressResponse(String phase, int progress) {}
+
+    private final AiConfig aiConfig;
+    private final AnalysisOrchestrator orchestrator;
+
+    @Inject
+    public AnalysisController(AiConfig aiConfig, AnalysisOrchestrator orchestrator) {
+        this.aiConfig = aiConfig;
+        this.orchestrator = orchestrator;
+    }
 
     @Get(value = "/conversations/{id}/progress", produces = "application/json")
-    public ProgressResponse getProgress(@PathVariable String id) {
-        ProgressState state = progressMap.get(id);
+    public ProgressResponse getProgress(
+        @PathVariable String id,
+        @QueryValue Optional<String> flavor
+    ) {
+        AnalysisOrchestrator.ProgressState state = orchestrator.progress(
+            flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR),
+            id
+        );
         if (state == null) {
             return new ProgressResponse("", -1);
         }
         return new ProgressResponse(state.phase(), state.progress());
     }
 
-    @Serdeable
-    public record ProgressResponse(String phase, int progress) {}
-
-    private final AnalyzerService analyzerService;
-    private final ExecutorService executor;
-    private final AiConfig aiConfig;
-    private final TokenCounter tokenCounter;
-    private final SessionRepository sessions;
-    private final SummaryRepository summaries;
-
-    @Inject
-    public AnalysisController(
-        AnalyzerService analyzerService,
-        @Named(TaskExecutors.IO) ExecutorService executor,
-        AiConfig aiConfig,
-        TokenCounter tokenCounter,
-        SessionRepository sessions,
-        SummaryRepository summaries
-    ) {
-        this.analyzerService = analyzerService;
-        this.executor = executor;
-        this.aiConfig = aiConfig;
-        this.tokenCounter = tokenCounter;
-        this.sessions = sessions;
-        this.summaries = summaries;
-    }
-
-    private static final Map<String, Object> runningTasks = new ConcurrentHashMap<>();
-
     @ExecuteOn(TaskExecutors.IO)
-    @Get(value = "/conversations/{id}/summarize", produces = "application/json")
+    @Post(value = "/conversations/{id}/summarize", produces = "application/json")
     public String summarizeConversation(
         @PathVariable String id,
         @QueryValue Optional<Boolean> force,
@@ -94,311 +74,13 @@ public class AnalysisController {
     ) throws IOException {
         if (!aiConfig.isConfigured()) {
             // Serialize via Jackson so the message is always valid JSON, regardless of its content.
-            return new ObjectMapper()
-                .writeValueAsString(Map.of("summary", aiConfig.notConfiguredMessage()));
+            return MAPPER.writeValueAsString(Map.of("summary", aiConfig.notConfiguredMessage()));
         }
 
-        if (runningTasks.putIfAbsent(id, new Object()) != null) {
-            return "{\"summary\": \"Analysis is already running in the background for this conversation. Please wait a moment and refresh.\"}";
-        }
-
-        try {
-            String flavorName = flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR);
-            boolean forceRecompute = force.orElse(false);
-
-            if (!sessions.exists(flavorName, id)) {
-                return "{\"summary\": \"No transcript found.\"}";
-            }
-
-            if (!forceRecompute) {
-                Optional<String> cached = summaries.find(flavorName, id);
-                if (cached.isPresent()) {
-                    return cached.get();
-                }
-            } else {
-                summaries.delete(flavorName, id);
-            }
-
-            ObjectMapper mapper = new ObjectMapper();
-            AnalysisResponse responseObj = null;
-            boolean consolidationFellBack = false;
-
-            try {
-                List<List<String>> sequences = AnalysisSequences.fromStepsJson(
-                    flavorName,
-                    sessions.steps(flavorName, id)
-                );
-
-                ToIntFunction<String> tokenFn = tokenCounter::estimate;
-
-                progressMap.put(id, new ProgressState(5, "Estimating Tokens & Chunking...")); // Phase 1: Estimating
-
-                List<String> combinedLines = new ArrayList<>();
-                for (List<String> seq : sequences) {
-                    combinedLines.addAll(seq);
-                }
-                List<List<String>> optimalChunks = new ArrayList<>();
-                TranscriptParser.splitIntoSafeChunks(
-                    combinedLines,
-                    tokenFn,
-                    MAX_TOKENS_PER_CHUNK,
-                    optimalChunks
-                );
-
-                System.out.println(
-                    "Total optimal chunks to process in parallel: " + optimalChunks.size()
-                );
-
-                progressMap.put(id, new ProgressState(0, "Starting chunk processing...")); // start at 0%
-
-                List<Future<AnalysisResponse>> futures = new ArrayList<>();
-                AtomicInteger completed = new AtomicInteger(0);
-
-                // Limit to 20 concurrent LLM requests, as we have drastically reduced chunk count
-                Semaphore rateLimitSemaphore = new Semaphore(20);
-
-                for (List<String> chunkLines : optimalChunks) {
-                    futures.add(
-                        executor.submit(() -> {
-                            try {
-                                rateLimitSemaphore.acquire();
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                return null;
-                            }
-
-                            try {
-                                String chunk = String.join("\n", chunkLines);
-                                AnalysisResponse seqResponse = null;
-                                try {
-                                    seqResponse = analyzerService.analyze(chunk);
-                                } catch (Exception e) {
-                                    System.err.println(
-                                        "Failed to parse chunk from LLM: " + e.getMessage()
-                                    );
-                                    e.printStackTrace();
-                                    // Ignore unparseable chunk
-                                }
-
-                                int comp = completed.incrementAndGet();
-                                // Scale parallel processing to 90% of the total progress
-                                int pct = (int) Math.round((comp * 90.0) / optimalChunks.size());
-                                String phaseMsg =
-                                    "Processing chunk " +
-                                    comp +
-                                    " of " +
-                                    optimalChunks.size() +
-                                    "...";
-
-                                // Prevent progress moving backwards if futures finish out of order
-                                progressMap.compute(
-                                    id,
-                                    (k, v) -> {
-                                        if (v == null || pct > v.progress()) {
-                                            return new ProgressState(pct, phaseMsg);
-                                        }
-                                        return v;
-                                    }
-                                );
-
-                                return seqResponse;
-                            } finally {
-                                rateLimitSemaphore.release();
-                            }
-                        })
-                    );
-                }
-
-                List<AnalysisResponse> seqResponses = new ArrayList<>();
-                for (Future<AnalysisResponse> f : futures) {
-                    AnalysisResponse r = f.get();
-                    if (r != null) seqResponses.add(r);
-                }
-
-                if (seqResponses.isEmpty()) {
-                    // Distinguish "nothing to analyze" from "the model failed for every chunk".
-                    String msg = optimalChunks.isEmpty()
-                        ? "No transcript lines found."
-                        : "Analysis could not be generated: the model did not return a result for any part of this conversation. Please try again.";
-                    return mapper.writeValueAsString(Map.of("summary", msg));
-                } else if (seqResponses.size() == 1) {
-                    responseObj = seqResponses.get(0);
-                } else {
-                    progressMap.put(id, new ProgressState(90, "Consolidating final analysis..."));
-
-                    // Keep the progress bar moving smoothly during the long final LLM consolidation
-                    AtomicBoolean consolidationDone = new AtomicBoolean(false);
-                    Future<?> fakeProgress = executor.submit(() -> {
-                        int p = 90;
-                        while (!consolidationDone.get() && p < 99) {
-                            try {
-                                Thread.sleep(2000);
-                            } catch (InterruptedException e) {
-                                break;
-                            }
-                            if (!consolidationDone.get()) {
-                                int nextP = p + 1;
-                                progressMap.put(
-                                    id,
-                                    new ProgressState(nextP, "Consolidating final analysis...")
-                                );
-                                p = nextP;
-                            }
-                        }
-                    });
-
-                    try {
-                        responseObj =
-                            recursivelyConsolidate(seqResponses, tokenFn, mapper, 500_000);
-                    } catch (Exception e) {
-                        // LLM consolidation failed (e.g. API timeout). Rather than discard all the
-                        // per-chunk work, merge the partial analyses locally so the user still gets
-                        // a usable summary.
-                        System.err.println(
-                            "Consolidation failed; using local merge fallback: " + e.getMessage()
-                        );
-                        responseObj = localMerge(seqResponses);
-                        consolidationFellBack = true;
-                    } finally {
-                        consolidationDone.set(true);
-                        fakeProgress.cancel(true);
-                    }
-                }
-
-                progressMap.put(id, new ProgressState(100, "Done"));
-
-                String jsonResponse = mapper.writeValueAsString(responseObj);
-
-                // Don't persist a degraded local-merge fallback: the consolidation failure was
-                // likely transient, so a later (non-forced) load should retry the LLM rather than
-                // serve the cruder summary.
-                if (consolidationFellBack) {
-                    return jsonResponse;
-                }
-
-                String title = responseObj.shortTitle();
-                // Caching is best-effort: a store hiccup must not discard a summary we just computed.
-                // Log it, though — a persistently failing cache silently re-spends tokens every load.
-                try {
-                    summaries.upsert(flavorName, id, jsonResponse, title);
-                } catch (Exception e) {
-                    System.err.println(
-                        "Could not cache the summary for " + id + ": " + e.getMessage()
-                    );
-                }
-                return jsonResponse;
-            } catch (Exception e) {
-                System.err.println("Exception caught during analysis:");
-                e.printStackTrace();
-                try {
-                    return mapper.writeValueAsString(
-                        Map.of("summary", "Error generating summary: " + e.getMessage())
-                    );
-                } catch (Exception ex) {
-                    return "{\"summary\": \"Error generating summary: Unknown error\"}";
-                }
-            } finally {
-                progressMap.remove(id);
-            }
-        } finally {
-            runningTasks.remove(id);
-        }
-    }
-
-    private AnalysisResponse recursivelyConsolidate(
-        List<AnalysisResponse> responses,
-        ToIntFunction<String> tokenFn,
-        ObjectMapper mapper,
-        int maxTokens
-    ) throws Exception {
-        String json = mapper.writeValueAsString(responses);
-        boolean withinBudget;
-        try {
-            withinBudget = tokenFn.applyAsInt(json) <= maxTokens;
-        } catch (Exception e) {
-            // Only token estimation is best-effort here; fall back to a char-length heuristic so a
-            // failed estimate doesn't get mistaken for a failed consolidation.
-            withinBudget = (json.length() / 4) <= maxTokens;
-        }
-        // A consolidation failure below propagates to the caller (which falls back to a local merge).
-        if (withinBudget || responses.size() <= 1) {
-            return analyzerService.consolidateAnalysis(json);
-        }
-
-        int mid = responses.size() / 2;
-        AnalysisResponse r1 = recursivelyConsolidate(
-            responses.subList(0, mid),
-            tokenFn,
-            mapper,
-            maxTokens
+        return orchestrator.summarize(
+            flavor.orElse(AntigravityPaths.DEFAULT_FLAVOR),
+            id,
+            force.orElse(false)
         );
-        AnalysisResponse r2 = recursivelyConsolidate(
-            responses.subList(mid, responses.size()),
-            tokenFn,
-            mapper,
-            maxTokens
-        );
-        return analyzerService.consolidateAnalysis(mapper.writeValueAsString(List.of(r1, r2)));
-    }
-
-    /**
-     * Deterministically merges per-chunk analyses without calling the LLM. Used as a fallback when
-     * LLM consolidation fails, so the user still gets a usable (if less polished) summary instead of
-     * an error.
-     */
-    private AnalysisResponse localMerge(List<AnalysisResponse> responses) {
-        String shortTitle = "Session analysis";
-        StringBuilder summary = new StringBuilder();
-        List<String> flow = new ArrayList<>();
-        List<AgentAction> actions = new ArrayList<>();
-        List<Issue> issues = new ArrayList<>();
-        List<String> recommendations = new ArrayList<>();
-
-        for (AnalysisResponse r : responses) {
-            if (r == null) continue;
-            if (
-                "Session analysis".equals(shortTitle) &&
-                r.shortTitle() != null &&
-                !r.shortTitle().isBlank()
-            ) {
-                shortTitle = r.shortTitle();
-            }
-            if (r.summary() != null && !r.summary().isBlank()) {
-                if (summary.length() > 0) summary.append(" ");
-                summary.append(r.summary().trim());
-            }
-            if (r.flow() != null) {
-                for (String f : r.flow()) if (f != null && !flow.contains(f)) flow.add(f);
-            }
-            if (r.agentActions() != null) actions.addAll(r.agentActions());
-            if (r.issues() != null) issues.addAll(r.issues());
-            if (r.recommendations() != null) {
-                for (String rec : r.recommendations()) {
-                    if (rec != null && !recommendations.contains(rec)) recommendations.add(rec);
-                }
-            }
-        }
-
-        String summaryText = summary.length() > 4000
-            ? summary.substring(0, 4000) + "..."
-            : summary.toString();
-        summaryText =
-            "(Combined from " +
-            responses.size() +
-            " partial analyses; full consolidation was unavailable.) " +
-            summaryText;
-
-        return new AnalysisResponse(
-            shortTitle,
-            cap(flow, 40),
-            cap(actions, 40),
-            cap(issues, 40),
-            cap(recommendations, 30),
-            summaryText
-        );
-    }
-
-    private static <T> List<T> cap(List<T> list, int max) {
-        return list.size() > max ? new ArrayList<>(list.subList(0, max)) : list;
     }
 }

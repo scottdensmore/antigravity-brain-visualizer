@@ -34,6 +34,14 @@ USER app
 
 EXPOSE 8080
 
+# Same probe as the `app` healthcheck in docker-compose.yml (which takes precedence under compose),
+# so the image also self-reports health under plain `docker run` or other orchestrators. The JRE
+# image ships bash but no curl/wget, hence bash's /dev/tcp for a minimal HTTP request. Liveness
+# (not readiness) on purpose: the app serves the UI even when the store is down, so a database blip
+# must not mark the container unhealthy.
+HEALTHCHECK --interval=10s --timeout=5s --retries=12 --start-period=40s \
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+
 # Configuration comes from the environment (compose sets DATABASE_URL, credentials, and the optional
 # AI keys), so ignore any stray .env that lands in the working directory.
 ENTRYPOINT ["java", "-Ddotenv.enabled=false", "-jar", "app.jar"]

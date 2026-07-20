@@ -157,9 +157,7 @@ describe("showMining", () => {
       Promise.resolve({ ok: true, json: () => Promise.resolve(REPORT) })
     );
     await showMining("claude-code");
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/mine?flavor=claude-code")
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/mine?flavor=claude-code"), expect.any(Object));
     expect(document.getElementById("transcript-container").innerHTML).toContain(
       "edit-and-verify"
     );

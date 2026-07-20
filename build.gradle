@@ -127,6 +127,8 @@ spotless {
     }
     format 'javascript', {
         target 'src/main/resources/public/**/*.js', 'src/main/resources/public/modules/**/*.js'
+        // Vendored third-party bundles keep their own license headers and formatting.
+        targetExclude 'src/main/resources/public/vendor/**'
         licenseHeaderFile 'spotless.license', '(import|export|const|let|var|function|class|document|\\$)'
         prettier()
     }

@@ -140,7 +140,7 @@ describe("renderEval", () => {
     c.querySelector("#run-judge-btn").click();
     await Promise.resolve();
     await Promise.resolve();
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("judge=true"));
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("judge=true"), expect.any(Object));
   });
 
   it("renders run history with a delta vs the previous run", () => {
@@ -400,9 +400,7 @@ describe("showEval", () => {
       Promise.resolve({ ok: true, json: () => Promise.resolve(REPORT) })
     );
     await showEval("antigravity-cli");
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/eval?flavor=antigravity-cli")
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/eval?flavor=antigravity-cli"), expect.any(Object));
     expect(document.getElementById("transcript-container").innerHTML).toContain("Analysis Eval");
   });
 
@@ -414,9 +412,7 @@ describe("showEval", () => {
       })
     );
     await showEval("antigravity-cli");
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/eval/runs?flavor=antigravity-cli")
-    );
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/eval/runs?flavor=antigravity-cli"), expect.any(Object));
   });
 
   it("a superseded (slower, earlier) load does not clobber a newer one", async () => {

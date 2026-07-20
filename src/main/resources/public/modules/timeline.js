@@ -13,7 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { state, escapeHtml, syntaxHighlight, formatTime } from "./utils.js";
+import {
+  state,
+  escapeHtml,
+  renderMarkdown,
+  syntaxHighlight,
+  formatTime,
+} from "./utils.js";
 
 export function renderTranscript(steps, container) {
   state.activeFilters = {
@@ -29,6 +35,9 @@ export function renderTranscript(steps, container) {
       '<div class="empty-state">No transcript data found.</div>';
     return;
   }
+
+  // Deferred body renderers, filled in progressively after the initial paint (see below).
+  const lazyBodies = [];
 
   const cards = steps.map((step, index) => {
     const isUserStep =
@@ -120,8 +129,12 @@ export function renderTranscript(steps, container) {
                     ? '<span class="chevron">›</span>'
                     : '<span style="width:16px;"></span>'
                 }
-                <span class="badge ${badgeClass}">${sourceStr}</span>
-                <span style="font-family:var(--font-mono); font-weight:500; font-size:0.9rem;">${typeStr}</span>
+                <span class="badge ${badgeClass}">${escapeHtml(
+      sourceStr
+    )}</span>
+                <span style="font-family:var(--font-mono); font-weight:500; font-size:0.9rem;">${escapeHtml(
+                  typeStr
+                )}</span>
             </div>
             <div class="step-meta ${badgeClass}">${
       step.created_at
@@ -145,6 +158,7 @@ export function renderTranscript(steps, container) {
     header.addEventListener("click", () => {
       const isCollapsed = body.classList.contains("collapsed");
       if (isCollapsed) {
+        renderStepBody();
         body.classList.remove("collapsed");
         header.querySelector(".chevron").style.transform = "rotate(90deg)";
       } else {
@@ -153,116 +167,231 @@ export function renderTranscript(steps, container) {
       }
     });
 
-    let html = "";
-    if (step.thinking) {
-      html += `<div class="thought-box">${marked.parse(step.thinking)}</div>`;
-    }
+    // Bodies start collapsed, so the markdown parsing, JSON pretty-printing, and sanitization are
+    // deferred: a card expanded by the user renders immediately, the rest fill in during idle time
+    // — a several-thousand-step transcript paints its headers instantly instead of blocking on
+    // bodies nobody has opened yet.
+    let bodyRendered = false;
+    const renderStepBody = () => {
+      if (bodyRendered) return;
+      bodyRendered = true;
 
-    if (step.content) {
-      let formattedContent;
-      if (
-        step.type === "USER_INPUT" ||
-        step.type === "PLANNER_RESPONSE" ||
-        step.type === "MESSAGE" ||
-        step.type === "SEARCH_WEB"
-      ) {
-        let processedContent = step.content;
-        if (step.type === "USER_INPUT") {
-          let fileMap = {};
-          const metadataMatch = processedContent.match(
-            /<ADDITIONAL_METADATA>([\s\S]*?)<\/ADDITIONAL_METADATA>/
-          );
-          if (metadataMatch) {
-            const metaContent = metadataMatch[1];
-            const mentionRegex = /@\[(.*?)\] is a \[File\]:\n(.*?)(?=\n|$)/g;
-            let m;
-            while ((m = mentionRegex.exec(metaContent)) !== null) {
-              fileMap[m[1]] = m[2].trim();
-            }
+      let html = "";
+      if (step.thinking) {
+        html += `<div class="thought-box">${renderMarkdown(
+          step.thinking
+        )}</div>`;
+      }
 
-            processedContent = processedContent.replace(
-              /@\[(.*?)\]/g,
-              (match, filename) => {
-                if (fileMap[filename]) {
-                  return `[${match}](file://${fileMap[filename]})`;
-                }
-                return match;
-              }
+      if (step.content) {
+        let formattedContent;
+        if (
+          step.type === "USER_INPUT" ||
+          step.type === "PLANNER_RESPONSE" ||
+          step.type === "MESSAGE" ||
+          step.type === "SEARCH_WEB"
+        ) {
+          let processedContent = step.content;
+          if (step.type === "USER_INPUT") {
+            let fileMap = {};
+            const metadataMatch = processedContent.match(
+              /<ADDITIONAL_METADATA>([\s\S]*?)<\/ADDITIONAL_METADATA>/
             );
-          }
-        }
+            if (metadataMatch) {
+              const metaContent = metadataMatch[1];
+              const mentionRegex = /@\[(.*?)\] is a \[File\]:\n(.*?)(?=\n|$)/g;
+              let m;
+              while ((m = mentionRegex.exec(metaContent)) !== null) {
+                fileMap[m[1]] = m[2].trim();
+              }
 
-        if (step.type === "USER_INPUT" && processedContent.includes("<")) {
-          let htmlParts = "";
-          let hasTags = false;
-          const tagRegex = /<([A-Z_]+)>([\s\S]*?)<\/\1>/g;
-          let match;
-          let lastIndex = 0;
-          while ((match = tagRegex.exec(processedContent)) !== null) {
-            hasTags = true;
-            if (match.index > lastIndex) {
-              const preText = processedContent
-                .substring(lastIndex, match.index)
-                .trim();
-              if (preText)
-                htmlParts += `<div class="user-request-block">${marked.parse(
-                  preText
+              processedContent = processedContent.replace(
+                /@\[(.*?)\]/g,
+                (match, filename) => {
+                  if (fileMap[filename]) {
+                    return `[${match}](file://${fileMap[filename]})`;
+                  }
+                  return match;
+                }
+              );
+            }
+          }
+
+          if (step.type === "USER_INPUT" && processedContent.includes("<")) {
+            let htmlParts = "";
+            let hasTags = false;
+            const tagRegex = /<([A-Z_]+)>([\s\S]*?)<\/\1>/g;
+            let match;
+            let lastIndex = 0;
+            while ((match = tagRegex.exec(processedContent)) !== null) {
+              hasTags = true;
+              if (match.index > lastIndex) {
+                const preText = processedContent
+                  .substring(lastIndex, match.index)
+                  .trim();
+                if (preText)
+                  htmlParts += `<div class="user-request-block">${renderMarkdown(
+                    preText
+                  )}</div>`;
+              }
+              const tagName = match[1];
+              const tagContent = match[2].trim();
+              if (tagName === "USER_REQUEST") {
+                htmlParts += `<div class="user-request-block">${renderMarkdown(
+                  tagContent
+                )}</div>`;
+              } else {
+                const niceName = tagName
+                  .split("_")
+                  .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+                  .join(" ");
+                htmlParts += `<div class="system-context-block"><strong>${niceName}</strong><div class="system-context-content">${renderMarkdown(
+                  tagContent
+                )}</div></div>`;
+              }
+              lastIndex = tagRegex.lastIndex;
+            }
+            if (lastIndex < processedContent.length) {
+              const postText = processedContent.substring(lastIndex).trim();
+              if (postText)
+                htmlParts += `<div class="user-request-block">${renderMarkdown(
+                  postText
                 )}</div>`;
             }
-            const tagName = match[1];
-            const tagContent = match[2].trim();
-            if (tagName === "USER_REQUEST") {
-              htmlParts += `<div class="user-request-block">${marked.parse(
-                tagContent
-              )}</div>`;
-            } else {
-              const niceName = tagName
-                .split("_")
-                .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-                .join(" ");
-              htmlParts += `<div class="system-context-block"><strong>${niceName}</strong><div class="system-context-content">${marked.parse(
-                tagContent
-              )}</div></div>`;
-            }
-            lastIndex = tagRegex.lastIndex;
-          }
-          if (lastIndex < processedContent.length) {
-            const postText = processedContent.substring(lastIndex).trim();
-            if (postText)
-              htmlParts += `<div class="user-request-block">${marked.parse(
-                postText
-              )}</div>`;
-          }
-          formattedContent = `<div class="markdown-body">${
-            hasTags ? htmlParts : marked.parse(processedContent)
-          }</div>`;
-        } else {
-          let contentText = processedContent;
-          let prefixHtml = "";
-          if (step.type === "SEARCH_WEB") {
-            // Extract standard tool metadata
-            const metaRegex =
-              /^(?:Created At:\s*(.*?)\n)?(?:Completed At:\s*(.*?)\n)?(?:Encountered error in step execution:\s*(.*?\n))?/;
-            const match = contentText.match(metaRegex);
-            if (match && match[0]) {
-              contentText = contentText.substring(match[0].length).trim();
-              const created = match[1];
-              const completed = match[2];
-              const errorMsg = match[3];
+            formattedContent = `<div class="markdown-body">${
+              hasTags ? htmlParts : renderMarkdown(processedContent)
+            }</div>`;
+          } else {
+            let contentText = processedContent;
+            let prefixHtml = "";
+            if (step.type === "SEARCH_WEB") {
+              // Extract standard tool metadata
+              const metaRegex =
+                /^(?:Created At:\s*(.*?)\n)?(?:Completed At:\s*(.*?)\n)?(?:Encountered error in step execution:\s*(.*?\n))?/;
+              const match = contentText.match(metaRegex);
+              if (match && match[0]) {
+                contentText = contentText.substring(match[0].length).trim();
+                const created = match[1];
+                const completed = match[2];
+                const errorMsg = match[3];
 
-              // Extract search phrase (e.g. "The search for "test" returned the following summary:")
-              const searchPhraseRegex =
-                /^The search for "(.*?)" returned the following summary:\n/i;
-              const searchMatch = contentText.match(searchPhraseRegex);
-              let searchPhrase = "";
-              if (searchMatch) {
-                searchPhrase = searchMatch[1].trim();
-                contentText = contentText
-                  .substring(searchMatch[0].length)
-                  .trim();
+                // Extract search phrase (e.g. "The search for "test" returned the following summary:")
+                const searchPhraseRegex =
+                  /^The search for "(.*?)" returned the following summary:\n/i;
+                const searchMatch = contentText.match(searchPhraseRegex);
+                let searchPhrase = "";
+                if (searchMatch) {
+                  searchPhrase = searchMatch[1].trim();
+                  contentText = contentText
+                    .substring(searchMatch[0].length)
+                    .trim();
+                }
+
+                let metaHtml = `<div class="tool-meta-header" style="font-size:0.85em; color:var(--text-secondary); margin-bottom:12px; display:flex; flex-direction:column; gap:4px; padding-left:8px; border-left:2px solid rgba(148,163,184,0.3);">`;
+                if (created && completed) {
+                  metaHtml += `<div>⏱ <strong>Duration:</strong> ${(
+                    (new Date(completed) - new Date(created)) /
+                    1000
+                  ).toFixed(1)}s</div>`;
+                } else if (created) {
+                  metaHtml += `<div>⏱ <strong>Started:</strong> ${formatTime(
+                    created,
+                    true
+                  )}</div>`;
+                }
+                if (searchPhrase) {
+                  metaHtml += `<div>🔍 <strong>Query:</strong> ${escapeHtml(
+                    searchPhrase
+                  )}</div>`;
+                }
+                if (errorMsg) {
+                  metaHtml += `<div style="color:#ef4444;">🚨 <strong>Error:</strong> ${escapeHtml(
+                    errorMsg.trim()
+                  )}</div>`;
+                }
+                metaHtml += `</div>`;
+                prefixHtml = metaHtml;
               }
 
-              let metaHtml = `<div class="tool-meta-header" style="font-size:0.85em; color:var(--text-secondary); margin-bottom:12px; display:flex; flex-direction:column; gap:4px; padding-left:8px; border-left:2px solid rgba(148,163,184,0.3);">`;
+              // Extract URL map and format definitions dynamically
+              let linkMap = {};
+              const defRegex =
+                /\[(\d+)\]\s*(?:\[.*?\]\((https?:\/\/[^\s\)]+)\)|(https?:\/\/[^\s\)]+))/g;
+              let m;
+              while ((m = defRegex.exec(contentText)) !== null) {
+                linkMap[m[1]] = m[2] || m[3];
+              }
+
+              // Replace inline references first, grouping adjacent citations into a single superscript
+              const seqRegex = /(?:\[\d+\](?:\s*\[\d+\])*)/g;
+              contentText = contentText.replace(
+                seqRegex,
+                (match, offset, str) => {
+                  const after = str.substring(offset + match.length);
+                  if (
+                    after.match(/^\s*\[.*?\]\(http/) ||
+                    after.match(/^\s*http/)
+                  ) {
+                    return match; // It's a footer definition
+                  }
+
+                  let ids = [];
+                  const idRegex = /\[(\d+)\]/g;
+                  let m;
+                  while ((m = idRegex.exec(match)) !== null) {
+                    ids.push(m[1]);
+                  }
+
+                  let linksHtml = ids
+                    .map((id) => {
+                      // Search-result URLs are untrusted; escape so one can't break out of the href.
+                      if (linkMap[id])
+                        return `<a href="${escapeHtml(
+                          linkMap[id]
+                        )}" target="_blank" rel="noopener" style="text-decoration:none; color:var(--accent-blue); font-weight:600;">${id}</a>`;
+                      return id;
+                    })
+                    .join(", ");
+
+                  return `<sup>${linksHtml}</sup>`;
+                }
+              );
+
+              // Now replace all footer definitions with markdown list items
+              contentText = contentText.replace(
+                /\[(\d+)\]\s*(?:\[.*?\]\((https?:\/\/[^\s\)]+)\)|(https?:\/\/[^\s\)]+))/g,
+                "\n\n- $&"
+              );
+            }
+            formattedContent =
+              prefixHtml +
+              `<div class="markdown-body">${renderMarkdown(contentText)}</div>`;
+          }
+        } else {
+          let contentText = step.content;
+          let metaHtml = "";
+
+          const metaRegex =
+            /^(?:Created At:\s*(.*?)\n)?(?:Completed At:\s*(.*?)\n)?(?:Encountered error in step execution:\s*(.*?\n))?/;
+          const match = contentText.match(metaRegex);
+
+          if (match && match[0]) {
+            contentText = contentText.substring(match[0].length).trim();
+            const created = match[1];
+            const completed = match[2];
+            const errorMsg = match[3];
+
+            let statusMsg = "";
+            const statusRegex =
+              /^\s*(The command (completed successfully\.|failed with exit code: \d+))/m;
+            const statusMatch = contentText.match(statusRegex);
+            if (statusMatch) {
+              statusMsg = statusMatch[1];
+              contentText = contentText.replace(statusMatch[0], "").trim();
+            }
+
+            if (created || completed || errorMsg || statusMsg) {
+              metaHtml = `<div class="tool-meta-header" style="font-size:0.85em; color:var(--text-secondary); margin-bottom:12px; display:flex; flex-direction:column; gap:4px; padding-left:8px; border-left:2px solid rgba(148,163,184,0.3);">`;
               if (created && completed) {
                 metaHtml += `<div>⏱ <strong>Duration:</strong> ${(
                   (new Date(completed) - new Date(created)) /
@@ -274,9 +403,12 @@ export function renderTranscript(steps, container) {
                   true
                 )}</div>`;
               }
-              if (searchPhrase) {
-                metaHtml += `<div>🔍 <strong>Query:</strong> ${escapeHtml(
-                  searchPhrase
+              if (statusMsg) {
+                const isSuccess = statusMsg.includes("successfully");
+                const icon = isSuccess ? "✅" : "❌";
+                const color = isSuccess ? "#10b981" : "#ef4444"; // emerald green or red
+                metaHtml += `<div style="color:${color};">${icon} <strong>Status:</strong> ${escapeHtml(
+                  statusMsg
                 )}</div>`;
               }
               if (errorMsg) {
@@ -285,162 +417,61 @@ export function renderTranscript(steps, container) {
                 )}</div>`;
               }
               metaHtml += `</div>`;
-              prefixHtml = metaHtml;
             }
+          }
 
-            // Extract URL map and format definitions dynamically
-            let linkMap = {};
-            const defRegex =
-              /\[(\d+)\]\s*(?:\[.*?\]\((https?:\/\/[^\s\)]+)\)|(https?:\/\/[^\s\)]+))/g;
-            let m;
-            while ((m = defRegex.exec(contentText)) !== null) {
-              linkMap[m[1]] = m[2] || m[3];
-            }
+          // Clean up weird Antigravity framework indentation (up to 4 leading tabs)
+          contentText = contentText.replace(/^\t{1,4}/gm, "");
 
-            // Replace inline references first, grouping adjacent citations into a single superscript
-            const seqRegex = /(?:\[\d+\](?:\s*\[\d+\])*)/g;
-            contentText = contentText.replace(
-              seqRegex,
-              (match, offset, str) => {
-                const after = str.substring(offset + match.length);
-                if (
-                  after.match(/^\s*\[.*?\]\(http/) ||
-                  after.match(/^\s*http/)
-                ) {
-                  return match; // It's a footer definition
-                }
+          // Remove superfluous wrapper labels
+          contentText = contentText
+            .replace(/^(?:Output|Stdout|Stderr):\s*\n?/gm, "")
+            .trim();
 
-                let ids = [];
-                const idRegex = /\[(\d+)\]/g;
-                let m;
-                while ((m = idRegex.exec(match)) !== null) {
-                  ids.push(m[1]);
-                }
-
-                let linksHtml = ids
-                  .map((id) => {
-                    if (linkMap[id])
-                      return `<a href="${linkMap[id]}" target="_blank" style="text-decoration:none; color:var(--accent-blue); font-weight:600;">${id}</a>`;
-                    return id;
-                  })
-                  .join(", ");
-
-                return `<sup>${linksHtml}</sup>`;
+          if (!contentText) {
+            formattedContent = metaHtml;
+          } else {
+            formattedContent = escapeHtml(contentText);
+            try {
+              const parsed = JSON.parse(contentText);
+              if (typeof parsed === "object" && parsed !== null) {
+                formattedContent = syntaxHighlight(
+                  JSON.stringify(parsed, null, 2)
+                );
               }
-            );
-
-            // Now replace all footer definitions with markdown list items
-            contentText = contentText.replace(
-              /\[(\d+)\]\s*(?:\[.*?\]\((https?:\/\/[^\s\)]+)\)|(https?:\/\/[^\s\)]+))/g,
-              "\n\n- $&"
-            );
-          }
-          formattedContent =
-            prefixHtml +
-            `<div class="markdown-body">${marked.parse(contentText)}</div>`;
-        }
-      } else {
-        let contentText = step.content;
-        let metaHtml = "";
-
-        const metaRegex =
-          /^(?:Created At:\s*(.*?)\n)?(?:Completed At:\s*(.*?)\n)?(?:Encountered error in step execution:\s*(.*?\n))?/;
-        const match = contentText.match(metaRegex);
-
-        if (match && match[0]) {
-          contentText = contentText.substring(match[0].length).trim();
-          const created = match[1];
-          const completed = match[2];
-          const errorMsg = match[3];
-
-          let statusMsg = "";
-          const statusRegex =
-            /^\s*(The command (completed successfully\.|failed with exit code: \d+))/m;
-          const statusMatch = contentText.match(statusRegex);
-          if (statusMatch) {
-            statusMsg = statusMatch[1];
-            contentText = contentText.replace(statusMatch[0], "").trim();
-          }
-
-          if (created || completed || errorMsg || statusMsg) {
-            metaHtml = `<div class="tool-meta-header" style="font-size:0.85em; color:var(--text-secondary); margin-bottom:12px; display:flex; flex-direction:column; gap:4px; padding-left:8px; border-left:2px solid rgba(148,163,184,0.3);">`;
-            if (created && completed) {
-              metaHtml += `<div>⏱ <strong>Duration:</strong> ${(
-                (new Date(completed) - new Date(created)) /
-                1000
-              ).toFixed(1)}s</div>`;
-            } else if (created) {
-              metaHtml += `<div>⏱ <strong>Started:</strong> ${formatTime(
-                created,
-                true
-              )}</div>`;
-            }
-            if (statusMsg) {
-              const isSuccess = statusMsg.includes("successfully");
-              const icon = isSuccess ? "✅" : "❌";
-              const color = isSuccess ? "#10b981" : "#ef4444"; // emerald green or red
-              metaHtml += `<div style="color:${color};">${icon} <strong>Status:</strong> ${escapeHtml(
-                statusMsg
-              )}</div>`;
-            }
-            if (errorMsg) {
-              metaHtml += `<div style="color:#ef4444;">🚨 <strong>Error:</strong> ${escapeHtml(
-                errorMsg.trim()
-              )}</div>`;
-            }
-            metaHtml += `</div>`;
+            } catch (e) {}
+            formattedContent =
+              metaHtml + `<div class="code-block">${formattedContent}</div>`;
           }
         }
+        html += formattedContent;
+      }
 
-        // Clean up weird Antigravity framework indentation (up to 4 leading tabs)
-        contentText = contentText.replace(/^\t{1,4}/gm, "");
-
-        // Remove superfluous wrapper labels
-        contentText = contentText
-          .replace(/^(?:Output|Stdout|Stderr):\s*\n?/gm, "")
-          .trim();
-
-        if (!contentText) {
-          formattedContent = metaHtml;
-        } else {
-          formattedContent = escapeHtml(contentText);
-          try {
-            const parsed = JSON.parse(contentText);
-            if (typeof parsed === "object" && parsed !== null) {
-              formattedContent = syntaxHighlight(
-                JSON.stringify(parsed, null, 2)
-              );
-            }
-          } catch (e) {}
-          formattedContent =
-            metaHtml + `<div class="code-block">${formattedContent}</div>`;
+      if (step.error) {
+        // Prevent rendering the big red box if the error was already captured and displayed in the metadata header
+        const errorStr = escapeHtml(step.error.trim());
+        if (!html.includes(errorStr)) {
+          html += `<div class="code-block" style="color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); margin-top: 8px;"><strong>ERROR:</strong><br/>${errorStr}</div>`;
         }
       }
-      html += formattedContent;
-    }
 
-    if (step.error) {
-      // Prevent rendering the big red box if the error was already captured and displayed in the metadata header
-      const errorStr = escapeHtml(step.error.trim());
-      if (!html.includes(errorStr)) {
-        html += `<div class="code-block" style="color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); margin-top: 8px;"><strong>ERROR:</strong><br/>${errorStr}</div>`;
-      }
-    }
-
-    if (step.tool_calls && step.tool_calls.length > 0) {
-      step.tool_calls.forEach((tool) => {
-        html += `
+      if (step.tool_calls && step.tool_calls.length > 0) {
+        step.tool_calls.forEach((tool) => {
+          html += `
                     <div class="tool-call">
-                        <div class="tool-name">⚙ ${tool.name}</div>
+                        <div class="tool-name">⚙ ${escapeHtml(tool.name)}</div>
                         <pre class="tool-args json-renderer">${syntaxHighlight(
                           JSON.stringify(tool.args, null, 2)
                         )}</pre>
                     </div>
                 `;
-      });
-    }
+        });
+      }
 
-    body.innerHTML = html;
+      body.innerHTML = html;
+    };
+    lazyBodies.push(renderStepBody);
+
     card.appendChild(body);
     return card;
   });
@@ -565,11 +596,25 @@ export function renderTranscript(steps, container) {
   bottomMarker.id = "timeline-bottom-marker";
   bottomMarker.style.height = "1px";
   bottomMarker.style.width = "100%";
-  if (window.timelineStart && window.timelineTotalMs) {
+  if (state.timelineStart && state.timelineTotalMs) {
     bottomMarker.dataset.timestamp =
-      window.timelineStart + window.timelineTotalMs;
+      state.timelineStart + state.timelineTotalMs;
   }
   container.appendChild(bottomMarker);
+
+  // Fill in the collapsed bodies in idle-time chunks. The DOM still converges to fully rendered
+  // (so anything that inspects body content keeps working); only the up-front cost moves off the
+  // critical path. Each renderer is idempotent, so a user expanding a card mid-fill is fine.
+  const scheduleIdle = window.requestIdleCallback
+    ? (fn) => window.requestIdleCallback(fn)
+    : (fn) => setTimeout(fn, 0);
+  let nextBody = 0;
+  const renderBodyChunk = () => {
+    const end = Math.min(nextBody + 30, lazyBodies.length);
+    for (; nextBody < end; nextBody++) lazyBodies[nextBody]();
+    if (nextBody < lazyBodies.length) scheduleIdle(renderBodyChunk);
+  };
+  scheduleIdle(renderBodyChunk);
 
   window.dispatchEvent(new Event("transcriptLoaded"));
 }

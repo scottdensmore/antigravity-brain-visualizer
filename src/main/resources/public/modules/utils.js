@@ -22,7 +22,80 @@ export const state = {
   },
   spansMultipleDays: false,
   summaryCache: {},
+  // Session-timeline bounds, set by renderStats and read by the scrubber and transcript markers.
+  timelineStart: 0,
+  timelineTotalMs: 0,
 };
+
+/** Human-readable labels for the session sources ("flavors") the picker offers. */
+export const FLAVOR_LABELS = {
+  "antigravity-cli": "Antigravity CLI",
+  "antigravity-ide": "Antigravity IDE",
+  antigravity: "Antigravity Agent",
+  codex: "OpenAI Codex",
+  "claude-code": "Claude Code",
+};
+
+// Transcript content is untrusted (it is whatever the agent, the user, or a web page the agent read
+// happened to produce), so every piece of it that becomes HTML must pass through DOMPurify. The
+// default allowed URI schemes are extended with file:// — Antigravity transcripts link local files
+// that way and the click is intercepted for the in-app preview modal.
+const PURIFY_CONFIG = {
+  ALLOWED_URI_REGEXP:
+    /^(?:(?:https?|mailto|file):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+};
+
+/** Renders untrusted markdown to sanitized HTML. The only safe way to innerHTML transcript text. */
+export function renderMarkdown(text) {
+  if (text == null) return "";
+  return DOMPurify.sanitize(marked.parse(String(text)), PURIFY_CONFIG);
+}
+
+/**
+ * fetch() for the app's own API. When the server guards the API with API_TOKEN, the token the user
+ * entered is attached as a bearer; on a 401 the user is prompted once and the request retried, so a
+ * freshly guarded server asks for the token instead of silently failing.
+ */
+export async function apiFetch(url, options = {}) {
+  // localStorage can be unavailable (private browsing, test environments); degrade to promptless.
+  const storage = {
+    get() {
+      try {
+        return localStorage.getItem("agy-api-token") || "";
+      } catch {
+        return "";
+      }
+    },
+    set(value) {
+      try {
+        localStorage.setItem("agy-api-token", value);
+      } catch {}
+    },
+  };
+  const doFetch = (token) => {
+    const headers = { ...(options.headers || {}) };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return fetch(url, { ...options, headers });
+  };
+  let response = await doFetch(storage.get());
+  if (response.status === 401) {
+    const entered = window.prompt(
+      "This server requires an API token (API_TOKEN). Enter it to continue:"
+    );
+    if (entered && entered.trim()) {
+      storage.set(entered.trim());
+      response = await doFetch(entered.trim());
+    }
+  }
+  return response;
+}
+
+/** apiFetch that throws on a non-OK status and resolves to the parsed JSON body. */
+export async function fetchJson(url, options) {
+  const res = await apiFetch(url, options);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
 
 export function escapeHtml(unsafe) {
   if (!unsafe) return "";
@@ -32,6 +105,35 @@ export function escapeHtml(unsafe) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+/** A titled report section with a colored uppercase heading (shared by the report views). */
+export function section(title, color, bodyHtml) {
+  return `<div style="margin-top:28px;">
+      <div style="font-size:0.75rem; font-weight:700; color:${color}; margin-bottom:16px; letter-spacing:0.05em; text-transform:uppercase;">${escapeHtml(
+    title
+  )}</div>
+      ${bodyHtml}
+    </div>`;
+}
+
+/** Rounds to one decimal place, treating null/undefined as 0. */
+export function round1(n) {
+  return Math.round((n || 0) * 10) / 10;
+}
+
+/**
+ * Wires a non-<button> element to act like one: click plus Enter/Space activation. The caller is
+ * responsible for making it focusable and announced (tabindex="0", role="button") in the markup.
+ */
+export function wireButton(el, handler) {
+  el.addEventListener("click", handler);
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault(); // Space must not scroll the page
+      handler(e);
+    }
+  });
 }
 
 export function syntaxHighlight(json) {

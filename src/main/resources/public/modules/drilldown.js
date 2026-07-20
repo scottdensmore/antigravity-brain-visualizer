@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml } from "./utils.js";
+import { escapeHtml, fetchJson, wireButton } from "./utils.js";
 
 // Shared "which sessions are behind this tally item" drill-down, used by the Insights and Mine
 // views. A caller wraps a clickable summary in `drillRow(category, key, innerHtml)` and then calls
@@ -25,7 +25,7 @@ export function drillRow(category, key, innerHtml) {
   return `<div class="drill-row" data-drill-category="${escapeHtml(
     category
   )}" data-drill-key="${escapeHtml(key)}">
-      <div class="drill-bar" style="cursor:pointer;" title="Show the sessions behind this">${innerHtml}</div>
+      <div class="drill-bar" role="button" tabindex="0" style="cursor:pointer;" title="Show the sessions behind this">${innerHtml}</div>
       <div class="drill-sessions" style="display:none;"></div>
     </div>`;
 }
@@ -35,7 +35,7 @@ export function wireDrilldown(container, flavor) {
   if (!container) return;
   container.querySelectorAll(".drill-row").forEach((row) => {
     const bar = row.querySelector(".drill-bar");
-    if (bar) bar.addEventListener("click", () => toggleDrill(row, flavor));
+    if (bar) wireButton(bar, () => toggleDrill(row, flavor));
   });
 }
 
@@ -50,7 +50,7 @@ function renderDrillSessions(result) {
   const rows = sessions
     .map(
       (s) =>
-        `<div class="drill-session" data-id="${escapeHtml(
+        `<div class="drill-session" role="button" tabindex="0" data-id="${escapeHtml(
           s.id
         )}" style="padding:3px 0 3px 24px; font-size:0.82rem; color:var(--accent-purple); cursor:pointer;" title="${escapeHtml(
           s.id
@@ -85,18 +85,17 @@ async function toggleDrill(row, flavor) {
   sub.style.display = "block";
   sub.innerHTML = `<div class="stat-sub" style="padding:4px 0 8px 24px;">Loading sessions…</div>`;
   try {
-    const res = await fetch(
+    const result = await fetchJson(
       `/api/insights/sessions?flavor=${encodeURIComponent(
         flavor
       )}&category=${encodeURIComponent(category)}&key=${encodeURIComponent(
         key
       )}`
     );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    sub.innerHTML = renderDrillSessions(await res.json());
+    sub.innerHTML = renderDrillSessions(result);
     sub.dataset.loaded = "1";
     sub.querySelectorAll(".drill-session").forEach((el) => {
-      el.addEventListener("click", () => openSession(el.dataset.id));
+      wireButton(el, () => openSession(el.dataset.id));
     });
   } catch (e) {
     sub.innerHTML = `<div class="stat-sub" style="padding:4px 0 8px 24px; color:red;">Failed to load sessions.</div>`;

@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml, formatTime } from "./utils.js";
+import {
+  escapeHtml,
+  formatTime,
+  apiFetch,
+  fetchJson,
+  section,
+  round1,
+  FLAVOR_LABELS,
+} from "./utils.js";
 import { downloadText } from "./mine-export.js";
 import { historyCsv } from "./eval-export.js";
-
-const FLAVOR_LABELS = {
-  "antigravity-cli": "Antigravity CLI",
-  "antigravity-ide": "Antigravity IDE",
-  antigravity: "Antigravity Agent",
-  codex: "OpenAI Codex",
-  "claude-code": "Claude Code",
-};
 
 // Human-readable descriptions for the deterministic checks (must match EvalScorer check names).
 const CHECK_LABELS = {
@@ -55,15 +55,6 @@ function avgPanelSpread(cases) {
     .map((c) => Math.max(0, (c.panelMax || 0) - (c.panelMin || 0)));
   if (spreads.length === 0) return null;
   return round1(spreads.reduce((a, b) => a + b, 0) / spreads.length);
-}
-
-function section(title, color, bodyHtml) {
-  return `<div style="margin-top:28px;">
-      <div style="font-size:0.75rem; font-weight:700; color:${color}; margin-bottom:16px; letter-spacing:0.05em; text-transform:uppercase;">${escapeHtml(
-    title
-  )}</div>
-      ${bodyHtml}
-    </div>`;
 }
 
 function passRateRow(item, evaluated, history) {
@@ -172,10 +163,6 @@ function worstRow(c) {
         <div class="stat-sub" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:2px;">${failsHtml}</div>
       </div>
     </div>`;
-}
-
-function round1(n) {
-  return Math.round((n || 0) * 10) / 10;
 }
 
 // A signed delta badge vs the previous run's score (green up / red down / muted flat).
@@ -489,14 +476,11 @@ export async function showEval(flavor, judge = false) {
     const url = `/api/eval?flavor=${encodeURIComponent(flavor)}${
       judge ? "&judge=true" : ""
     }`;
-    const [res, history] = await Promise.all([
-      fetch(url),
+    const [report, history] = await Promise.all([
+      fetchJson(url),
       fetchHistory(flavor),
     ]);
     if (gen !== renderGeneration) return; // superseded by a newer action
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const report = await res.json();
-    if (gen !== renderGeneration) return;
     renderEval(report, container, history);
   } catch (e) {
     if (gen === renderGeneration) {
@@ -508,10 +492,9 @@ export async function showEval(flavor, judge = false) {
 
 async function fetchHistory(flavor) {
   try {
-    const res = await fetch(
+    return await fetchJson(
       `/api/eval/runs?flavor=${encodeURIComponent(flavor)}`
     );
-    return res.ok ? await res.json() : [];
   } catch (e) {
     return [];
   }
@@ -526,7 +509,7 @@ async function saveRun(report, container) {
     btn.disabled = true;
   }
   try {
-    await fetch("/api/eval/runs", {
+    await apiFetch("/api/eval/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(report),
@@ -544,7 +527,7 @@ async function deleteRun(savedAt, report, container) {
   if (!savedAt) return;
   const gen = ++renderGeneration;
   try {
-    await fetch(`/api/eval/runs?savedAt=${encodeURIComponent(savedAt)}`, {
+    await apiFetch(`/api/eval/runs?savedAt=${encodeURIComponent(savedAt)}`, {
       method: "DELETE",
     });
   } catch (e) {

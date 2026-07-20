@@ -1,7 +1,51 @@
 import { test, expect } from "./test-base.js";
 
+// The saved-run tests below write real rows into the shared Postgres store, which is NOT reset
+// between local runs or CI retries. Two defenses keep them honest against pre-existing rows:
+//   1. saveRun() returns the new row's server-assigned savedAt, and assertions are scoped to it —
+//      a leftover row from an earlier attempt can neither fake a pass nor cause a failure.
+//   2. afterEach deletes every run a test saved (a no-op for rows already deleted through the UI),
+//      so the history doesn't grow without bound across runs.
+const savedRuns = [];
+
+test.afterEach(async ({ request }) => {
+  while (savedRuns.length > 0) {
+    const savedAt = savedRuns.pop();
+    await request.delete(
+      `/api/eval/runs?savedAt=${encodeURIComponent(savedAt)}`
+    );
+  }
+});
+
+// Clicks "Save run" and returns the saved run's savedAt identifier: the one data-saved-at present
+// after the history refresh that wasn't there before.
+async function saveRun(page) {
+  const rows = page.locator(".run-del-btn");
+  const before = await rows.evaluateAll((els) =>
+    els.map((el) => el.dataset.savedAt)
+  );
+  await page.click("#save-run-btn");
+  await expect(rows).toHaveCount(before.length + 1);
+  const after = await rows.evaluateAll((els) =>
+    els.map((el) => el.dataset.savedAt)
+  );
+  const added = after.filter((s) => !before.includes(s));
+  expect(added).toHaveLength(1);
+  savedRuns.push(added[0]);
+  return added[0];
+}
+
+// The history row (checkbox, score, delete button) for one saved run.
+function runRow(page, savedAt) {
+  return page.locator(
+    `div:has(> button.run-del-btn[data-saved-at="${savedAt}"])`
+  );
+}
+
 test.describe("Analysis Eval", () => {
-  test("the Eval button scores the source's cached analyses", async ({ page }) => {
+  test("the Eval button scores the source's cached analyses", async ({
+    page,
+  }) => {
     await page.goto("/");
     await page.click("#eval-btn");
 
@@ -31,9 +75,9 @@ test.describe("Analysis Eval", () => {
 
     const tc = page.locator("#transcript-container");
     await expect(tc).toContainText("Run history");
-    await page.click("#save-run-btn");
-    // After saving, the history shows a run row (its lowercase "evaluated" is unique to history).
-    await expect(tc).toContainText("evaluated");
+    const savedAt = await saveRun(page);
+    // The just-saved run has its own history row (its lowercase "evaluated" is unique to history).
+    await expect(runRow(page, savedAt)).toContainText("evaluated");
     await expect(tc).not.toContainText("No saved runs yet");
     // A CSV export of the history is now offered.
     await expect(tc.locator("#history-csv-btn")).toBeVisible();
@@ -43,33 +87,25 @@ test.describe("Analysis Eval", () => {
     await page.goto("/");
     await page.click("#eval-btn");
 
-    // Save two runs so there are two rows to compare.
-    await page.click("#save-run-btn");
-    await expect(page.locator("#history-csv-btn")).toBeVisible();
-    await page.click("#save-run-btn");
+    // Save two runs so there are two rows to compare — and tick exactly those two rows, not
+    // whatever happens to sit at the top of a possibly pre-populated history.
+    const first = await saveRun(page);
+    const second = await saveRun(page);
 
-    const boxes = page.locator(".cmp-check");
-    await boxes.nth(1).check();
-    await boxes.nth(0).check();
+    await runRow(page, second).locator(".cmp-check").check();
+    await runRow(page, first).locator(".cmp-check").check();
     await expect(page.locator("#run-compare")).toContainText("Avg score");
   });
 
   test("deleting a saved run removes it from the history", async ({ page }) => {
     await page.goto("/");
     await page.click("#eval-btn");
-    await page.click("#save-run-btn");
-    // Re-open the eval view so the row read below happens on a settled render (not mid-save-refresh,
-    // which would let us read a stale savedAt off a row that's about to be replaced).
-    await expect(page.locator("#history-csv-btn")).toBeVisible();
-    await page.click("#eval-btn");
+    const savedAt = await saveRun(page);
 
-    // Target the newest run specifically (robust to any other saved runs in the shared home).
-    const first = page.locator(".run-del-btn").first();
-    await expect(first).toBeVisible();
-    const savedAt = await first.getAttribute("data-saved-at");
-    await first.click();
-    await expect(
-      page.locator(`.run-del-btn[data-saved-at="${savedAt}"]`)
-    ).toHaveCount(0);
+    // Delete that specific run (robust to any other saved runs in the shared store).
+    const del = page.locator(`.run-del-btn[data-saved-at="${savedAt}"]`);
+    await expect(del).toBeVisible();
+    await del.click();
+    await expect(del).toHaveCount(0);
   });
 });

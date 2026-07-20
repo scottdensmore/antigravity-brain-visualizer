@@ -126,6 +126,36 @@ describe("renderStats", () => {
     expect(chart.innerHTML).toContain("Something failed badly");
   });
 
+  it("makes interactive stat cards keyboard-operable buttons", () => {
+    const steps = [
+      { type: "USER_INPUT", content: "hi", created_at: "2026-06-19T10:00:00Z" },
+      { source: "MODEL", type: "RUN_TOOL", tool_calls: [{ name: "edit" }], created_at: "2026-06-19T10:00:01Z" },
+    ];
+    renderStats(steps);
+
+    const toolsCard = document.getElementById("tools-stat-card");
+    expect(toolsCard.getAttribute("role")).toBe("button");
+    expect(toolsCard.getAttribute("tabindex")).toBe("0");
+    // No errors -> the OUTCOME card is inert and must not claim to be a button.
+    expect(document.getElementById("errors-stat-card").getAttribute("role")).toBeNull();
+
+    // Enter toggles the tools chart open, just like a click.
+    toolsCard.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(document.getElementById("tools-chart").style.display).toBe("block");
+  });
+
+  it("marks the OUTCOME card as a button when there are errors to expand", () => {
+    const steps = [
+      { type: "USER_INPUT", content: "hi", created_at: "2026-06-19T10:00:00Z" },
+      { type: "ERROR_MESSAGE", status: "ERROR", content: "boom", created_at: "2026-06-19T10:00:01Z" },
+    ];
+    renderStats(steps);
+    const card = document.getElementById("errors-stat-card");
+    expect(card.getAttribute("role")).toBe("button");
+    card.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    expect(document.getElementById("errors-chart").style.display).toBe("block");
+  });
+
   it("renders the session timeline chart with a position indicator", () => {
     const steps = [
       { type: "USER_INPUT", content: "q1", created_at: "2026-06-19T10:00:00Z" },

@@ -119,6 +119,46 @@ function buildSessions(configPath) {
       }),
     },
     {
+      // A hostile transcript for the XSS regression spec (security.spec.js): transcript content is
+      // untrusted, and none of these payloads may execute or survive sanitization. Lives under
+      // antigravity-ide (NOT "antigravity", which the first-run-onboarding spec needs empty).
+      source: "antigravity-ide",
+      id: "sess-xss-0001",
+      title: "Hostile transcript",
+      sourceMtime: Date.parse("2026-06-21T08:00:00Z"),
+      raw: jsonl([
+        {
+          type: "USER_INPUT",
+          source: "USER_EXPLICIT",
+          content:
+            "<USER_REQUEST>\nRender this <img src=x onerror=\"window.__xss=1\"> please\n</USER_REQUEST>",
+          created_at: "2026-06-21T08:00:00Z",
+        },
+        {
+          source: "MODEL",
+          type: "PLANNER_RESPONSE",
+          thinking: 'Thinking with <script>window.__xss=2</script> inside.',
+          content:
+            'Done. <script>window.__xss=3</script> And an <img src=x onerror="window.__xss=4"> image.',
+          tool_calls: [
+            {
+              name: '<img src=x onerror="window.__xss=5">',
+              args: { note: "tool name is attacker-controlled too" },
+            },
+          ],
+          created_at: "2026-06-21T08:00:05Z",
+        },
+      ]),
+      summary: JSON.stringify({
+        shortTitle: "Hostile transcript",
+        summary: 'A session whose content contains <script>window.__xss=6</script> markup.',
+        flow: [],
+        agentActions: [],
+        issues: [],
+        recommendations: [],
+      }),
+    },
+    {
       source: "codex",
       id: "rollout-2026-06-20T14-00-00-codexsession",
       sourceMtime: Date.parse("2026-06-20T14:00:00Z"),

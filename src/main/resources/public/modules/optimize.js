@@ -13,15 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { escapeHtml } from "./utils.js";
-
-const FLAVOR_LABELS = {
-  "antigravity-cli": "Antigravity CLI",
-  "antigravity-ide": "Antigravity IDE",
-  antigravity: "Antigravity Agent",
-  codex: "OpenAI Codex",
-  "claude-code": "Claude Code",
-};
+import { escapeHtml, fetchJson, round1, FLAVOR_LABELS } from "./utils.js";
 
 const CHECK_LABELS = {
   "schema-complete": "Has title, summary & flow",
@@ -31,10 +23,6 @@ const CHECK_LABELS = {
   "not-degenerate": "No repetition / Base64 blobs",
   "error-coverage": "Errored runs surface an issue",
 };
-
-function round1(n) {
-  return Math.round((n || 0) * 10) / 10;
-}
 
 function variantColumn(title, v, isWinner) {
   const r = v || {};
@@ -154,13 +142,12 @@ async function runComparison(flavor, container) {
   }
   if (runBtn) runBtn.disabled = true;
   try {
-    const res = await fetch("/api/optimize", {
+    const report = await fetchJson("/api/optimize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ flavor, sampleSize, instructionA, instructionB }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    if (results) results.innerHTML = renderOptimizeResults(await res.json());
+    if (results) results.innerHTML = renderOptimizeResults(report);
   } catch (e) {
     if (results) {
       results.innerHTML = `<div class="stat-sub" style="margin-top:16px; color:red;">Comparison failed.</div>`;
@@ -177,8 +164,7 @@ export async function showOptimize(flavor) {
     '<div class="loading-state" style="text-align:center; padding:40px; color:#94a3b8;">Loading the prompt lab…</div>';
   let def = { instruction: "", maxSample: 5 };
   try {
-    const res = await fetch("/api/optimize");
-    if (res.ok) def = await res.json();
+    def = await fetchJson("/api/optimize");
   } catch (e) {
     // Fall back to empty editors.
   }
