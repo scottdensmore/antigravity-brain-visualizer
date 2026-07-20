@@ -1,0 +1,5 @@
+Yes lets push and open a PR
+
+---
+
+Ok I updated the default repo to mine. Also I see that mise said I need go 1.23. Should we update to the latest go for the command line

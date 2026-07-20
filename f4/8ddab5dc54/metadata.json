@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "f48ddab5dc54",
+  "strategy": "manual-commit",
+  "branch": "security-and-reliability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "mise.toml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/8ddab5dc54/0/metadata.json",
+      "transcript": "/f4/8ddab5dc54/0/full.jsonl",
+      "compact_transcript": "/f4/8ddab5dc54/0/transcript.jsonl",
+      "content_hash": "/f4/8ddab5dc54/0/content_hash.txt",
+      "prompt": "/f4/8ddab5dc54/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1840,
+    "cache_creation_tokens": 580885,
+    "cache_read_tokens": 22651345,
+    "output_tokens": 111526,
+    "api_call_count": 130
+  }
+}
